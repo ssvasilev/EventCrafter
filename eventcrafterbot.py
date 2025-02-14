@@ -10,13 +10,12 @@ from telegram.ext import (
 )
 import logging
 from datetime import datetime
-from dotenv import load_dotenv  # Импортируем load_dotenv
-import os  # Импортируем os для работы с переменными окружения
-from database import init_db, add_event, get_event, update_event, \
-    update_message_id  # Импортируем функции для работы с базой данных
+from dotenv import load_dotenv
+import os
+from data.database import init_db, add_event, get_event, update_event, update_message_id
 
 # Загружаем переменные окружения из .env
-load_dotenv()
+load_dotenv("data/.env")  # Указываем путь к .env
 
 # Получаем токен бота из переменной окружения
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -33,11 +32,12 @@ logger = logging.getLogger(__name__)
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 
 # Инициализация базы данных
-init_db()
+init_db("data/events.db")  # Указываем путь к базе данных
 
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["db_path"] = "data/events.db"  # Укажите правильный путь
     keyboard = [
         [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")]
     ]
@@ -122,8 +122,12 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Сохраняем chat_id
         context.user_data["chat_id"] = update.message.chat_id
 
+        # Получаем путь к базе данных (с значением по умолчанию)
+        db_path = context.user_data.get("db_path", "data/events.db")
+
         # Создаём мероприятие в базе данных
         event_id = add_event(
+            db_path=db_path,  # Передаём путь к базе данных
             description=context.user_data["description"],
             date=context.user_data["date"].strftime("%Y-%m-%d"),
             time=context.user_data["time"].strftime("%H:%M"),
@@ -141,8 +145,14 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Отправка сообщения с информацией о мероприятии
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
-    event = get_event(event_id)
+    # Получаем путь к базе данных
+    db_path = context.user_data.get("db_path", "data/events.db")
+    logger.info(f"Используемый путь к базе данных: {db_path}")
+
+    # Получаем данные о мероприятии
+    event = get_event(db_path, event_id)  # Передаём db_path и event_id
     if not event:
+        logger.error(f"Мероприятие с ID {event_id} не найдено.")
         return
 
     participants = "\n".join(event["participants"]) if event["participants"] else "Пока никто не участвует."
@@ -155,34 +165,32 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     message_text = (
-        f"📢 *{event['description']}*\n"
-        f"📅 *Дата:* {event['date']}\n"
-        f"🕒 *Время:* {event['time']}\n"
-        f"👥 *Лимит участников:* {event['limit']}\n\n"
-        f"✅ *Участники:*\n{participants}\n\n"
-        f"⏳ *Резерв:*\n{reserve}"
+        f"Мероприятие: {event['description']}\n"
+        f"Дата: {event['date']}\n"
+        f"Время: {event['time']}\n"
+        f"Лимит участников: {event['limit']}\n\n"
+        f"Участники:\n{participants}\n\n"
+        f"Резерв:\n{reserve}"
     )
 
-    chat_id = context.user_data.get("chat_id")
-
-    if event["message_id"]:
-        # Редактируем существующее сообщение
+    if event.get("message_id"):  # Если message_id существует, редактируем сообщение
+        logger.info(f"Редактируем сообщение с ID {event['message_id']}")
         await context.bot.edit_message_text(
-            chat_id=chat_id,
+            chat_id=context.user_data.get("chat_id"),
             message_id=event["message_id"],
             text=message_text,
             reply_markup=reply_markup,
-            parse_mode="Markdown"
         )
-    else:
-        # Отправляем новое сообщение и сохраняем его message_id
+    else:  # Если message_id отсутствует, отправляем новое сообщение
+        logger.info("Отправляем новое сообщение.")
         message = await context.bot.send_message(
-            chat_id=chat_id,
+            chat_id=context.user_data.get("chat_id"),
             text=message_text,
             reply_markup=reply_markup,
-            parse_mode="Markdown"
         )
-        update_message_id(event_id, message.message_id)
+        # Сохраняем message_id в базе данных
+        logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
+        update_message_id(db_path, event_id, message.message_id)
 
 
 # Обработка нажатий на кнопки
@@ -192,13 +200,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     action, event_id = data.split("_")
-    event = get_event(event_id)
+
+    # Получаем путь к базе данных
+    db_path = context.user_data.get("db_path", "data/events.db")
+
+    # Получаем данные о мероприятии
+    event = get_event(db_path, event_id)  # Передаём db_path и event_id
 
     if not event:
         await query.answer("Мероприятие не найдено.")
         return
 
-    user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
+    user_name = user.first_name
 
     if action == "join":
         if user_name in event["participants"] or user_name in event["reserve"]:
@@ -216,8 +229,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if event["reserve"]:
                 new_participant = event["reserve"].pop(0)
                 event["participants"].append(new_participant)
-                await query.answer(
-                    f"{user_name}, вы удалены из списка участников. {new_participant} добавлен из резерва.")
+                await query.answer(f"{user_name}, вы удалены из списка участников. {new_participant} добавлен из резерва.")
             else:
                 await query.answer(f"{user_name}, вы удалены из списка участников.")
         elif user_name in event["reserve"]:
@@ -227,8 +239,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("Вас нет в списке участников или резерва.")
 
     # Обновляем мероприятие в базе данных
-    update_event(event_id, event["participants"], event["reserve"])
+    update_event(db_path, event_id, event["participants"], event["reserve"])
 
+    # Отправляем или редактируем сообщение
     await send_event_message(event_id, context)
 
 
