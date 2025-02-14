@@ -31,13 +31,16 @@ logger = logging.getLogger(__name__)
 # Состояния для ConversationHandler
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 
+# Глобальная переменная для пути к базе данных
+DB_PATH = "data/events.db"
+
 # Инициализация базы данных
-init_db("data/events.db")  # Указываем путь к базе данных
+init_db(DB_PATH)  # Указываем путь к базе данных
 
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["db_path"] = "data/events.db"  # Укажите правильный путь
+    #context.user_data["db_path"] = "data/events.db"
     keyboard = [
         [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")]
     ]
@@ -123,7 +126,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["chat_id"] = update.message.chat_id
 
         # Получаем путь к базе данных (с значением по умолчанию)
-        db_path = context.user_data.get("db_path", "data/events.db")
+        db_path = context.bot_data["db_path"]
 
         # Создаём мероприятие в базе данных
         event_id = add_event(
@@ -146,8 +149,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Отправка сообщения с информацией о мероприятии
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
     # Получаем путь к базе данных
-    db_path = context.user_data.get("db_path", "data/events.db")
-    logger.info(f"Используемый путь к базе данных: {db_path}")
+    db_path = context.bot_data["db_path"]
 
     # Получаем данные о мероприятии
     event = get_event(db_path, event_id)  # Передаём db_path и event_id
@@ -202,7 +204,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action, event_id = data.split("_")
 
     # Получаем путь к базе данных
-    db_path = context.user_data.get("db_path", "data/events.db")
+    db_path = context.bot_data["db_path"]
 
     # Получаем данные о мероприятии
     event = get_event(db_path, event_id)  # Передаём db_path и event_id
@@ -255,6 +257,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     # Создаём приложение и передаём токен
     application = Application.builder().token(BOT_TOKEN).build()
+
+    # Сохраняем путь к базе данных в context.bot_data
+    application.bot_data["db_path"] = DB_PATH
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
