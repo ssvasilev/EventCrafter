@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Error
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -139,7 +139,8 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Мероприятие создано!")
 
         # Отправляем сообщение с информацией о мероприятии
-        await send_event_message(event_id, context)
+        chat_id = update.effective_chat.id
+        await send_event_message(event_id, context, chat_id)
 
         return ConversationHandler.END
     except ValueError:
@@ -148,9 +149,9 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # Отправка сообщения с информацией о мероприятии
-async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
-    # Получаем chat_id из context.user_data
-    chat_id = context.user_data.get("chat_id")
+async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id):
+    # Получаем chat_id
+    # chat_id = update.effective_chat.id if update.effective_chat else None
     if not chat_id:
         logger.error("chat_id не найден в context.user_data")
         return
@@ -185,15 +186,19 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
         f"⏳ _Резерв:_\n{reserve}"
     )
 
-    if event.get("message_id"):  # Если message_id существует, редактируем сообщение
-        logger.info(f"Редактируем сообщение с ID {event['message_id']}")
-        await context.bot.edit_message_text(
-            chat_id=chat_id,  # Используем chat_id из context.user_data
-            message_id=event["message_id"],
-            text=message_text,
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
+    if event.get("message_id"):
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=event["message_id"],
+                text=message_text,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+            logger.info(f"Редактируем сообщение с ID {event['message_id']}")
+        except telegram.error.BadRequest as e:
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
+
     else:  # Если message_id отсутствует, отправляем новое сообщение
         logger.info("Отправляем новое сообщение.")
         message = await context.bot.send_message(
@@ -210,6 +215,8 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    chat_id = query.message.chat_id  # Получаем chat_id из query.message
+
     user = query.from_user
     data = query.data
 
@@ -257,8 +264,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_event(db_path, event_id, event["participants"], event["reserve"])
 
     # Отправляем или редактируем сообщение
-    await send_event_message(event_id, context)
-
+    await send_event_message(event_id, context, chat_id)
 
 # Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
