@@ -308,6 +308,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Редактирование мероприятия
 async def edit_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info("edit_event triggered")
     event_id = context.user_data.get("event_id")
     if not event_id:
         await update.message.reply_text("Ошибка: ID мероприятия не найден.")
@@ -353,6 +354,7 @@ def main():
             EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_event)],  # Добавлено состояние EDIT_EVENT
         },
         fallbacks=[CommandHandler("cancel", cancel)],
+        conversation_timeout=timedelta(minutes=5)
     )
     application.add_handler(conv_handler)
     # Регистрируем обработчик нажатий на кнопки
