@@ -107,7 +107,7 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         time = datetime.strptime(time_text, "%H:%M").time()
         context.user_data["time"] = time
-        await update.message.reply_text("Введите лимит участников (число):")
+        await update.message.reply_text("Введите количество участников (0 - неограниченное):")
         return SET_LIMIT
     except ValueError:
         await update.message.reply_text("Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:")
@@ -119,7 +119,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     limit_text = update.message.text
     try:
         limit = int(limit_text)
-        if limit <= 0:
+        if limit < 0:
             raise ValueError
 
         # Сохраняем chat_id
@@ -132,9 +132,9 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         event_id = add_event(
             db_path=db_path,  # Передаём путь к базе данных
             description=context.user_data["description"],
-            date=context.user_data["date"].strftime("%Y-%m-%d"),
+            date=context.user_data["date"].strftime("%d-%m-%Y"),
             time=context.user_data["time"].strftime("%H:%M"),
-            limit=limit,
+            limit=limit if limit != 0 else None,  # Если лимит равен 0, сохраняем как None (бесконечный лимит)
         )
 
         await update.message.reply_text("Мероприятие создано!")
@@ -142,7 +142,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return ConversationHandler.END
     except ValueError:
-        await update.message.reply_text("Неверный формат лимита. Введите положительное число:")
+        await update.message.reply_text("Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:")
         return SET_LIMIT
 
 
@@ -160,6 +160,9 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
     participants = "\n".join(event["participants"]) if event["participants"] else "Пока никто не участвует."
     reserve = "\n".join(event["reserve"]) if event["reserve"] else "Резерв пуст."
 
+    # Отображаем лимит участников
+    limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
+
     keyboard = [
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join_{event_id}")],
         [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave_{event_id}")],
@@ -167,12 +170,12 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     message_text = (
-        f"Мероприятие: {event['description']}\n"
-        f"Дата: {event['date']}\n"
-        f"Время: {event['time']}\n"
-        f"Лимит участников: {event['limit']}\n\n"
-        f"Участники:\n{participants}\n\n"
-        f"Резерв:\n{reserve}"
+        f"📢 *{event['description']}*\n"
+        f"📅 _Дата:_ {event['date']}\n"
+        f"🕒 _Время:_ {event['time']}\n"
+        f"👥 _Лимит участников:_ {limit_text}\n\n"
+        f"✅ _Участники:_\n{participants}\n\n"
+        f"⏳ _Резерв:_\n{reserve}"
     )
 
     if event.get("message_id"):  # Если message_id существует, редактируем сообщение
@@ -182,6 +185,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
             message_id=event["message_id"],
             text=message_text,
             reply_markup=reply_markup,
+            parse_mode="Markdown"
         )
     else:  # Если message_id отсутствует, отправляем новое сообщение
         logger.info("Отправляем новое сообщение.")
@@ -189,6 +193,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
             chat_id=context.user_data.get("chat_id"),
             text=message_text,
             reply_markup=reply_markup,
+            parse_mode="Markdown"
         )
         # Сохраняем message_id в базе данных
         logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
@@ -213,13 +218,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("Мероприятие не найдено.")
         return
 
-    user_name = user.first_name
+    user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
 
     if action == "join":
         if user_name in event["participants"] or user_name in event["reserve"]:
             await query.answer("Вы уже в списке участников или резерва.")
         else:
-            if len(event["participants"]) < event["limit"]:
+            # Если лимит равен None (бесконечный) или количество участников меньше лимита
+            if event["limit"] is None or len(event["participants"]) < event["limit"]:
                 event["participants"].append(user_name)
                 await query.answer(f"{user_name}, вы добавлены в список участников!")
             else:
