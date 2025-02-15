@@ -184,7 +184,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
             message_id=event["message_id"],
             text=message_text,
             reply_markup=reply_markup,
-            parse_mode="Markdown"
+            parse_mode="MarkdownV2"
         )
     else:  # Если message_id отсутствует, отправляем новое сообщение
         logger.info("Отправляем новое сообщение.")
@@ -192,7 +192,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
             chat_id=context.user_data.get("chat_id"),
             text=message_text,
             reply_markup=reply_markup,
-            parse_mode="Markdown"
+            parse_mode="MarkdownV2"
         )
         # Сохраняем message_id в базе данных
         logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
