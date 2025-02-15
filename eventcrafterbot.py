@@ -237,8 +237,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         except Exception as e:
             logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
-
-# Обработка нажатий на кнопки
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -295,12 +293,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "edit":
         await query.answer("Редактирование мероприятия.")
         context.user_data["event_id"] = event_id  # Сохраняем event_id
-        logger.info(f"Обработка действия: {action}, event_id: {event_id}")
-        logger.info(f"Текущее состояние: {context.user_data}")
         await query.edit_message_text("Введите новое описание мероприятия:")
+        logger.info(f"Переход в состояние EDIT_EVENT")  # Логирование
         return EDIT_EVENT  # Возвращаем состояние EDIT_EVENT
-        logger.info(f"Обработка действия: {action}, event_id: {event_id}")
-        logger.info(f"Текущее состояние: {context.user_data}")
 
     # Обработка действия "Удалить"
     elif action == "delete":
