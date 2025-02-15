@@ -172,8 +172,8 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
 
     keyboard = [
-        [InlineKeyboardButton("✅ Участвую", callback_data=f"join_{event_id}")],
-        [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave_{event_id}")],
+        [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
+        [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -220,7 +220,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     data = query.data
 
-    action, event_id = data.split("_")
+    action, event_id = data.split("|")
 
     # Получаем путь к базе данных
     db_path = context.bot_data["db_path"]
@@ -232,8 +232,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("Мероприятие не найдено.")
         return
 
-    #user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
-    user_name = f"{user.first_name}"
+    user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
 
 
     if action == "join":
