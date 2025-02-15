@@ -12,8 +12,7 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import os
-from data.database import init_db, add_event, get_event, update_event, update_message_id, update_event_description, \
-    delete_event
+from data.database import init_db, add_event, get_event, update_event, update_message_id, update_event_description, delete_event
 from datetime import datetime, timedelta
 
 # Загружаем переменные окружения из .env
@@ -40,7 +39,6 @@ DB_PATH = "../data/events.db"
 # Инициализация базы данных
 init_db(DB_PATH)  # Указываем путь к базе данных
 
-
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -53,15 +51,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
     )
 
-
 # Обработка упоминания бота
 async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.entities:
         return
 
     for entity in update.message.entities:
-        if entity.type == "mention" and update.message.text[
-                                        entity.offset:entity.offset + entity.length] == f"@{context.bot.username}":
+        if entity.type == "mention" and update.message.text[entity.offset:entity.offset + entity.length] == f"@{context.bot.username}":
             keyboard = [
                 [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")]
             ]
@@ -72,7 +68,6 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup,
             )
             break
-
 
 # Обработка нажатия на кнопку "Создать мероприятие"
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -85,13 +80,11 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text("Введите описание мероприятия:")
     return SET_DESCRIPTION
 
-
 # Обработка ввода описания мероприятия
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["description"] = update.message.text
     await update.message.reply_text("Введите дату мероприятия в формате ДД.ММ.ГГГГ:")
     return SET_DATE
-
 
 # Обработка ввода даты мероприятия
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -105,7 +98,6 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:")
         return SET_DATE
 
-
 # Обработка ввода времени мероприятия
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     time_text = update.message.text
@@ -117,7 +109,6 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:")
         return SET_TIME
-
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -151,7 +142,6 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:")
         return SET_LIMIT
 
-
 def time_until_event(event_date: str, event_time: str) -> str:
     event_datetime = datetime.strptime(f"{event_date} {event_time}", "%d-%m-%Y %H:%M")
     now = datetime.now()
@@ -163,7 +153,6 @@ def time_until_event(event_date: str, event_time: str) -> str:
         return f"{days} дней, {hours} часов, {minutes} минут"
     else:
         return "Мероприятие уже прошло."
-
 
 # Отправка сообщения с информацией о мероприятии
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
@@ -312,12 +301,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id  # Берем chat_id из сообщения
     await send_event_message(event_id, context, chat_id)
 
-
 # Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Создание мероприятия отменено.")
     return ConversationHandler.END
-
 
 # Редактирование мероприятия
 async def edit_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -341,7 +328,6 @@ async def edit_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Завершаем диалог
     return ConversationHandler.END
 
-
 # Основная функция
 def main():
     # Создаём приложение и передаём токен
@@ -364,7 +350,7 @@ def main():
             SET_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_date)],
             SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
             SET_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit)],
-            EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_description)],  # Добавлено состояние EDIT_EVENT
+            EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_event)],  # Добавлено состояние EDIT_EVENT
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
@@ -375,7 +361,6 @@ def main():
 
     # Запускаем бота
     application.run_polling()
-
 
 if __name__ == "__main__":
     main()
