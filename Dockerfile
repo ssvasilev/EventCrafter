@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y git
 
 # Клонируем репозиторий
 RUN git clone https://github.com/ssvasilev/EventCrafter.git /app
+RUN ls -R /app  # Проверка структуры файлов
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
