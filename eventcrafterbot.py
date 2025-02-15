@@ -15,10 +15,10 @@ import os
 from data.database import init_db, add_event, get_event, update_event, update_message_id
 
 # Загружаем переменные окружения из .env
-load_dotenv("data/.env")  # Указываем путь к .env
+load_dotenv("app/data/.env")  # Указываем путь к .env
 
 # Получаем токен бота из переменной окружения
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 # Проверяем, что токен загружен
 if not BOT_TOKEN:
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 
 # Глобальная переменная для пути к базе данных
-DB_PATH = "data/events.db"
+DB_PATH = "app/data/events.db"
 
 # Инициализация базы данных
 init_db(DB_PATH)  # Указываем путь к базе данных
@@ -40,7 +40,6 @@ init_db(DB_PATH)  # Указываем путь к базе данных
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    #context.user_data["db_path"] = "data/events.db"
     keyboard = [
         [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")]
     ]
