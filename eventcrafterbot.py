@@ -15,7 +15,7 @@ import os
 from data.database import init_db, add_event, get_event, update_event, update_message_id
 
 # Загружаем переменные окружения из .env
-load_dotenv("app/data/.env")  # Указываем путь к .env
+load_dotenv("data/.env")  # Указываем путь к .env
 
 # Получаем токен бота из переменной окружения
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 
 # Глобальная переменная для пути к базе данных
-DB_PATH = "app/data/events.db"
+DB_PATH = "data/events.db"
 
 # Инициализация базы данных
 init_db(DB_PATH)  # Указываем путь к базе данных
@@ -184,7 +184,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
             message_id=event["message_id"],
             text=message_text,
             reply_markup=reply_markup,
-            parse_mode="MarkdownV2"
+            parse_mode="Markdown"
         )
     else:  # Если message_id отсутствует, отправляем новое сообщение
         logger.info("Отправляем новое сообщение.")
@@ -192,7 +192,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
             chat_id=context.user_data.get("chat_id"),
             text=message_text,
             reply_markup=reply_markup,
-            parse_mode="MarkdownV2"
+            parse_mode="Markdown"
         )
         # Сохраняем message_id в базе данных
         logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
