@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 
 # Глобальная переменная для пути к базе данных
-DB_PATH = "data/events.db"
+DB_PATH = "../data/events.db"
 
 # Инициализация базы данных
 init_db(DB_PATH)  # Указываем путь к базе данных
