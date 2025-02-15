@@ -151,25 +151,18 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Отправка сообщения с информацией о мероприятии
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
-    # Получаем chat_id
-    # chat_id = update.effective_chat.id if update.effective_chat else None
     if not chat_id:
         logger.error("chat_id не найден в send_event_message()")
         return
 
-    # Получаем путь к базе данных
     db_path = context.bot_data.get("db_path", DB_PATH)
-
-    # Получаем данные о мероприятии
-    event = get_event(db_path, event_id)  # Передаём db_path и event_id
+    event = get_event(db_path, event_id)
     if not event:
         logger.error(f"Мероприятие с ID {event_id} не найдено.")
         return
 
     participants = "\n".join(event["participants"]) if event["participants"] else "Пока никто не участвует."
     reserve = "\n".join(event["reserve"]) if event["reserve"] else "Резерв пуст."
-
-    # Отображаем лимит участников
     limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
 
     keyboard = [
@@ -200,15 +193,14 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         except error.BadRequest as e:
             logger.error(f"Ошибка при редактировании сообщения: {e}")
 
-    else:  # Если message_id отсутствует, отправляем новое сообщение
+    else:
         logger.info("Отправляем новое сообщение.")
         message = await context.bot.send_message(
-            chat_id=chat_id,  # Используем chat_id из context.user_data
+            chat_id=chat_id,
             text=message_text,
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
-        # Сохраняем message_id в базе данных
         logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
         update_message_id(db_path, event_id, message.message_id)
 
@@ -218,8 +210,10 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
         except error.BadRequest as e:
             logger.error(f"Ошибка при закреплении сообщения: {e}")
+            logger.error(f"Проверьте, что чат {chat_id} является группой или каналом.")
         except error.Forbidden as e:
             logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+            logger.error(f"Убедитесь, что бот является администратором и имеет права на закрепление.")
         except Exception as e:
             logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
