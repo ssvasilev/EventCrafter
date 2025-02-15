@@ -238,7 +238,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
 # Обработка нажатий на кнопки
-# Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
@@ -365,7 +364,7 @@ def main():
             SET_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_date)],
             SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
             SET_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit)],
-            EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_event)],  # Добавлено состояние EDIT_EVENT
+            EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_description)],  # Добавлено состояние EDIT_EVENT
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
