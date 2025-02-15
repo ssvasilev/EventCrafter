@@ -16,7 +16,6 @@ from data.database import init_db, add_event, get_event, update_event, update_me
     delete_event
 from datetime import datetime, timedelta
 
-# ToDo убрать это
 # Загружаем переменные окружения из .env
 load_dotenv("data/.env")  # Указываем путь к .env
 
@@ -33,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 # Состояния для ConversationHandler
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
-
 EDIT_EVENT, DELETE_EVENT = range(5, 7)
 
 # Глобальная переменная для пути к базе данных
@@ -243,13 +241,10 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    # chat_id = query.message.chat_id  # Получаем chat_id из query.message
-
     user = query.from_user
     data = query.data
 
     action, event_id = data.split("|")
-    # action, event_id = data.split("|", maxsplit=1)
 
     # Получаем путь к базе данных
     db_path = context.bot_data["db_path"]
@@ -292,7 +287,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "edit":
         await query.answer("Редактирование мероприятия.")
-        context.user_data["event_id"] = event_id
+        context.user_data["event_id"] = event_id  # Сохраняем event_id
         await query.edit_message_text("Введите новое описание мероприятия:")
         return EDIT_EVENT
     elif action == "delete":
@@ -300,7 +295,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Удаляем мероприятие из базы данных
         delete_event(db_path, event_id)
         await query.edit_message_text("Мероприятие удалено.")
-        return ConversationHandler.END
+        return ConversationHandler.END  # Завершаем диалог
 
     # Обновляем мероприятие в базе данных
     update_event(db_path, event_id, event["participants"], event["reserve"])
@@ -316,12 +311,23 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+# Редактирование мероприятия
 async def edit_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    event_id = context.user_data["event_id"]
+    event_id = context.user_data.get("event_id")
+    if not event_id:
+        await update.message.reply_text("Ошибка: ID мероприятия не найден.")
+        return ConversationHandler.END
+
     new_description = update.message.text
     db_path = context.bot_data["db_path"]
+
+    # Обновляем описание мероприятия в базе данных
     update_event_description(db_path, event_id, new_description)
-    await update.message.reply_text("Описание мероприятия обновлено.")
+
+    # Отправляем подтверждение
+    await update.message.reply_text("Описание мероприятия обновлено!")
+
+    # Завершаем диалог
     return ConversationHandler.END
 
 
@@ -339,7 +345,7 @@ def main():
     # Регистрируем обработчик упоминаний
     application.add_handler(MessageHandler(filters.Entity("mention"), mention_handler))
 
-    # ConversationHandler для создания мероприятия
+    # ConversationHandler для создания и редактирования мероприятия
     conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],
         states={
@@ -347,7 +353,7 @@ def main():
             SET_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_date)],
             SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
             SET_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit)],
-            EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_event)],
+            EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_event)],  # Добавлено состояние EDIT_EVENT
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
