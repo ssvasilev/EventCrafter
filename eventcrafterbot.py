@@ -295,8 +295,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "edit":
         await query.answer("Редактирование мероприятия.")
         context.user_data["event_id"] = event_id  # Сохраняем event_id
+        logger.info(f"Обработка действия: {action}, event_id: {event_id}")
+        logger.info(f"Текущее состояние: {context.user_data}")
         await query.edit_message_text("Введите новое описание мероприятия:")
         return EDIT_EVENT  # Возвращаем состояние EDIT_EVENT
+        logger.info(f"Обработка действия: {action}, event_id: {event_id}")
+        logger.info(f"Текущее состояние: {context.user_data}")
 
     # Обработка действия "Удалить"
     elif action == "delete":
