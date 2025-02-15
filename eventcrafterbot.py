@@ -239,11 +239,13 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 
 
 # Обработка нажатий на кнопки
+# Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
     data = query.data
 
+    # Разделяем action и event_id
     action, event_id = data.split("|")
 
     # Получаем путь к базе данных
@@ -256,8 +258,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("Мероприятие не найдено.")
         return
 
+    # Формируем имя пользователя
     user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
 
+    # Обработка действия "Участвовать"
     if action == "join":
         if user_name in event["participants"] or user_name in event["reserve"]:
             await query.answer("Вы уже в списке участников или резерва.")
@@ -269,6 +273,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 event["reserve"].append(user_name)
                 await query.answer(f"{user_name}, вы добавлены в резерв.")
+
+    # Обработка действия "Не участвовать"
     elif action == "leave":
         if user_name in event["participants"]:
             event["participants"].remove(user_name)
@@ -285,11 +291,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("Вас нет в списке участников или резерва.")
 
+    # Обработка действия "Редактировать"
     elif action == "edit":
         await query.answer("Редактирование мероприятия.")
         context.user_data["event_id"] = event_id  # Сохраняем event_id
         await query.edit_message_text("Введите новое описание мероприятия:")
-        return EDIT_EVENT
+        return EDIT_EVENT  # Возвращаем состояние EDIT_EVENT
+
+    # Обработка действия "Удалить"
     elif action == "delete":
         await query.answer("Мероприятие удалено.")
         # Удаляем мероприятие из базы данных
@@ -297,10 +306,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Мероприятие удалено.")
         return ConversationHandler.END  # Завершаем диалог
 
-    # Обновляем мероприятие в базе данных
+    # Обновляем мероприятие в базе данных (для действий "Участвовать" и "Не участвовать")
     update_event(db_path, event_id, event["participants"], event["reserve"])
 
-    # Отправляем или редактируем сообщение
+    # Отправляем или редактируем сообщение с обновленной информацией
     chat_id = query.message.chat_id  # Берем chat_id из сообщения
     await send_event_message(event_id, context, chat_id)
 
@@ -320,6 +329,9 @@ async def edit_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     new_description = update.message.text
     db_path = context.bot_data["db_path"]
+
+    # Логирование
+    logger.info(f"Редактирование мероприятия {event_id}. Новое описание: {new_description}")
 
     # Обновляем описание мероприятия в базе данных
     update_event_description(db_path, event_id, new_description)
