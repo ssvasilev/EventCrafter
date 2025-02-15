@@ -76,6 +76,9 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
 
+    # Сохраняем chat_id в context.user_data
+    context.user_data["chat_id"] = query.message.chat_id
+
     await query.edit_message_text("Введите описание мероприятия:")
     return SET_DESCRIPTION
 
@@ -121,9 +124,6 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if limit < 0:
             raise ValueError
 
-        # Сохраняем chat_id
-        context.user_data["chat_id"] = update.message.chat_id
-
         # Получаем путь к базе данных (с значением по умолчанию)
         db_path = context.bot_data["db_path"]
 
@@ -137,6 +137,8 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         await update.message.reply_text("Мероприятие создано!")
+
+        # Отправляем сообщение с информацией о мероприятии
         await send_event_message(event_id, context)
 
         return ConversationHandler.END
@@ -147,6 +149,12 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Отправка сообщения с информацией о мероприятии
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
+    # Получаем chat_id из context.user_data
+    chat_id = context.user_data.get("chat_id")
+    if not chat_id:
+        logger.error("chat_id не найден в context.user_data")
+        return
+
     # Получаем путь к базе данных
     db_path = context.bot_data["db_path"]
 
@@ -180,7 +188,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
     if event.get("message_id"):  # Если message_id существует, редактируем сообщение
         logger.info(f"Редактируем сообщение с ID {event['message_id']}")
         await context.bot.edit_message_text(
-            chat_id=context.user_data.get("chat_id"),
+            chat_id=chat_id,  # Используем chat_id из context.user_data
             message_id=event["message_id"],
             text=message_text,
             reply_markup=reply_markup,
@@ -189,7 +197,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE):
     else:  # Если message_id отсутствует, отправляем новое сообщение
         logger.info("Отправляем новое сообщение.")
         message = await context.bot.send_message(
-            chat_id=context.user_data.get("chat_id"),
+            chat_id=chat_id,  # Используем chat_id из context.user_data
             text=message_text,
             reply_markup=reply_markup,
             parse_mode="Markdown"
