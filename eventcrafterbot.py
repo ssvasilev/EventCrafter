@@ -355,9 +355,8 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     application.add_handler(conv_handler)
-
     # Регистрируем обработчик нажатий на кнопки
-    application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(CallbackQueryHandler(button_handler))  # Внешние кнопки
 
     # Запускаем бота
     application.run_polling()
