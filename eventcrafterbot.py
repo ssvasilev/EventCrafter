@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, error
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -139,7 +139,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Мероприятие создано!")
 
         # Отправляем сообщение с информацией о мероприятии
-        chat_id = update.effective_chat.id
+        chat_id = update.message.chat_id
         await send_event_message(event_id, context, chat_id)
 
         return ConversationHandler.END
@@ -149,15 +149,15 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # Отправка сообщения с информацией о мероприятии
-async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id):
+async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
     # Получаем chat_id
     # chat_id = update.effective_chat.id if update.effective_chat else None
     if not chat_id:
-        logger.error("chat_id не найден в context.user_data")
+        logger.error("chat_id не найден в send_event_message()")
         return
 
     # Получаем путь к базе данных
-    db_path = context.bot_data["db_path"]
+    db_path = context.bot_data.get("db_path", DB_PATH)
 
     # Получаем данные о мероприятии
     event = get_event(db_path, event_id)  # Передаём db_path и event_id
@@ -196,7 +196,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
                 parse_mode="Markdown"
             )
             logger.info(f"Редактируем сообщение с ID {event['message_id']}")
-        except telegram.error.BadRequest as e:
+        except error.BadRequest as e:
             logger.error(f"Ошибка при редактировании сообщения: {e}")
 
     else:  # Если message_id отсутствует, отправляем новое сообщение
@@ -264,6 +264,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_event(db_path, event_id, event["participants"], event["reserve"])
 
     # Отправляем или редактируем сообщение
+    chat_id = query.message.chat_id  # Берем chat_id из сообщения
     await send_event_message(event_id, context, chat_id)
 
 # Отмена создания мероприятия
