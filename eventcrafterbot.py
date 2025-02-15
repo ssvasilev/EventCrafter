@@ -238,6 +238,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
 # Обработка нажатий на кнопки
+# Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
