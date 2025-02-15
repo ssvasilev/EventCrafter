@@ -178,12 +178,12 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     message_text = (
-        f"📢 *{event['description']}*\n"
-        f"📅 _Дата:_ {event['date']}\n"
-        f"🕒 _Время:_ {event['time']}\n"
-        f"👥 _Лимит участников:_ {limit_text}\n\n"
-        f"✅ _Участники:_\n{participants}\n\n"
-        f"⏳ _Резерв:_\n{reserve}"
+        f"📢 <b>{event['description']}</b>\n"
+        f"📅 <i>Дата:</i> {event['date']}\n"
+        f"🕒 <i>Время:</i> {event['time']}\n"
+        f"👥 <i>Лимит участников:</i> {limit_text}\n\n"
+        f"✅ <i>Участники:</i>\n{participants}\n\n"
+        f"⏳ <i>Резерв:</i>\n{reserve}"
     )
 
     if event.get("message_id"):
@@ -193,7 +193,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
                 message_id=event["message_id"],
                 text=message_text,
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
             logger.info(f"Редактируем сообщение с ID {event['message_id']}")
         except error.BadRequest as e:
@@ -205,7 +205,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             chat_id=chat_id,  # Используем chat_id из context.user_data
             text=message_text,
             reply_markup=reply_markup,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         # Сохраняем message_id в базе данных
         logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
