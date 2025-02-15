@@ -136,3 +136,17 @@ def update_message_id(db_path, event_id, message_id):
     """, (message_id, event_id))
     conn.commit()
     conn.close()
+
+def update_event_description(db_path: str, event_id: int, new_description: str):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE events SET description = ? WHERE id = ?", (new_description, event_id))
+    conn.commit()
+    conn.close()
+
+def delete_event(db_path: str, event_id: int):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
+    conn.commit()
+    conn.close()
