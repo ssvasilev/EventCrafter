@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import os
 from data.database import init_db, add_event, get_event, update_event, update_message_id
 
+#ToDo убрать это
 # Загружаем переменные окружения из .env
 load_dotenv("data/.env")  # Указываем путь к .env
 
@@ -211,6 +212,16 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
         update_message_id(db_path, event_id, message.message_id)
 
+        # Пытаемся закрепить сообщение
+        try:
+            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
+            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
+        except error.BadRequest as e:
+            logger.error(f"Ошибка при закреплении сообщения: {e}")
+        except error.Forbidden as e:
+            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -221,6 +232,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     action, event_id = data.split("|")
+    #action, event_id = data.split("|", maxsplit=1)
 
     # Получаем путь к базе данных
     db_path = context.bot_data["db_path"]
