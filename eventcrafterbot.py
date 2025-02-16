@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 EDIT_EVENT, DELETE_EVENT = range(5, 7)
 GET_EVENT_ID, GET_NEW_DESCRIPTION = range(7, 9)  # Новые состояния для команды /edit_event
+EDIT_DESCRIPTION, EDIT_DATE, EDIT_TIME, EDIT_LIMIT = range(10, 14)
 
 # Глобальная переменная для пути к базе данных
 DB_PATH = "../data/events.db"
@@ -227,6 +228,146 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         except Exception as e:
             logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
+# Обработка нажатия на кнопку "Редактировать"
+async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    # Сохраняем event_id в context.user_data
+    event_id = query.data.split("|")[1]
+    context.user_data["event_id"] = event_id
+
+    # Создаем клавиатуру для выбора параметра редактирования
+    keyboard = [
+        [InlineKeyboardButton("📝 Описание", callback_data=f"edit_description|{event_id}")],
+        [InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}")],
+        [InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")],
+        [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        "Что вы хотите изменить?",
+        reply_markup=reply_markup,
+    )
+    return EDIT_DESCRIPTION  # Переходим в состояние редактирования
+
+# Обработка редактирования описания
+async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text("Введите новое описание мероприятия:")
+    return EDIT_DESCRIPTION
+
+# Обработка ввода нового описания
+async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    new_description = update.message.text
+    event_id = context.user_data.get("event_id")
+    db_path = context.bot_data["db_path"]
+
+    # Обновляем описание в базе данных
+    update_event_description(db_path, event_id, new_description)
+
+    # Обновляем сообщение с информацией о мероприятии
+    chat_id = update.message.chat_id
+    await send_event_message(event_id, context, chat_id)
+
+    await update.message.reply_text("Описание мероприятия обновлено!")
+    return ConversationHandler.END
+
+# Обработка редактирования даты
+async def edit_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text("Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:")
+    return EDIT_DATE
+
+# Обработка ввода новой даты
+async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    date_text = update.message.text
+    event_id = context.user_data.get("event_id")
+    db_path = context.bot_data["db_path"]
+
+    try:
+        date = datetime.strptime(date_text, "%d.%m.%Y").date()
+        # Обновляем дату в базе данных
+        update_event(db_path, event_id, date=date.strftime("%d-%m-%Y"))
+
+        # Обновляем сообщение с информацией о мероприятии
+        chat_id = update.message.chat_id
+        await send_event_message(event_id, context, chat_id)
+
+        await update.message.reply_text("Дата мероприятия обновлена!")
+        return ConversationHandler.END
+    except ValueError:
+        await update.message.reply_text("Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:")
+        return EDIT_DATE
+
+# Обработка редактирования времени
+async def edit_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text("Введите новое время мероприятия в формате ЧЧ:ММ:")
+    return EDIT_TIME
+
+# Обработка ввода нового времени
+async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    time_text = update.message.text
+    event_id = context.user_data.get("event_id")
+    db_path = context.bot_data["db_path"]
+
+    try:
+        time = datetime.strptime(time_text, "%H:%M").time()
+        # Обновляем время в базе данных
+        update_event(db_path, event_id, time=time.strftime("%H:%M"))
+
+        # Обновляем сообщение с информацией о мероприятии
+        chat_id = update.message.chat_id
+        await send_event_message(event_id, context, chat_id)
+
+        await update.message.reply_text("Время мероприятия обновлено!")
+        return ConversationHandler.END
+    except ValueError:
+        await update.message.reply_text("Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:")
+        return EDIT_TIME
+
+# Обработка редактирования лимита участников
+async def edit_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text("Введите новый лимит участников (0 - неограниченное):")
+    return EDIT_LIMIT
+
+# Обработка ввода нового лимита
+async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    limit_text = update.message.text
+    event_id = context.user_data.get("event_id")
+    db_path = context.bot_data["db_path"]
+
+    try:
+        limit = int(limit_text)
+        if limit < 0:
+            raise ValueError
+
+        # Обновляем лимит в базе данных
+        update_event(db_path, event_id, limit=limit if limit != 0 else None)
+
+        # Обновляем сообщение с информацией о мероприятии
+        chat_id = update.message.chat_id
+        await send_event_message(event_id, context, chat_id)
+
+        await update.message.reply_text("Лимит участников обновлен!")
+        return ConversationHandler.END
+    except ValueError:
+        await update.message.reply_text(
+            "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
+        )
+        return EDIT_LIMIT
+
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -386,6 +527,9 @@ def main():
     # Регистрируем обработчик упоминаний
     application.add_handler(MessageHandler(filters.Entity("mention"), mention_handler))
 
+    application.add_handler(conv_handler_edit_event)
+
+
     # ConversationHandler для создания мероприятия
     conv_handler_create = ConversationHandler(
         entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],
@@ -409,6 +553,19 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     application.add_handler(conv_handler_edit)
+
+    # ConversationHandler для редактирования мероприятия
+    conv_handler_edit_event = ConversationHandler(
+        entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\\|")],
+        states={
+            EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_description)],
+            EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_date)],
+            EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_time)],
+            EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_limit)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    application.add_handler(conv_handler_edit_event)
 
     # Регистрируем обработчик нажатий на кнопки
     application.add_handler(CallbackQueryHandler(button_handler))
