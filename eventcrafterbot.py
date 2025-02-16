@@ -365,6 +365,10 @@ async def get_new_description(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Отправляем подтверждение
     await update.message.reply_text("Описание мероприятия обновлено!")
 
+    # Обновляем сообщение с информацией о мероприятии
+    chat_id = update.message.chat_id
+    await send_event_message(event_id, context, chat_id)
+
     # Завершаем диалог
     return ConversationHandler.END
 
