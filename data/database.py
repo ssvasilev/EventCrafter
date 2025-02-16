@@ -61,11 +61,18 @@ def migrate_db(db_path):
     conn.close()
 
 def add_event(db_path, description, date, time, participants_limit, participants=None, reserve=None):
-    conn = sqlite3.connect(db_path)
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO events (description, date, time, participants_limit, participants, reserve) VALUES (?, ?, ?, ?, ?, ?)",
-        (description, date, time, participants_limit, participants or "", reserve or ""),
+        (
+            description,
+            date,
+            time,
+            participants_limit,
+            "\n".join(participants) if participants else "",  # Сохраняем как строку, разделенную \n
+            "\n".join(reserve) if reserve else "",             # Сохраняем как строку, разделенную \n
+        ),
     )
     event_id = cursor.lastrowid
     conn.commit()
@@ -73,7 +80,7 @@ def add_event(db_path, description, date, time, participants_limit, participants
     return event_id
 
 def get_event(db_path, event_id):
-    conn = sqlite3.connect(db_path)
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
     event = cursor.fetchone()
@@ -85,9 +92,9 @@ def get_event(db_path, event_id):
             "date": event[2],
             "time": event[3],
             "participants_limit": event[4],
-            "participants": event[5].split("\n") if event[5] else [],
-            "reserve": event[6].split("\n") if event[6] else [],
-            "message_id": event[7],  # Убедитесь, что message_id есть в таблице
+            "participants": event[5].split("\n") if event[5] else [],  # Преобразуем строку в список
+            "reserve": event[6].split("\n") if event[6] else [],      # Преобразуем строку в список
+            "message_id": event[7],
         }
     return None
 
@@ -100,11 +107,15 @@ def update_event(db_path, event_id, participants, reserve):
     :param reserve: Список резерва.
     """
     conn = get_db_connection(db_path)
-    conn.execute("""
-        UPDATE events
-        SET participants = ?, reserve = ?
-        WHERE id = ?
-    """, (json.dumps(participants), json.dumps(reserve), event_id))
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE events SET participants = ?, reserve = ? WHERE id = ?",
+        (
+            "\n".join(participants) if participants else "",  # Сохраняем как строку, разделенную \n
+            "\n".join(reserve) if reserve else "",            # Сохраняем как строку, разделенную \n
+            event_id,
+        ),
+    )
     conn.commit()
     conn.close()
 

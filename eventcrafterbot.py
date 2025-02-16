@@ -366,7 +366,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     keyboard = [
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
         [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
-        [InlineKeyboardButton("  ✏ Редактировать", callback_data=f"edit|{event_id}")],
+        [InlineKeyboardButton("✏️ Редактировать", callback_data=f"edit|{event_id}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -391,7 +391,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.info(f"Редактируем сообщение с ID {event['message_id']}")
         except error.BadRequest as e:
             logger.error(f"Ошибка при редактировании сообщения: {e}")
-
     else:
         logger.info("Отправляем новое сообщение.")
         message = await context.bot.send_message(
