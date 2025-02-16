@@ -34,6 +34,18 @@ SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 # Состояния для редактирования мероприятия
 EDIT_DESCRIPTION, EDIT_DATE, EDIT_TIME, EDIT_LIMIT = range(4, 8)
 
+# ConversationHandler для редактирования мероприятия
+edit_conv_handler = ConversationHandler(
+    entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\|")],  # Обработчик кнопки "Редактировать"
+    states={
+        EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_description)],  # Ожидание ввода описания
+        EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_date)],  # Ожидание ввода даты
+        EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_time)],  # Ожидание ввода времени
+        EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_limit)],  # Ожидание ввода лимита
+    },
+    fallbacks=[CallbackQueryHandler(cancel_action, pattern="^cancel_action$")],  # Обработчик кнопки "Отмена"
+)
+
 # Глобальная переменная для пути к базе данных
 DB_PATH = "../data/events.db"
 
@@ -209,19 +221,19 @@ async def edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action == "edit_description":
         await query.edit_message_text("Введите новое описание мероприятия:")
-        return EDIT_DESCRIPTION
+        return EDIT_DESCRIPTION  # Возвращаем следующее состояние
     elif action == "edit_date":
         await query.edit_message_text("Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:")
-        return EDIT_DATE
+        return EDIT_DATE  # Возвращаем следующее состояние
     elif action == "edit_time":
         await query.edit_message_text("Введите новое время мероприятия в формате ЧЧ:ММ:")
-        return EDIT_TIME
+        return EDIT_TIME  # Возвращаем следующее состояние
     elif action == "edit_limit":
         await query.edit_message_text("Введите новый лимит участников (0 - неограниченное):")
-        return EDIT_LIMIT
-    elif action == "cancel_action":
+        return EDIT_LIMIT  # Возвращаем следующее состояние
+    elif action == "cancel_edit":
         await query.edit_message_text("Редактирование отменено.")
-        return ConversationHandler.END
+        return ConversationHandler.END  # Завершаем ConversationHandler
 
 
 # Обработчики для состояний редактирования
@@ -452,7 +464,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Основная функция
 def main():
-    # Создаём приложение и передаём токен
     application = Application.builder().token(BOT_TOKEN).build()
 
     # Сохраняем путь к базе данных в context.bot_data
@@ -463,6 +474,12 @@ def main():
 
     # Регистрируем обработчик упоминаний
     application.add_handler(MessageHandler(filters.Entity("mention"), mention_handler))
+
+    # Регистрируем ConversationHandler для редактирования
+    application.add_handler(edit_conv_handler)
+
+    # Регистрируем обработчик нажатий на кнопки
+    application.add_handler(CallbackQueryHandler(button_handler))
 
     # ConversationHandler для создания мероприятия
     conv_handler = ConversationHandler(
@@ -476,22 +493,6 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     application.add_handler(conv_handler)
-
-    # ConversationHandler для редактирования мероприятия
-    edit_conv_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\|")],
-        states={
-            EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_description)],
-            EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_date)],
-            EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_time)],
-            EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_limit)],
-        },
-        fallbacks=[CallbackQueryHandler(cancel_action, pattern="^cancel_action$")],
-    )
-    application.add_handler(edit_conv_handler)
-
-    # Регистрируем обработчик нажатий на кнопки
-    application.add_handler(CallbackQueryHandler(button_handler))
 
     # Запускаем бота
     application.run_polling()
