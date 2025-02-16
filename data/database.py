@@ -32,7 +32,8 @@ def init_db(db_path):
             time TEXT NOT NULL,
             participants_limit INTEGER,
             participants TEXT,
-            reserve TEXT
+            reserve TEXT,
+            message_id INTEGER  -- Добавьте этот столбец, если его нет
         )
     """)
     conn.commit()
@@ -84,8 +85,9 @@ def get_event(db_path, event_id):
             "date": event[2],
             "time": event[3],
             "participants_limit": event[4],
-            "participants": [],
-            "reserve": [],
+            "participants": event[5].split("\n") if event[5] else [],
+            "reserve": event[6].split("\n") if event[6] else [],
+            "message_id": event[7],  # Убедитесь, что message_id есть в таблице
         }
     return None
 
