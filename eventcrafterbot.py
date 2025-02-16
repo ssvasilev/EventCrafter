@@ -311,12 +311,23 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         f"⏳ <i>Резерв:</i>\n{reserve}"
     )
 
+    # Добавляем временную метку
+    message_text_with_timestamp = f"{message_text}\n\n<i>Обновлено: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>"
+
     if event.get("message_id"):
         try:
+            # Получаем текущее сообщение
+            current_message = await context.bot.get_message(chat_id=chat_id, message_id=event["message_id"])
+
+            # Сравниваем текст текущего сообщения с новым текстом
+            if current_message.text == message_text_with_timestamp:
+                logger.info("Данные не изменились, пропускаем редактирование.")
+                return
+
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=event["message_id"],
-                text=message_text,
+                text=message_text_with_timestamp,  # Используем текст с временной меткой
                 reply_markup=reply_markup,
                 parse_mode="HTML"
             )
@@ -327,7 +338,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         logger.info("Отправляем новое сообщение.")
         message = await context.bot.send_message(
             chat_id=chat_id,
-            text=message_text,
+            text=message_text_with_timestamp,  # Используем текст с временной меткой
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
