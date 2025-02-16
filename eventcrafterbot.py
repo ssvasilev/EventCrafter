@@ -50,6 +50,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
     )
 
+# Обработка упоминания бота
+async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.entities:
+        return
+
+    for entity in update.message.entities:
+        if entity.type == "mention" and update.message.text[
+                                        entity.offset:entity.offset + entity.length] == f"@{context.bot.username}":
+            keyboard = [
+                [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text(
+                "Вы упомянули меня! Хотите создать мероприятие? Нажмите кнопку ниже.",
+                reply_markup=reply_markup,
+            )
+            break
+
+
 # Обработка нажатия на кнопку "Создать мероприятие"
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -395,6 +415,9 @@ def main():
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
+
+    # Регистрируем обработчик упоминаний
+    application.add_handler(MessageHandler(filters.Entity("mention"), mention_handler))
 
     # ConversationHandler для создания и редактирования мероприятия
     conv_handler = ConversationHandler(
