@@ -31,8 +31,8 @@ def init_db(db_path):
             date TEXT NOT NULL,
             time TEXT NOT NULL,
             participants_limit INTEGER,
-            participants TEXT NOT NULL,
-            reserve TEXT NOT NULL
+            participants TEXT,
+            reserve TEXT
         )
     """)
     conn.commit()
@@ -59,12 +59,12 @@ def migrate_db(db_path):
 
     conn.close()
 
-def add_event(db_path, description, date, time, participants_limit):
+def add_event(db_path, description, date, time, participants_limit, participants=None, reserve=None):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO events (description, date, time, participants_limit) VALUES (?, ?, ?, ?)",
-        (description, date, time, participants_limit),
+        "INSERT INTO events (description, date, time, participants_limit, participants, reserve) VALUES (?, ?, ?, ?, ?, ?)",
+        (description, date, time, participants_limit, participants or "", reserve or ""),
     )
     event_id = cursor.lastrowid
     conn.commit()

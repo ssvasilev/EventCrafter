@@ -152,6 +152,8 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             date=context.user_data["date"].strftime("%d-%m-%Y"),
             time=context.user_data["time"].strftime("%H:%M"),
             participants_limit=participants_limit if participants_limit != 0 else None,  # Если лимит равен 0, сохраняем как None (бесконечный лимит)
+            participants="",  # Пустой список участников
+            reserve=""        # Пустой резерв
         )
 
         await update.message.reply_text("Мероприятие создано!")
