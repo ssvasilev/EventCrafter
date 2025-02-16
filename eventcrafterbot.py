@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 # Состояния для ConversationHandler
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 EDIT_EVENT, DELETE_EVENT = range(5, 7)
+GET_EVENT_ID, GET_NEW_DESCRIPTION = range(7, 9)  # Новые состояния для команды /edit_event
 
 # Глобальная переменная для пути к базе данных
 DB_PATH = "../data/events.db"
@@ -328,6 +329,45 @@ async def edit_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Завершаем диалог
     return ConversationHandler.END
 
+# Команда /edit_event
+async def edit_event_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Введите ID мероприятия, которое хотите отредактировать:")
+    return GET_EVENT_ID
+
+# Обработка ввода ID мероприятия
+async def get_event_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    event_id = update.message.text
+    try:
+        event_id = int(event_id)  # Преобразуем в число
+        context.user_data["event_id"] = event_id
+        await update.message.reply_text("Введите новое описание мероприятия:")
+        return GET_NEW_DESCRIPTION
+    except ValueError:
+        await update.message.reply_text("Неверный формат ID. Введите число.")
+        return GET_EVENT_ID
+
+# Обработка ввода нового описания
+async def get_new_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    event_id = context.user_data.get("event_id")
+    if not event_id:
+        await update.message.reply_text("Ошибка: ID мероприятия не найден.")
+        return ConversationHandler.END
+
+    new_description = update.message.text
+    db_path = context.bot_data["db_path"]
+
+    # Логирование
+    logger.info(f"Редактирование мероприятия {event_id}. Новое описание: {new_description}")
+
+    # Обновляем описание мероприятия в базе данных
+    update_event_description(db_path, event_id, new_description)
+
+    # Отправляем подтверждение
+    await update.message.reply_text("Описание мероприятия обновлено!")
+
+    # Завершаем диалог
+    return ConversationHandler.END
+
 # Основная функция
 def main():
     # Создаём приложение и передаём токен
@@ -338,6 +378,7 @@ def main():
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("edit_event", edit_event_command))  # Добавляем команду /edit_event
 
     # Регистрируем обработчик упоминаний
     application.add_handler(MessageHandler(filters.Entity("mention"), mention_handler))
@@ -350,7 +391,9 @@ def main():
             SET_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_date)],
             SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
             SET_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit)],
-            EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_event)],  # Добавлено состояние EDIT_EVENT
+            EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_event)],
+            GET_EVENT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_event_id)],  # Новое состояние
+            GET_NEW_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_new_description)],  # Новое состояние
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
