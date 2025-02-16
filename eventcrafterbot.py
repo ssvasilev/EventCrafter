@@ -462,7 +462,17 @@ def main():
     )
     application.add_handler(conv_handler)
 
-    # Регистрируем ConversationHandler для редактирования
+    # ConversationHandler для редактирования мероприятия
+    edit_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\|")],
+        states={
+            EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_description)],
+            EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_date)],
+            EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_time)],
+            EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_limit)],
+        },
+        fallbacks=[CallbackQueryHandler(cancel_action, pattern="^cancel_action$")],
+    )
     application.add_handler(edit_conv_handler)
 
     # Регистрируем обработчик нажатий на кнопки
