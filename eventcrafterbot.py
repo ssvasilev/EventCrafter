@@ -316,14 +316,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 
     if event.get("message_id"):
         try:
-            # Получаем текущее сообщение
-            current_message = await context.bot.get_message(chat_id=chat_id, message_id=event["message_id"])
-
-            # Сравниваем текст текущего сообщения с новым текстом
-            if current_message.text == message_text_with_timestamp:
-                logger.info("Данные не изменились, пропускаем редактирование.")
-                return
-
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=event["message_id"],
