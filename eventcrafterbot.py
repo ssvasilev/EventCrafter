@@ -361,7 +361,13 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
         # Обновляем дату в базе данных
-        update_event(db_path, event_id, date=date.strftime("%d-%m-%Y"))
+        update_event(
+            db_path=db_path,
+            event_id=event_id,
+            participants=[],  # Передаем пустой список, если не нужно обновлять участников
+            reserve=[],       # Передаем пустой список, если не нужно обновлять резерв
+            date=date.strftime("%d-%m-%Y")  # Передаем новую дату
+        )
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
@@ -390,7 +396,13 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         time = datetime.strptime(time_text, "%H:%M").time()
         # Обновляем время в базе данных
-        update_event(db_path, event_id, time=time.strftime("%H:%M"))
+        update_event(
+            db_path=db_path,
+            event_id=event_id,
+            participants=[],  # Передаем пустой список, если не нужно обновлять участников
+            reserve=[],       # Передаем пустой список, если не нужно обновлять резерв
+            time=time.strftime("%H:%M")  # Передаем новое время
+        )
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
@@ -422,7 +434,13 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError
 
         # Обновляем лимит в базе данных
-        update_event(db_path, event_id, limit=limit if limit != 0 else None)
+        update_event(
+            db_path=db_path,
+            event_id=event_id,
+            participants=[],  # Передаем пустой список, если не нужно обновлять участников
+            reserve=[],       # Передаем пустой список, если не нужно обновлять резерв
+            limit=limit if limit != 0 else None  # Передаем новый лимит
+        )
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id

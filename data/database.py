@@ -104,20 +104,42 @@ def get_event(db_path, event_id):
         }
     return None
 
-def update_event(db_path, event_id, participants, reserve):
+def update_event(db_path: str, event_id: int, participants: list, reserve: list, description: str = None, date: str = None, time: str = None, limit: int = None):
     """
-    Обновляет списки участников и резерва мероприятия.
-    :param db_path: Путь к файлу базы данных.
+    Обновляет данные мероприятия в базе данных.
+    :param db_path: Путь к базе данных.
     :param event_id: ID мероприятия.
     :param participants: Список участников.
     :param reserve: Список резерва.
+    :param description: Новое описание (опционально).
+    :param date: Новая дата (опционально).
+    :param time: Новое время (опционально).
+    :param limit: Новый лимит участников (опционально).
     """
-    conn = get_db_connection(db_path)
-    conn.execute("""
-        UPDATE events
-        SET participants = ?, reserve = ?
-        WHERE id = ?
-    """, (json.dumps(participants), json.dumps(reserve), event_id))
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Формируем SQL-запрос для обновления данных
+    query = """
+    UPDATE events
+    SET participants = ?,
+        reserve = ?,
+        description = COALESCE(?, description),
+        date = COALESCE(?, date),
+        time = COALESCE(?, time),
+        limit = COALESCE(?, limit)
+    WHERE id = ?
+    """
+    cursor.execute(query, (
+        ", ".join(participants),
+        ", ".join(reserve),
+        description,
+        date,
+        time,
+        limit,
+        event_id
+    ))
+
     conn.commit()
     conn.close()
 
