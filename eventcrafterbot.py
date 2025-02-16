@@ -29,6 +29,29 @@ if not BOT_TOKEN:
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def time_until_event(event_date: str, event_time: str) -> str:
+    """
+    Вычисляет оставшееся время до мероприятия.
+    :param event_date: Дата мероприятия в формате "дд-мм-гггг".
+    :param event_time: Время мероприятия в формате "чч:мм".
+    :return: Строка с оставшимся временем в формате "X дней, Y часов, Z минут".
+    """
+    # Преобразуем дату и время мероприятия в объект datetime
+    event_datetime = datetime.strptime(f"{event_date} {event_time}", "%d-%m-%Y %H:%M")
+    now = datetime.now()
+
+    # Если мероприятие уже прошло, возвращаем соответствующее сообщение
+    if event_datetime <= now:
+        return "Мероприятие уже прошло."
+
+    # Вычисляем разницу между текущим временем и временем мероприятия
+    delta = event_datetime - now
+    days = delta.days
+    hours, remainder = divmod(delta.seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+
+    return f"{days} дней, {hours} часов, {minutes} минут"
+
 # Состояния для ConversationHandler
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 EDIT_EVENT, DELETE_EVENT = range(5, 7)
