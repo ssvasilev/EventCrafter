@@ -354,7 +354,6 @@ def main():
             EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_event)],  # Добавлено состояние EDIT_EVENT
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        conversation_timeout=timedelta(minutes=5)
     )
     application.add_handler(conv_handler)
     # Регистрируем обработчик нажатий на кнопки
@@ -363,5 +362,5 @@ def main():
     # Запускаем бота
     application.run_polling()
 
-if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        main()
