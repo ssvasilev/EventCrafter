@@ -59,48 +59,33 @@ def migrate_db(db_path):
 
     conn.close()
 
-def add_event(db_path, description, date, time, limit, message_id=None):
-    """
-    Добавляет новое мероприятие в базу данных.
-    :param db_path: Путь к файлу базы данных.
-    :param description: Описание мероприятия.
-    :param date: Дата мероприятия в формате строки (YYYY-MM-DD).
-    :param time: Время мероприятия в формате строки (HH:MM).
-    :param limit: Лимит участников. Если None, лимит бесконечный.
-    :param message_id: ID сообщения в Telegram (опционально).
-    :return: ID созданного мероприятия.
-    """
-    conn = get_db_connection(db_path)
+def add_event(db_path, description, date, time, participants_limit):
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (description, date, time, limit, json.dumps([]), json.dumps([]), None))
+    cursor.execute(
+        "INSERT INTO events (description, date, time, participants_limit) VALUES (?, ?, ?, ?)",
+        (description, date, time, participants_limit),
+    )
+    event_id = cursor.lastrowid
     conn.commit()
-    event_id = cursor.lastrowid  # Получаем ID созданного мероприятия
     conn.close()
     return event_id
 
 def get_event(db_path, event_id):
-    """
-    Возвращает данные о мероприятии по его ID.
-    :param db_path: Путь к файлу базы данных.
-    :param event_id: ID мероприятия.
-    :return: Словарь с данными о мероприятии или None, если мероприятие не найдено.
-    """
-    conn = get_db_connection(db_path)
-    event = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+    event = cursor.fetchone()
     conn.close()
     if event:
         return {
-            "id": event["id"],
-            "description": event["description"],
-            "date": event["date"],
-            "time": event["time"],
-            "limit": event["participant_limit"],
-            "participants": json.loads(event["participants"]),
-            "reserve": json.loads(event["reserve"]),
-            "message_id": event["message_id"],  # Новый столбец
+            "id": event[0],
+            "description": event[1],
+            "date": event[2],
+            "time": event[3],
+            "participants_limit": event[4],
+            "participants": [],
+            "reserve": [],
         }
     return None
 
