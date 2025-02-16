@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, error
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -40,6 +40,9 @@ init_db(DB_PATH)
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    logger.info(f"Команда /start вызвана в чате с ID: {chat_id}")
+
     keyboard = [
         [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")]
     ]
@@ -68,7 +71,6 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup,
             )
             break
-
 
 # Обработка нажатия на кнопку "Создать мероприятие"
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -163,9 +165,18 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    _, event_id = query.data.split("|")
-    context.user_data["event_id"] = event_id
+    # Получаем event_id из callback_data
+    if "|" in query.data:
+        _, event_id = query.data.split("|")
+    else:
+        await query.edit_message_text("Ошибка: мероприятие не найдено.")
+        return ConversationHandler.END
 
+    # Сохраняем event_id в context.user_data
+    context.user_data["event_id"] = event_id
+    logger.info(f"Редактирование мероприятия с ID: {event_id}")
+
+    # Создаем клавиатуру для выбора редактируемого поля
     keyboard = [
         [InlineKeyboardButton("✏️ Описание", callback_data="edit_description")],
         [InlineKeyboardButton("📅 Дата", callback_data="edit_date")],
@@ -179,30 +190,31 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Что вы хотите отредактировать?",
         reply_markup=reply_markup,
     )
+    return EDIT_DESCRIPTION  # Переходим в состояние редактирования
 
 # Обработчик для выбора поля редактирования
 async def edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    action = query.data
-    event_id = context.user_data["event_id"]
+    action = query.data  # Получаем действие (например, "edit_description", "edit_date" и т.д.)
+    logger.info(f"Выбрано поле для редактирования: {action}")
 
     if action == "edit_description":
         await query.edit_message_text("Введите новое описание мероприятия:")
-        return EDIT_DESCRIPTION
+        return EDIT_DESCRIPTION  # Переход к состоянию редактирования описания
     elif action == "edit_date":
         await query.edit_message_text("Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:")
-        return EDIT_DATE
+        return EDIT_DATE  # Переход к состоянию редактирования даты
     elif action == "edit_time":
         await query.edit_message_text("Введите новое время мероприятия в формате ЧЧ:ММ:")
-        return EDIT_TIME
+        return EDIT_TIME  # Переход к состоянию редактирования времени
     elif action == "edit_limit":
         await query.edit_message_text("Введите новый лимит участников (0 - неограниченное):")
-        return EDIT_LIMIT
+        return EDIT_LIMIT  # Переход к состоянию редактирования лимита
     elif action == "cancel_edit":
         await query.edit_message_text("Редактирование отменено.")
-        return ConversationHandler.END
+        return ConversationHandler.END  # Завершение редактирования
 
 # Обработчики для состояний редактирования
 async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -432,7 +444,11 @@ def main():
             EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_time)],
             EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_limit)],
         },
-        fallbacks=[CommandHandler("cancel", cancel), CallbackQueryHandler(cancel_action, pattern="^cancel_action$")],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CallbackQueryHandler(cancel_action, pattern="^cancel_action$"),
+            CallbackQueryHandler(edit_field, pattern="^(edit_description|edit_date|edit_time|edit_limit|cancel_edit)$")  # Добавляем обработчик для выбора поля редактирования
+        ],
     )
     application.add_handler(conv_handler)
 
