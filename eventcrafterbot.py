@@ -473,12 +473,6 @@ def main():
     # Регистрируем обработчик упоминаний
     application.add_handler(MessageHandler(filters.Entity("mention"), mention_handler))
 
-    # Регистрируем ConversationHandler для редактирования
-    application.add_handler(edit_conv_handler)
-
-    # Регистрируем обработчик нажатий на кнопки
-    application.add_handler(CallbackQueryHandler(button_handler))
-
     # ConversationHandler для создания мероприятия
     conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],
@@ -491,6 +485,12 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     application.add_handler(conv_handler)
+
+    # Регистрируем ConversationHandler для редактирования
+    application.add_handler(edit_conv_handler)
+
+    # Регистрируем обработчик нажатий на кнопки
+    application.add_handler(CallbackQueryHandler(button_handler))
 
     # Запускаем бота
     application.run_polling()
