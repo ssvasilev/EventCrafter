@@ -214,17 +214,17 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         update_message_id(db_path, event_id, message.message_id)
 
         # Пытаемся закрепить сообщение
-#        try:
-#            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
-#            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
-#        except error.BadRequest as e:
-#            logger.error(f"Ошибка при закреплении сообщения: {e}")
-#            logger.error(f"Проверьте, что чат {chat_id} является группой или каналом.")
-#        except error.Forbidden as e:
-#            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
-#            logger.error(f"Убедитесь, что бот является администратором и имеет права на закрепление.")
-#        except Exception as e:
-#            logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
+        try:
+            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
+            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
+        except error.BadRequest as e:
+            logger.error(f"Ошибка при закреплении сообщения: {e}")
+            logger.error(f"Проверьте, что чат {chat_id} является группой или каналом.")
+        except error.Forbidden as e:
+            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+            logger.error(f"Убедитесь, что бот является администратором и имеет права на закрепление.")
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -308,7 +308,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Редактирование мероприятия
 async def edit_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info("edit_event triggered")
     event_id = context.user_data.get("event_id")
     if not event_id:
         await update.message.reply_text("Ошибка: ID мероприятия не найден.")
@@ -356,11 +355,12 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     application.add_handler(conv_handler)
+
     # Регистрируем обработчик нажатий на кнопки
-    application.add_handler(CallbackQueryHandler(button_handler))  # Внешние кнопки
+    application.add_handler(CallbackQueryHandler(button_handler))
 
     # Запускаем бота
     application.run_polling()
 
-    if __name__ == "__main__":
-        main()
+if __name__ == "__main__":
+    main()
