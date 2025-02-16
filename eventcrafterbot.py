@@ -378,26 +378,33 @@ def main():
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("edit_event", edit_event_command))  # Добавляем команду /edit_event
 
     # Регистрируем обработчик упоминаний
     application.add_handler(MessageHandler(filters.Entity("mention"), mention_handler))
 
-    # ConversationHandler для создания и редактирования мероприятия
-    conv_handler = ConversationHandler(
+    # ConversationHandler для создания мероприятия
+    conv_handler_create = ConversationHandler(
         entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],
         states={
             SET_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_description)],
             SET_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_date)],
             SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
             SET_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit)],
-            EDIT_EVENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_event)],
-            GET_EVENT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_event_id)],  # Новое состояние
-            GET_NEW_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_new_description)],  # Новое состояние
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
-    application.add_handler(conv_handler)
+    application.add_handler(conv_handler_create)
+
+    # ConversationHandler для редактирования мероприятия
+    conv_handler_edit = ConversationHandler(
+        entry_points=[CommandHandler("edit_event", edit_event_command)],
+        states={
+            GET_EVENT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_event_id)],
+            GET_NEW_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_new_description)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    application.add_handler(conv_handler_edit)
 
     # Регистрируем обработчик нажатий на кнопки
     application.add_handler(CallbackQueryHandler(button_handler))
