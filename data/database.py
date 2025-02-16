@@ -30,7 +30,7 @@ def init_db(db_path):
             description TEXT NOT NULL,
             date TEXT NOT NULL,
             time TEXT NOT NULL,
-            participant_limit INTEGER,
+            participants_limit INTEGER,
             participants TEXT NOT NULL,
             reserve TEXT NOT NULL
         )
