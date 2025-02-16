@@ -189,7 +189,7 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📅 Дата", callback_data="edit_date")],
         [InlineKeyboardButton("🕒 Время", callback_data="edit_time")],
         [InlineKeyboardButton("👥 Лимит участников", callback_data="edit_limit")],
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_edit")],
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_action")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -219,7 +219,7 @@ async def edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "edit_limit":
         await query.edit_message_text("Введите новый лимит участников (0 - неограниченное):")
         return EDIT_LIMIT
-    elif action == "cancel_edit":
+    elif action == "cancel_action":
         await query.edit_message_text("Редактирование отменено.")
         return ConversationHandler.END
 
@@ -314,7 +314,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     keyboard = [
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
         [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
-        [InlineKeyboardButton("✏️ Редактировать", callback_data=f"edit|{event_id}")],
+        [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -367,57 +367,72 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    chat_id = query.message.chat_id  # Получаем chat_id из query.message
+    await query.answer()
 
-    user = query.from_user
     data = query.data
 
-    action, event_id = data.split("|")
+    # Проверяем, содержит ли data символ "|"
+    if "|" in data:
+        action, event_id = data.split("|")
+    else:
+        action = data
+        event_id = None  # Если event_id отсутствует
 
-    # Получаем путь к базе данных
-    db_path = context.bot_data["db_path"]
+    # Обработка кнопок с event_id
+    if action in ["join", "leave", "edit"]:
+        if not event_id:
+            await query.answer("Ошибка: мероприятие не найдено.")
+            return
 
-    # Получаем данные о мероприятии
-    event = get_event(db_path, event_id)  # Передаём db_path и event_id
+        # Получаем путь к базе данных
+        db_path = context.bot_data["db_path"]
 
-    if not event:
-        await query.answer("Мероприятие не найдено.")
-        return
+        # Получаем данные о мероприятии
+        event = get_event(db_path, event_id)
+        if not event:
+            await query.answer("Мероприятие не найдено.")
+            return
 
-    user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
+        user = query.from_user
+        user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
 
-    if action == "join":
-        if user_name in event["participants"] or user_name in event["reserve"]:
-            await query.answer("Вы уже в списке участников или резерва.")
-        else:
-            # Если лимит равен None (бесконечный) или количество участников меньше лимита
-            if event["participants_limit"] is None or len(event["participants"]) < event["participants_limit"]:
-                event["participants"].append(user_name)
-                await query.answer(f"{user_name}, вы добавлены в список участников!")
+        if action == "join":
+            if user_name in event["participants"] or user_name in event["reserve"]:
+                await query.answer("Вы уже в списке участников или резерва.")
             else:
-                event["reserve"].append(user_name)
-                await query.answer(f"{user_name}, вы добавлены в резерв.")
-    elif action == "leave":
-        if user_name in event["participants"]:
-            event["participants"].remove(user_name)
-            if event["reserve"]:
-                new_participant = event["reserve"].pop(0)
-                event["participants"].append(new_participant)
-                await query.answer(f"{user_name}, вы удалены из списка участников. {new_participant} добавлен из резерва.")
+                # Если лимит равен None (бесконечный) или количество участников меньше лимита
+                if event["participants_limit"] is None or len(event["participants"]) < event["participants_limit"]:
+                    event["participants"].append(user_name)
+                    await query.answer(f"{user_name}, вы добавлены в список участников!")
+                else:
+                    event["reserve"].append(user_name)
+                    await query.answer(f"{user_name}, вы добавлены в резерв.")
+        elif action == "leave":
+            if user_name in event["participants"]:
+                event["participants"].remove(user_name)
+                if event["reserve"]:
+                    new_participant = event["reserve"].pop(0)
+                    event["participants"].append(new_participant)
+                    await query.answer(f"{user_name}, вы удалены из списка участников. {new_participant} добавлен из резерва.")
+                else:
+                    await query.answer(f"{user_name}, вы удалены из списка участников.")
+            elif user_name in event["reserve"]:
+                event["reserve"].remove(user_name)
+                await query.answer(f"{user_name}, вы удалены из резерва.")
             else:
-                await query.answer(f"{user_name}, вы удалены из списка участников.")
-        elif user_name in event["reserve"]:
-            event["reserve"].remove(user_name)
-            await query.answer(f"{user_name}, вы удалены из резерва.")
-        else:
-            await query.answer("Вас нет в списке участников или резерва.")
+                await query.answer("Вас нет в списке участников или резерва.")
 
-    # Обновляем мероприятие в базе данных
-    update_event(db_path, event_id, event["participants"], event["reserve"])
+        # Обновляем мероприятие в базе данных
+        update_event(db_path, event_id, event["participants"], event["reserve"])
 
-    # Отправляем или редактируем сообщение
-    chat_id = query.message.chat_id  # Берем chat_id из сообщения
-    await send_event_message(event_id, context, chat_id)
+        # Отправляем или редактируем сообщение
+        chat_id = query.message.chat_id
+        await send_event_message(event_id, context, chat_id)
+
+    # Обработка кнопки "Отмена"
+    elif action == "cancel_action":
+        await query.edit_message_text("Действие отменено.")
+        return ConversationHandler.END
 
 # Обработчик для кнопки "Отмена"
 async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
