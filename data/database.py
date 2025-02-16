@@ -104,7 +104,7 @@ def get_event(db_path, event_id):
         }
     return None
 
-def update_event(db_path: str, event_id: int, participants: list, reserve: list, description: str = None, date: str = None, time: str = None, limit: int = None):
+def update_event(db_path: str, event_id: int, participants: list, reserve: list, description: str = None, date: str = None, time: str = None, participant_limit: int = None):
     """
     Обновляет данные мероприятия в базе данных.
     :param db_path: Путь к базе данных.
@@ -114,7 +114,7 @@ def update_event(db_path: str, event_id: int, participants: list, reserve: list,
     :param description: Новое описание (опционально).
     :param date: Новая дата (опционально).
     :param time: Новое время (опционально).
-    :param limit: Новый лимит участников (опционально).
+    :param participant_limit: Новый лимит участников (опционально).
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -127,7 +127,7 @@ def update_event(db_path: str, event_id: int, participants: list, reserve: list,
         description = COALESCE(?, description),
         date = COALESCE(?, date),
         time = COALESCE(?, time),
-        "limit" = COALESCE(?, "limit")
+        participant_limit = COALESCE(?, participant_limit)
     WHERE id = ?
     """
     cursor.execute(query, (
@@ -136,7 +136,7 @@ def update_event(db_path: str, event_id: int, participants: list, reserve: list,
         description,
         date,
         time,
-        limit,
+        participant_limit,
         event_id
     ))
 
