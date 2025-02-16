@@ -185,11 +185,11 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Создаем клавиатуру для выбора редактируемого поля
     keyboard = [
-        [InlineKeyboardButton("✏ Описание", callback_data=f"edit_description|{event_id}")],
+        [InlineKeyboardButton("✏️ Описание", callback_data=f"edit_description|{event_id}")],
         [InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}")],
         [InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")],
         [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")],
-        [InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_edit|{event_id}")],  # Кнопка "Отмена"
+        [InlineKeyboardButton("❌ Отмена", callback_data=f"cancel_edit|{event_id}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -516,14 +516,14 @@ def main():
 
     # ConversationHandler для редактирования мероприятия
     edit_conv_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\|")],
+        entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\|")],  # Обработчик кнопки "Редактировать"
         states={
-            EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_description)],
-            EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_date)],
-            EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_time)],
-            EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_limit)],
+            EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_description)],  # Ожидание ввода описания
+            EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_date)],  # Ожидание ввода даты
+            EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_time)],  # Ожидание ввода времени
+            EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_limit)],  # Ожидание ввода лимита
         },
-        fallbacks=[CallbackQueryHandler(cancel_action, pattern="^cancel_action$")],  # Обработчик для кнопки "Отмена"
+        fallbacks=[CallbackQueryHandler(cancel_action, pattern="^cancel_action$")],  # Обработчик кнопки "Отмена"
     )
     application.add_handler(edit_conv_handler)
 
