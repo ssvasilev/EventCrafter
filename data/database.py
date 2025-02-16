@@ -59,52 +59,64 @@ def migrate_db(db_path):
 
     conn.close()
 
-def add_event(db_path, description, date, time, limit, message_id=None):
+def add_event(db_path: str, description: str, date: str, time: str, limit: int = None) -> int:
     """
     Добавляет новое мероприятие в базу данных.
-    :param db_path: Путь к файлу базы данных.
+    :param db_path: Путь к базе данных.
     :param description: Описание мероприятия.
-    :param date: Дата мероприятия в формате строки (YYYY-MM-DD).
-    :param time: Время мероприятия в формате строки (HH:MM).
-    :param limit: Лимит участников. Если None, лимит бесконечный.
-    :param message_id: ID сообщения в Telegram (опционально).
-    :return: ID созданного мероприятия.
+    :param date: Дата мероприятия.
+    :param time: Время мероприятия.
+    :param limit: Лимит участников (опционально).
+    :return: ID добавленного мероприятия.
     """
-    conn = get_db_connection(db_path)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (description, date, time, limit, json.dumps([]), json.dumps([]), None))
+
+    # Убедимся, что participants и reserve инициализированы как "[]"
+    cursor.execute(
+        "INSERT INTO events (description, date, time, limit, participants, reserve) VALUES (?, ?, ?, ?, ?, ?)",
+        (description, date, time, limit, "[]", "[]")
+    )
+
+    event_id = cursor.lastrowid
     conn.commit()
-    event_id = cursor.lastrowid  # Получаем ID созданного мероприятия
     conn.close()
+
     return event_id
 
-def get_event(db_path, event_id):
+def get_event(db_path: str, event_id: int) -> dict:
     """
-    Возвращает данные о мероприятии по его ID.
-    :param db_path: Путь к файлу базы данных.
+    Получает данные мероприятия по его ID.
+    :param db_path: Путь к базе данных.
     :param event_id: ID мероприятия.
-    :return: Словарь с данными о мероприятии или None, если мероприятие не найдено.
+    :return: Словарь с данными мероприятия.
     """
-    conn = get_db_connection(db_path)
-    event = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
-    conn.close()
-    if event:
-        return {
-            "id": event["id"],
-            "description": event["description"],
-            "date": event["date"],
-            "time": event["time"],
-            "limit": event["participant_limit"],
-            "participants": json.loads(event["participants"]),
-            "reserve": json.loads(event["reserve"]),
-            "message_id": event["message_id"],  # Новый столбец
-        }
-    return None
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
 
-def update_event(db_path: str, event_id: int, participants: list, reserve: list, description: str = None, date: str = None, time: str = None, participant_limit: int = None):
+    cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+    event = cursor.fetchone()
+
+    conn.close()
+
+    if not event:
+        return None
+
+    # Преобразуем данные из базы в словарь
+    event_dict = {
+        "id": event[0],
+        "description": event[1],
+        "date": event[2],
+        "time": event[3],
+        "limit": event[4],
+        "participants": json.loads(event[5]) if event[5] else [],  # Проверка на пустую строку
+        "reserve": json.loads(event[6]) if event[6] else [],      # Проверка на пустую строку
+        "message_id": event[7]
+    }
+
+    return event_dict
+
+def update_event(db_path: str, event_id: int, participants: list, reserve: list, description: str = None, date: str = None, time: str = None, limit: int = None):
     """
     Обновляет данные мероприятия в базе данных.
     :param db_path: Путь к базе данных.
@@ -114,10 +126,14 @@ def update_event(db_path: str, event_id: int, participants: list, reserve: list,
     :param description: Новое описание (опционально).
     :param date: Новая дата (опционально).
     :param time: Новое время (опционально).
-    :param participant_limit: Новый лимит участников (опционально).
+    :param limit: Новый лимит участников (опционально).
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+
+    # Преобразуем списки в JSON-строки
+    participants_json = json.dumps(participants)
+    reserve_json = json.dumps(reserve)
 
     # Формируем SQL-запрос для обновления данных
     query = """
@@ -127,16 +143,16 @@ def update_event(db_path: str, event_id: int, participants: list, reserve: list,
         description = COALESCE(?, description),
         date = COALESCE(?, date),
         time = COALESCE(?, time),
-        participant_limit = COALESCE(?, participant_limit)
+        "limit" = COALESCE(?, "limit")
     WHERE id = ?
     """
     cursor.execute(query, (
-        ", ".join(participants),
-        ", ".join(reserve),
+        participants_json,
+        reserve_json,
         description,
         date,
         time,
-        participant_limit,
+        limit,
         event_id
     ))
 
