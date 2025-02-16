@@ -31,21 +31,6 @@ logger = logging.getLogger(__name__)
 # Состояния для ConversationHandler
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
 
-# Состояния для редактирования мероприятия
-EDIT_DESCRIPTION, EDIT_DATE, EDIT_TIME, EDIT_LIMIT = range(4, 8)
-
-# ConversationHandler для редактирования мероприятия
-edit_conv_handler = ConversationHandler(
-    entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\|")],  # Обработчик кнопки "Редактировать"
-    states={
-        EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_description)],  # Ожидание ввода описания
-        EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_date)],  # Ожидание ввода даты
-        EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_time)],  # Ожидание ввода времени
-        EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_limit)],  # Ожидание ввода лимита
-    },
-    fallbacks=[CallbackQueryHandler(cancel_action, pattern="^cancel_action$")],  # Обработчик кнопки "Отмена"
-)
-
 # Глобальная переменная для пути к базе данных
 DB_PATH = "../data/events.db"
 
@@ -459,7 +444,20 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Создание мероприятия отменено.")
     return ConversationHandler.END
 
+# Состояния для редактирования мероприятия
+EDIT_DESCRIPTION, EDIT_DATE, EDIT_TIME, EDIT_LIMIT = range(4, 8)
 
+# ConversationHandler для редактирования мероприятия
+edit_conv_handler = ConversationHandler(
+    entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\|")],  # Обработчик кнопки "Редактировать"
+    states={
+        EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_description)],  # Ожидание ввода описания
+        EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_date)],  # Ожидание ввода даты
+        EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_time)],  # Ожидание ввода времени
+        EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_limit)],  # Ожидание ввода лимита
+    },
+    fallbacks=[CallbackQueryHandler(cancel_action, pattern="^cancel_action$")],  # Обработчик кнопки "Отмена"
+)
 
 
 # Основная функция
