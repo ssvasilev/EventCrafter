@@ -189,7 +189,7 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📅 Дата", callback_data="edit_date")],
         [InlineKeyboardButton("🕒 Время", callback_data="edit_time")],
         [InlineKeyboardButton("👥 Лимит участников", callback_data="edit_limit")],
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_action")],
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_edit")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
