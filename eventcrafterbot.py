@@ -254,19 +254,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("Вас нет в списке участников или резерва.")
 
-    # Обработка действия "Редактировать"
-    elif action == "edit":
-        await query.answer("Редактирование мероприятия.")
-        context.user_data["event_id"] = event_id
-        await query.edit_message_text("Что вы хотите изменить?",
-                                      reply_markup=InlineKeyboardMarkup([
-                                          [InlineKeyboardButton("📝 Описание", callback_data=f"edit_description|{event_id}")],
-                                          [InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}")],
-                                          [InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")],
-                                          [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")],
-                                      ]))
-        return EDIT_DESCRIPTION
-
     # Обработка действия "Удалить"
     elif action == "delete":
         await query.answer("Мероприятие удалено.")
@@ -280,6 +267,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Отправляем или редактируем сообщение с обновленной информацией
     chat_id = query.message.chat_id
     await send_event_message(event_id, context, chat_id)
+
+# Обработка нажатия на кнопку "Редактировать"
+async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    # Сохраняем event_id в context.user_data
+    event_id = query.data.split("|")[1]
+    context.user_data["event_id"] = event_id
+
+    # Создаем клавиатуру для выбора параметра редактирования
+    keyboard = [
+        [InlineKeyboardButton("📝 Описание", callback_data=f"edit_description|{event_id}")],
+        [InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}")],
+        [InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")],
+        [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        "Что вы хотите изменить?",
+        reply_markup=reply_markup,
+    )
+    return EDIT_DESCRIPTION  # Переходим в состояние редактирования
 
 # Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
