@@ -127,7 +127,7 @@ def update_event(db_path: str, event_id: int, participants: list, reserve: list,
         description = COALESCE(?, description),
         date = COALESCE(?, date),
         time = COALESCE(?, time),
-        limit = COALESCE(?, limit)
+        "limit" = COALESCE(?, "limit")
     WHERE id = ?
     """
     cursor.execute(query, (
