@@ -331,7 +331,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
                 reply_markup=reply_markup,
                 parse_mode="HTML"
             )
-            logger.info(f"Редактируем сообщение с ID {event['message_id']}")
+            logger.info(f"Попытка редактировать сообщение с ID {event.get('message_id')} для мероприятия {event_id}")
         except error.BadRequest as e:
             logger.error(f"Ошибка при редактировании сообщения: {e}")
     else:
