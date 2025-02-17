@@ -290,6 +290,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id  # Берем chat_id из сообщения
     await send_event_message(event_id, context, chat_id)
 
+async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    event_id = query.data.split("|")[1]
+    context.user_data["event_id"] = event_id
+    keyboard = [
+        [InlineKeyboardButton("Описание", callback_data=f"edit_description|{event_id}")],
+        [InlineKeyboardButton("Дата", callback_data=f"edit_date|{event_id}")],
+        [InlineKeyboardButton("Время", callback_data=f"edit_time|{event_id}")],
+        [InlineKeyboardButton("Лимит", callback_data=f"edit_limit|{event_id}")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text("Что вы хотите изменить?", reply_markup=reply_markup)
 
 async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -326,6 +339,39 @@ async def edit_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.message.reply_text("Введите новый лимит участников (0 - неограниченное):")
     return EDIT_LIMIT
 
+async def edit_description_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    event_id = query.data.split("|")[1]
+    context.user_data["event_id"] = event_id
+    await query.message.reply_text("Введите новое описание мероприятия:")
+    return EDIT_DESCRIPTION
+
+async def edit_date_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    event_id = query.data.split("|")[1]
+    context.user_data["event_id"] = event_id
+    await query.message.reply_text("Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:")
+    return EDIT_DATE
+
+async def edit_time_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    event_id = query.data.split("|")[1]
+    context.user_data["event_id"] = event_id
+    await query.message.reply_text("Введите новое время мероприятия в формате ЧЧ:ММ:")
+    return EDIT_TIME
+
+async def edit_limit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    event_id = query.data.split("|")[1]
+    context.user_data["event_id"] = event_id
+    await query.message.reply_text("Введите новый лимит участников (0 - неограниченное):")
+    return EDIT_LIMIT
+
+
 async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     new_description = update.message.text
     event_id = context.user_data["event_id"]
@@ -341,9 +387,7 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         new_date = datetime.strptime(new_date_text, "%d.%m.%Y").date()
         event_id = context.user_data["event_id"]
         db_path = context.bot_data["db_path"]
-        event = get_event(db_path, event_id)
-        event["date"] = new_date.strftime("%d-%m-%Y")
-        update_event(db_path, event_id, event["participants"], event["reserve"], date=new_date.strftime("%d-%m-%Y"))
+        update_event(db_path, event_id, date=new_date.strftime("%d-%m-%Y"))
         await update.message.reply_text("Дата мероприятия обновлена!")
         await send_event_message(event_id, context, update.message.chat_id)
         return ConversationHandler.END
@@ -357,9 +401,7 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         new_time = datetime.strptime(new_time_text, "%H:%M").time()
         event_id = context.user_data["event_id"]
         db_path = context.bot_data["db_path"]
-        event = get_event(db_path, event_id)
-        event["time"] = new_time.strftime("%H:%M")
-        update_event(db_path, event_id, event["participants"], event["reserve"], time=new_time.strftime("%H:%M"))
+        update_event(db_path, event_id, time=new_time.strftime("%H:%M"))
         await update.message.reply_text("Время мероприятия обновлено!")
         await send_event_message(event_id, context, update.message.chat_id)
         return ConversationHandler.END
@@ -375,9 +417,7 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError
         event_id = context.user_data["event_id"]
         db_path = context.bot_data["db_path"]
-        event = get_event(db_path, event_id)
-        event["limit"] = new_limit if new_limit != 0 else None
-        update_event(db_path, event_id, event["participants"], event["reserve"], limit=new_limit if new_limit != 0 else None)
+        update_event(db_path, event_id, limit=new_limit if new_limit != 0 else None)
         await update.message.reply_text("Лимит участников обновлен!")
         await send_event_message(event_id, context, update.message.chat_id)
         return ConversationHandler.END
@@ -425,7 +465,10 @@ def main():
 
     # Регистрируем обработчик нажатий на кнопки
     application.add_handler(CallbackQueryHandler(button_handler))
-
+    application.add_handler(CallbackQueryHandler(edit_description_button, pattern="^edit_description\|"))
+    application.add_handler(CallbackQueryHandler(edit_date_button, pattern="^edit_date\|"))
+    application.add_handler(CallbackQueryHandler(edit_time_button, pattern="^edit_time\|"))
+    application.add_handler(CallbackQueryHandler(edit_limit_button, pattern="^edit_limit\|"))
     # Запускаем бота
     application.run_polling()
 
