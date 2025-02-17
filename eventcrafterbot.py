@@ -372,7 +372,53 @@ async def edit_event(update, context):
         text="Выберите параметр для редактирования:",
         reply_markup=reply_markup
     )
+# Обработчик нажатия на кнопки для редактирования
+async def edit_event_details(update, context):
+    query = update.callback_query
+    action, event_id = query.data.split("|")
 
+    db_path = context.bot_data.get("db_path", DB_PATH)
+    event = get_event(db_path, event_id)
+
+    if not event:
+        await query.answer("Мероприятие не найдено.")
+        return
+
+    # Действия в зависимости от того, какой параметр редактируем
+    if action == "edit_description":
+        # Отправить форму редактирования описания
+        await query.edit_message_text(
+            text="Введите новое описание для мероприятия:",
+        )
+        # Ожидаем введение описания пользователем (например, с помощью MessageHandler)
+        context.user_data['editing_field'] = 'description'
+
+    elif action == "edit_date":
+        # Отправить форму редактирования даты
+        await query.edit_message_text(
+            text="Введите новую дату для мероприятия (формат: YYYY-MM-DD):",
+        )
+        context.user_data['editing_field'] = 'date'
+
+    elif action == "edit_time":
+        # Отправить форму редактирования времени
+        await query.edit_message_text(
+            text="Введите новое время для мероприятия (формат: HH:MM):",
+        )
+        context.user_data['editing_field'] = 'time'
+
+    elif action == "edit_limit":
+        # Отправить форму редактирования лимита участников
+        await query.edit_message_text(
+            text="Введите новый лимит участников:",
+        )
+        context.user_data['editing_field'] = 'limit'
+
+    elif action == "cancel_edit":
+        # Отменить редактирование
+        await query.edit_message_text(
+            text="Редактирование отменено.",
+        )
 
 # Далее обработчики для изменения отдельных полей
 async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
