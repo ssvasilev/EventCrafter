@@ -345,24 +345,31 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
         except Exception as e:
             logger.error(f"Ошибка при закреплении сообщения: {e}")
-# Обработчик нажатия кнопки "Редактировать"
-async def edit_event_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+# Обработчик кнопки "Редактировать"
+async def edit_event(update, context):
     query = update.callback_query
-    await query.answer()
+    event_id = query.data.split("|")[1]  # Получаем ID мероприятия
+    db_path = context.bot_data.get("db_path", DB_PATH)
+    event = get_event(db_path, event_id)
 
-    event_id = query.data.split('|')[1]
-    logger.info(f"Редактирование мероприятия {event_id}")
+    if not event:
+        await query.answer("Мероприятие не найдено.")
+        return
 
+    # Создайте клавиатуру для редактирования
     keyboard = [
-        [InlineKeyboardButton("Изменить описание", callback_data=f"edit_description|{event_id}")],
-        [InlineKeyboardButton("Изменить дату", callback_data=f"edit_date|{event_id}")],
-        [InlineKeyboardButton("Изменить время", callback_data=f"edit_time|{event_id}")],
-        [InlineKeyboardButton("Отмена", callback_data=f"cancel_edit|{event_id}")],
+        [InlineKeyboardButton("✏ Описание", callback_data=f"edit_description|{event_id}")],
+        [InlineKeyboardButton("🗓 Дата", callback_data=f"edit_date|{event_id}")],
+        [InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")],
+        [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")],
+        [InlineKeyboardButton("❌ Отмена", callback_data=f"cancel_edit|{event_id}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Отправляем сообщение для редактирования с клавиатурой
     await query.edit_message_text(
-        text="Выберите, что хотите изменить:",
+        text="Выберите параметр для редактирования:",
         reply_markup=reply_markup
     )
 
