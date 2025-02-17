@@ -37,6 +37,7 @@ DB_PATH = "../data/events.db"
 # Инициализация базы данных
 init_db(DB_PATH)
 
+
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
@@ -51,6 +52,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Привет! Я бот для организации мероприятий. Нажми кнопку ниже, чтобы создать мероприятие.",
         reply_markup=reply_markup,
     )
+
 
 # Обработка упоминания бота
 async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -71,6 +73,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             break
 
+
 # Обработка нажатия на кнопку "Создать мероприятие"
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -81,6 +84,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text("Введите описание мероприятия:")
     return SET_DESCRIPTION
 
+
 # Обработка ввода описания мероприятия
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["description"] = update.message.text
@@ -90,6 +94,7 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("Введите дату мероприятия в формате ДД.ММ.ГГГГ:", reply_markup=reply_markup)
     return SET_DATE
+
 
 # Обработка ввода даты мероприятия
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -107,6 +112,7 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:")
         return SET_DATE
 
+
 # Обработка ввода времени мероприятия
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     time_text = update.message.text
@@ -117,11 +123,13 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_action")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text("Введите количество участников (0 - неограниченное):", reply_markup=reply_markup)
+        await update.message.reply_text("Введите количество участников (0 - неограниченное):",
+                                        reply_markup=reply_markup)
         return SET_LIMIT
     except ValueError:
         await update.message.reply_text("Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:")
         return SET_TIME
+
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -159,6 +167,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return SET_LIMIT
 
+
 # Команда для редактирования описания
 async def edit_description_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -180,6 +189,7 @@ async def edit_description_command(update: Update, context: ContextTypes.DEFAULT
     except Exception as e:
         logger.error(f"Ошибка при редактировании описания: {e}")
         await update.message.reply_text("Произошла ошибка при редактировании описания.")
+
 
 # Команда для редактирования времени
 async def edit_time_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -210,6 +220,7 @@ async def edit_time_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка при редактировании времени: {e}")
         await update.message.reply_text("Произошла ошибка при редактировании времени.")
 
+
 # Команда для редактирования даты
 async def edit_date_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -239,6 +250,7 @@ async def edit_date_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка при редактировании даты: {e}")
         await update.message.reply_text("Произошла ошибка при редактировании даты.")
 
+
 # Команда для редактирования лимита участников
 async def edit_limit_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -257,7 +269,8 @@ async def edit_limit_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             if new_limit < 0:
                 raise ValueError
         except ValueError:
-            await update.message.reply_text("Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников.")
+            await update.message.reply_text(
+                "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников.")
             return
 
         # Обновляем лимит в базе данных
@@ -269,6 +282,7 @@ async def edit_limit_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception as e:
         logger.error(f"Ошибка при редактировании лимита: {e}")
         await update.message.reply_text("Произошла ошибка при редактировании лимита.")
+
 
 # Отправка сообщения с информацией о мероприятии
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
@@ -284,7 +298,8 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 
     participants = "\n".join(event["participants"]) if event["participants"] else "Пока никто не участвует."
     reserve = "\n".join(event["reserve"]) if event["reserve"] else "Резерв пуст."
-    participants_limit_text = "∞ (бесконечный)" if event["participants_limit"] is None else str(event["participants_limit"])
+    participants_limit_text = "∞ (бесконечный)" if event["participants_limit"] is None else str(
+        event["participants_limit"])
 
     keyboard = [
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
@@ -340,6 +355,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         except Exception as e:
             logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
+
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -383,7 +399,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if event["reserve"]:
                     new_participant = event["reserve"].pop(0)
                     event["participants"].append(new_participant)
-                    await query.answer(f"{user_name}, вы удалены из списка участников. {new_participant} добавлен из резерва.")
+                    await query.answer(
+                        f"{user_name}, вы удалены из списка участников. {new_participant} добавлен из резерва.")
                 else:
                     await query.answer(f"{user_name}, вы удалены из списка участников.")
             elif user_name in event["reserve"]:
@@ -401,6 +418,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Действие отменено.")
         return ConversationHandler.END
 
+
 # Обработчик для кнопки "Отмена"
 async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -409,10 +427,12 @@ async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("Действие отменено.")
     return ConversationHandler.END
 
+
 # Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Создание мероприятия отменено.")
     return ConversationHandler.END
+
 
 # Основная функция
 def main():
@@ -449,6 +469,7 @@ def main():
 
     # Запускаем бота
     application.run_polling()
+
 
 if __name__ == "__main__":
     main()
