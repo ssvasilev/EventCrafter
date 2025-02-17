@@ -179,7 +179,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         f"👥 <i>Лимит участников:</i> {limit_text}\n\n"
         f"✅ <i>Участники:</i>\n{participants}\n\n"
         f"⏳ <i>Резерв:</i>\n{reserve}\n\n"
-        f"<i><small>Обновлено: {timestamp}</small></i>"  # Временная метка
+        f"<i>>Обновлено: {timestamp}</i>"  # Временная метка
     )
 
     if event.get("message_id"):
