@@ -338,6 +338,21 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.error(f"Неизвестная ошибка: {e}")
 
         try:
+            response = await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=event["message_id"],
+                text=message_text_with_timestamp,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
+            logger.info(f"Ответ Telegram API: {response}")
+        except error.BadRequest as e:
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка: {e}")
+
+
+        try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=event["message_id"],
