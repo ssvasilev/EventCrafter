@@ -298,8 +298,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 
     participants = "\n".join(event["participants"]) if event["participants"] else "Пока никто не участвует."
     reserve = "\n".join(event["reserve"]) if event["reserve"] else "Резерв пуст."
-    participants_limit_text = "∞ (бесконечный)" if event["participants_limit"] is None else str(
-        event["participants_limit"])
+    participants_limit_text = "∞ (бесконечный)" if event["participants_limit"] is None else str(event["participants_limit"])
 
     keyboard = [
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
@@ -308,66 +307,34 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Добавляем event_id в текст сообщения
     message_text = (
         f"📢 <b>{event['description']}</b>\n"
-        f"🆔 <i>Номер мероприятия:</i> {event_id}\n"  # Добавляем номер мероприятия
-        f"📅 <i>Дата:</i> {event['date']}\n"
+        f"🆔 <i>Номер мероприятия:</i> {event_id}\n"
+        f"🗓 <i>Дата:</i> {event['date']}\n"
         f"🕒 <i>Время:</i> {event['time']}\n"
         f"👥 <i>Лимит участников:</i> {participants_limit_text}\n\n"
         f"✅ <i>Участники:</i>\n{participants}\n\n"
         f"⏳ <i>Резерв:</i>\n{reserve}"
     )
 
-    # Добавляем временную метку
     message_text_with_timestamp = f"{message_text}\n\n<i>Обновлено: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>"
 
     if event.get("message_id"):
         try:
-            # Проверяем статус бота в чате
-            chat_member = await context.bot.get_chat_member(chat_id, context.bot.id)
-            logger.info(f"Статус бота в чате: {chat_member.status}")
-
-            # Проверяем существование сообщения перед редактированием
-            message = await context.bot.get_chat(chat_id)
-            logger.info(f"Сообщение с ID {event['message_id']} существует!")
-
-        except error.BadRequest as e:
-            logger.error(f"Ошибка при проверке сообщения или статуса бота: {e}")
-        except Exception as e:
-            logger.error(f"Неизвестная ошибка: {e}")
-
-        try:
-            response = await context.bot.edit_message_text(
+            await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=event["message_id"],
                 text=message_text_with_timestamp,
                 reply_markup=reply_markup,
                 parse_mode="HTML"
             )
-            logger.info(f"Ответ Telegram API: {response}")
-        except error.BadRequest as e:
-            logger.error(f"Ошибка при редактировании сообщения: {e}")
+            logger.info(f"Попытка редактировать сообщение с ID {event['message_id']} для мероприятия {event_id}")
         except Exception as e:
-            logger.error(f"Неизвестная ошибка: {e}")
-
-
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=event["message_id"],
-                text=message_text_with_timestamp,  # Используем текст с временной меткой
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
-            logger.info(f"Попытка редактировать сообщение с ID {event.get('message_id')} для мероприятия {event_id}")
-        except error.BadRequest as e:
             logger.error(f"Ошибка при редактировании сообщения: {e}")
     else:
-        logger.info("Отправляем новое сообщение.")
         message = await context.bot.send_message(
             chat_id=chat_id,
-            text=message_text_with_timestamp,  # Используем текст с временной меткой
+            text=message_text_with_timestamp,
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
@@ -376,14 +343,90 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 
         try:
             await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
-            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
-        except error.BadRequest as e:
-            logger.error(f"Ошибка при закреплении сообщения: {e}")
-        except error.Forbidden as e:
-            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
         except Exception as e:
-            logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
+            logger.error(f"Ошибка при закреплении сообщения: {e}")
+# Обработчик нажатия кнопки "Редактировать"
+async def edit_event_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
+    event_id = query.data.split('|')[1]
+    logger.info(f"Редактирование мероприятия {event_id}")
+
+    keyboard = [
+        [InlineKeyboardButton("Изменить описание", callback_data=f"edit_description|{event_id}")],
+        [InlineKeyboardButton("Изменить дату", callback_data=f"edit_date|{event_id}")],
+        [InlineKeyboardButton("Изменить время", callback_data=f"edit_time|{event_id}")],
+        [InlineKeyboardButton("Отмена", callback_data=f"cancel_edit|{event_id}")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        text="Выберите, что хотите изменить:",
+        reply_markup=reply_markup
+    )
+
+
+# Далее обработчики для изменения отдельных полей
+async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    event_id = query.data.split('|')[1]
+    context.user_data['edit_event_id'] = event_id
+    context.user_data['edit_field'] = 'description'
+
+    await query.edit_message_text(text="Введите новое описание мероприятия:")
+
+
+async def edit_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    event_id = query.data.split('|')[1]
+    context.user_data['edit_event_id'] = event_id
+    context.user_data['edit_field'] = 'date'
+
+    await query.edit_message_text(text="Введите новую дату мероприятия (в формате ДД-ММ-ГГГГ):")
+
+
+async def edit_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    event_id = query.data.split('|')[1]
+    context.user_data['edit_event_id'] = event_id
+    context.user_data['edit_field'] = 'time'
+
+    await query.edit_message_text(text="Введите новое время мероприятия (в формате ЧЧ:ММ):")
+
+
+# Обработчик текстового сообщения с новыми данными
+async def receive_new_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    event_id = context.user_data.get('edit_event_id')
+    edit_field = context.user_data.get('edit_field')
+    new_value = update.message.text
+
+    if not event_id or not edit_field:
+        await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
+        return
+
+    db_path = context.bot_data.get("db_path", DB_PATH)
+    event = get_event(db_path, event_id)
+    if not event:
+        await update.message.reply_text("Мероприятие не найдено.")
+        return
+
+    event[edit_field] = new_value
+    update_event(db_path, event_id, event["participants"], event["reserve"], event)
+
+    await update.message.reply_text(f"{edit_field.capitalize()} успешно обновлено!")
+
+    chat_id = update.message.chat_id
+    await send_event_message(event_id, context, chat_id)
+
+    context.user_data.pop('edit_event_id', None)
+    context.user_data.pop('edit_field', None)
 
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
