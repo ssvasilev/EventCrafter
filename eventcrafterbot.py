@@ -293,8 +293,10 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Добавляем event_id в текст сообщения
     message_text = (
         f"📢 <b>{event['description']}</b>\n"
+        f"🆔 <i>Номер мероприятия:</i> {event_id}\n"  # Добавляем номер мероприятия
         f"📅 <i>Дата:</i> {event['date']}\n"
         f"🕒 <i>Время:</i> {event['time']}\n"
         f"👥 <i>Лимит участников:</i> {participants_limit_text}\n\n"
