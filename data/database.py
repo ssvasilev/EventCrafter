@@ -105,21 +105,56 @@ def get_event(db_path, event_id):
     return None
 
 def update_event(db_path, event_id, participants=None, reserve=None, description=None, date=None, time=None, limit=None):
-    conn = sqlite3.connect(db_path)
+    """
+    Обновляет данные мероприятия по его ID.
+    :param db_path: Путь к файлу базы данных.
+    :param event_id: ID мероприятия.
+    :param participants: Список участников (опционально).
+    :param reserve: Список резерва (опционально).
+    :param description: Новое описание (опционально).
+    :param date: Новая дата (опционально).
+    :param time: Новое время (опционально).
+    :param limit: Новый лимит участников (опционально).
+    """
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
-    if description:
-        cursor.execute("UPDATE events SET description = ? WHERE id = ?", (description, event_id))
-    if date:
-        cursor.execute("UPDATE events SET date = ? WHERE id = ?", (date, event_id))
-    if time:
-        cursor.execute("UPDATE events SET time = ? WHERE id = ?", (time, event_id))
+
+    # Проверяем, существует ли мероприятие
+    event = cursor.execute("SELECT id FROM events WHERE id = ?", (event_id,)).fetchone()
+    if not event:
+        conn.close()
+        raise ValueError(f"Мероприятие с ID {event_id} не найдено.")
+
+    # Формируем запрос на обновление
+    updates = []
+    params = []
+
+    if description is not None:
+        updates.append("description = ?")
+        params.append(description)
+    if date is not None:
+        updates.append("date = ?")
+        params.append(date)
+    if time is not None:
+        updates.append("time = ?")
+        params.append(time)
     if limit is not None:
-        cursor.execute("UPDATE events SET limit = ? WHERE id = ?", (limit, event_id))
+        updates.append('"limit" = ?')  # Используем кавычки для зарезервированного слова
+        params.append(limit)
     if participants is not None:
-        cursor.execute("UPDATE events SET participants = ? WHERE id = ?", (json.dumps(participants), event_id))
+        updates.append("participants = ?")
+        params.append(json.dumps(participants))
     if reserve is not None:
-        cursor.execute("UPDATE events SET reserve = ? WHERE id = ?", (json.dumps(reserve), event_id))
-    conn.commit()
+        updates.append("reserve = ?")
+        params.append(json.dumps(reserve))
+
+    # Если есть что обновлять
+    if updates:
+        query = f"UPDATE events SET {', '.join(updates)} WHERE id = ?"
+        params.append(event_id)
+        cursor.execute(query, params)
+        conn.commit()
+
     conn.close()
 
 def update_message_id(db_path, event_id, message_id):
