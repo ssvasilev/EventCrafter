@@ -324,6 +324,20 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 
     if event.get("message_id"):
         try:
+            # Проверяем статус бота в чате
+            chat_member = await context.bot.get_chat_member(chat_id, context.bot.id)
+            logger.info(f"Статус бота в чате: {chat_member.status}")
+
+            # Проверяем существование сообщения перед редактированием
+            message = await context.bot.get_chat(chat_id)
+            logger.info(f"Сообщение с ID {event['message_id']} существует!")
+
+        except error.BadRequest as e:
+            logger.error(f"Ошибка при проверке сообщения или статуса бота: {e}")
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка: {e}")
+
+        try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=event["message_id"],
