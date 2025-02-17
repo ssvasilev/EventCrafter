@@ -119,6 +119,24 @@ def update_event(db_path, event_id, participants, reserve):
     conn.commit()
     conn.close()
 
+def save_event(db_path, event):
+    # Открываем соединение с базой данных
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Предположим, что у нас есть таблица events с колонками id, description, date, time, limit
+    cursor.execute('''
+        UPDATE events
+        SET description = ?, date = ?, time = ?, limit = ?
+        WHERE id = ?
+    ''', (event['description'], event['date'], event['time'], event['limit'], event['id']))
+
+    # Сохраняем изменения в базе данных
+    conn.commit()
+
+    # Закрываем соединение
+    conn.close()
+
 def update_message_id(db_path, event_id, message_id):
     """
     Обновляет message_id мероприятия.

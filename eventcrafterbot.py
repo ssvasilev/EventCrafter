@@ -454,32 +454,40 @@ async def edit_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(text="Введите новое время мероприятия (в формате ЧЧ:ММ):")
 
 
-# Обработчик текстового сообщения с новыми данными
-async def receive_new_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    event_id = context.user_data.get('edit_event_id')
-    edit_field = context.user_data.get('edit_field')
-    new_value = update.message.text
+async def handle_event_edit(update, context):
+    user_input = update.message.text
+    field = context.user_data.get('editing_field')
 
-    if not event_id or not edit_field:
-        await update.message.reply_text("Произошла ошибка. Попробуйте еще раз.")
+    # Получаем event_id из контекста
+    event_id = context.user_data.get('event_id')
+
+    if not event_id:
+        await update.message.reply("Ошибка: ID мероприятия не найдено.")
         return
 
     db_path = context.bot_data.get("db_path", DB_PATH)
     event = get_event(db_path, event_id)
+
     if not event:
-        await update.message.reply_text("Мероприятие не найдено.")
+        await update.message.reply("Мероприятие не найдено.")
         return
 
-    event[edit_field] = new_value
-    update_event(db_path, event_id, event["participants"], event["reserve"], event)
+    # В зависимости от поля, обновляем его значение
+    if field == 'description':
+        event['description'] = user_input
+        await update.message.reply(f"Описание обновлено на: {user_input}")
+    elif field == 'date':
+        event['date'] = user_input
+        await update.message.reply(f"Дата обновлена на: {user_input}")
+    elif field == 'time':
+        event['time'] = user_input
+        await update.message.reply(f"Время обновлено на: {user_input}")
+    elif field == 'limit':
+        event['participants_limit'] = int(user_input)
+        await update.message.reply(f"Лимит участников обновлен на: {user_input}")
 
-    await update.message.reply_text(f"{edit_field.capitalize()} успешно обновлено!")
-
-    chat_id = update.message.chat_id
-    await send_event_message(event_id, context, chat_id)
-
-    context.user_data.pop('edit_event_id', None)
-    context.user_data.pop('edit_field', None)
+    # Сохраняем изменения в базе данных
+        save_event(db_path, event)
 
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -591,6 +599,12 @@ def main():
 
     # Регистрируем обработчик нажатий на кнопки
     application.add_handler(CallbackQueryHandler(button_handler))
+
+    # Обработчик кнопок редактирования
+    application.add_handler(CallbackQueryHandler(edit_event, pattern="^edit_.*"))
+
+    # Обработчик редактирования события (обработчик ввода)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_event_edit))
 
     # Запускаем бота
     application.run_polling()
