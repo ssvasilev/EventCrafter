@@ -153,10 +153,6 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Отправка сообщения с информацией о мероприятии
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
-    if not chat_id:
-        logger.error("chat_id не найден в send_event_message()")
-        return
-
     db_path = context.bot_data.get("db_path", DB_PATH)
     event = get_event(db_path, event_id)
     if not event:
@@ -195,7 +191,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.info(f"Редактируем сообщение с ID {event['message_id']}")
         except error.BadRequest as e:
             logger.error(f"Ошибка при редактировании сообщения: {e}")
-
     else:
         logger.info("Отправляем новое сообщение.")
         message = await context.bot.send_message(
@@ -271,7 +266,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("Вас нет в списке участников или резерва.")
     elif action == "edit":
-        # Отправляем клавиатуру с выбором, что редактировать
+        event_id = query.data.split("|")[1]
+        context.user_data["event_id"] = event_id
         keyboard = [
             [InlineKeyboardButton("Описание", callback_data=f"edit_description|{event_id}")],
             [InlineKeyboardButton("Дата", callback_data=f"edit_date|{event_id}")],
@@ -328,9 +324,7 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     new_description = update.message.text
     event_id = context.user_data["event_id"]
     db_path = context.bot_data["db_path"]
-    event = get_event(db_path, event_id)
-    event["description"] = new_description
-    update_event(db_path, event_id, event["participants"], event["reserve"], description=new_description)
+    update_event(db_path, event_id, description=new_description)
     await update.message.reply_text("Описание мероприятия обновлено!")
     await send_event_message(event_id, context, update.message.chat_id)
     return ConversationHandler.END
