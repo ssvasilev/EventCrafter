@@ -12,9 +12,9 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+import sqlite3
 from data.database import init_db, add_event, get_event, update_event, update_message_id
 
-#ToDo убрать это
 # Загружаем переменные окружения из .env
 load_dotenv("data/.env")  # Указываем путь к .env
 
@@ -31,13 +31,13 @@ logger = logging.getLogger(__name__)
 
 # Состояния для ConversationHandler
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
+SET_EVENT_ID_FOR_UPDATE, SET_NEW_DESCRIPTION = range(2, 4)
 
 # Глобальная переменная для пути к базе данных
 DB_PATH = "../data/events.db"
 
 # Инициализация базы данных
 init_db(DB_PATH)  # Указываем путь к базе данных
-
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -50,7 +50,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Привет! Я бот для организации мероприятий. Нажми кнопку ниже, чтобы создать мероприятие.",
         reply_markup=reply_markup,
     )
-
 
 # Обработка упоминания бота
 async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -71,7 +70,6 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             break
 
-
 # Обработка нажатия на кнопку "Создать мероприятие"
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -83,13 +81,11 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text("Введите описание мероприятия:")
     return SET_DESCRIPTION
 
-
 # Обработка ввода описания мероприятия
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["description"] = update.message.text
     await update.message.reply_text("Введите дату мероприятия в формате ДД.ММ.ГГГГ:")
     return SET_DATE
-
 
 # Обработка ввода даты мероприятия
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -103,7 +99,6 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:")
         return SET_DATE
 
-
 # Обработка ввода времени мероприятия
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     time_text = update.message.text
@@ -115,7 +110,6 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:")
         return SET_TIME
-
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -147,7 +141,6 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:")
         return SET_LIMIT
-
 
 # Отправка сообщения с информацией о мероприятии
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
@@ -279,6 +272,43 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Создание мероприятия отменено.")
     return ConversationHandler.END
 
+# Команда /update_description
+async def update_description_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Введите ID мероприятия, описание которого вы хотите обновить:")
+    return SET_EVENT_ID_FOR_UPDATE
+
+# Обработка ввода ID мероприятия для обновления описания
+async def set_event_id_for_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    event_id = update.message.text
+    context.user_data["event_id"] = event_id
+    await update.message.reply_text("Введите новое описание мероприятия:")
+    return SET_NEW_DESCRIPTION
+
+# Обработка ввода нового описания мероприятия
+async def set_new_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    new_description = update.message.text
+    event_id = context.user_data["event_id"]
+
+    # Получаем путь к базе данных
+    db_path = context.bot_data["db_path"]
+
+    # Получаем мероприятие из базы данных
+    event = get_event(db_path, event_id)
+    if not event:
+        await update.message.reply_text("Мероприятие с таким ID не найдено.")
+        return ConversationHandler.END
+
+    # Обновляем описание мероприятия
+    event["description"] = new_description
+    update_event(db_path, event_id, event["participants"], event["reserve"], new_description)
+
+    await update.message.reply_text("Описание мероприятия обновлено!")
+
+    # Отправляем обновлённое сообщение с информацией о мероприятии
+    chat_id = update.message.chat_id
+    await send_event_message(event_id, context, chat_id)
+
+    return ConversationHandler.END
 
 # Основная функция
 def main():
@@ -307,12 +337,22 @@ def main():
     )
     application.add_handler(conv_handler)
 
+    # ConversationHandler для обновления описания мероприятия
+    update_description_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("update_description", update_description_command)],
+        states={
+            SET_EVENT_ID_FOR_UPDATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_event_id_for_update)],
+            SET_NEW_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_new_description)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    application.add_handler(update_description_conv_handler)
+
     # Регистрируем обработчик нажатий на кнопки
     application.add_handler(CallbackQueryHandler(button_handler))
 
     # Запускаем бота
     application.run_polling()
-
 
 if __name__ == "__main__":
     main()
