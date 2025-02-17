@@ -170,13 +170,16 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Добавляем временную метку
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     message_text = (
         f"📢 <b>{event['description']}</b>\n"
         f"📅 <i>Дата:</i> {event['date']}\n"
         f"🕒 <i>Время:</i> {event['time']}\n"
         f"👥 <i>Лимит участников:</i> {limit_text}\n\n"
         f"✅ <i>Участники:</i>\n{participants}\n\n"
-        f"⏳ <i>Резерв:</i>\n{reserve}"
+        f"⏳ <i>Резерв:</i>\n{reserve}\n\n"
+        f"<i><small>Обновлено: {timestamp}</small></i>"  # Временная метка
     )
 
     if event.get("message_id"):
@@ -199,7 +202,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
-        logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
         update_message_id(db_path, event_id, message.message_id)
 
         # Пытаемся закрепить сообщение
