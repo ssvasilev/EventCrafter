@@ -104,20 +104,21 @@ def get_event(db_path, event_id):
         }
     return None
 
-def update_event(db_path, event_id, participants, reserve):
-    """
-    Обновляет списки участников и резерва мероприятия.
-    :param db_path: Путь к файлу базы данных.
-    :param event_id: ID мероприятия.
-    :param participants: Список участников.
-    :param reserve: Список резерва.
-    """
-    conn = get_db_connection(db_path)
-    conn.execute("""
-        UPDATE events
-        SET participants = ?, reserve = ?
-        WHERE id = ?
-    """, (json.dumps(participants), json.dumps(reserve), event_id))
+def update_event(db_path, event_id, participants=None, reserve=None, description=None, date=None, time=None, limit=None):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    if description:
+        cursor.execute("UPDATE events SET description = ? WHERE id = ?", (description, event_id))
+    if date:
+        cursor.execute("UPDATE events SET date = ? WHERE id = ?", (date, event_id))
+    if time:
+        cursor.execute("UPDATE events SET time = ? WHERE id = ?", (time, event_id))
+    if limit is not None:
+        cursor.execute("UPDATE events SET limit = ? WHERE id = ?", (limit, event_id))
+    if participants is not None:
+        cursor.execute("UPDATE events SET participants = ? WHERE id = ?", (json.dumps(participants), event_id))
+    if reserve is not None:
+        cursor.execute("UPDATE events SET reserve = ? WHERE id = ?", (json.dumps(reserve), event_id))
     conn.commit()
     conn.close()
 
