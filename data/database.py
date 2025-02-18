@@ -1,7 +1,6 @@
 import sqlite3
 import json
 import os
-import logging
 
 from eventcrafterbot import logger
 
