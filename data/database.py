@@ -19,22 +19,22 @@ def get_db_connection(db_path):
     return conn
 
 def init_db(db_path):
-    """
-    Инициализирует базу данных и применяет миграции.
-    :param db_path: Путь к файлу базы данных.
-    """
-    conn = get_db_connection(db_path)
-    conn.execute("""
+    """Инициализирует базу данных и создает таблицу events, если она не существует."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             description TEXT NOT NULL,
             date TEXT NOT NULL,
             time TEXT NOT NULL,
             participant_limit INTEGER,
-            participants TEXT NOT NULL,
-            reserve TEXT NOT NULL
+            creator_id INTEGER NOT NULL,
+            message_id INTEGER
         )
-    """)
+        """
+    )
     conn.commit()
     conn.close()
 
