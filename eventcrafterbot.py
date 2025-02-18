@@ -330,7 +330,7 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Что вы хотите изменить?",
         reply_markup=reply_markup,
     )
-    return EDIT_DATE  # Переходим в состояние редактирования  EDIT_DESCRIPTION попытаемся поменять на EDIT_DATE
+    #return EDIT_DATE  # Переходим в состояние редактирования
 
 # Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
