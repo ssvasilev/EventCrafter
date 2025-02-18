@@ -319,13 +319,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Формируем имя пользователя
+    user_id = user.id
     user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
-
     # Обработка действия "Участвовать"
     if action == "join":
-        user_id = user.id
-        user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
-
         if any(p["user_id"] == user_id for p in event["participants"] + event["reserve"]):
             await query.answer("Вы уже в списке участников или резерва.")
         else:
