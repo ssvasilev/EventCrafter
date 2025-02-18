@@ -59,7 +59,7 @@ def migrate_db(db_path):
 
     conn.close()
 
-def add_event(db_path, description, date, time, limit, message_id=None, creator_id):
+def add_event(db_path, description, date, time, limit, creator_id, message_id=None):
     """
     Добавляет новое мероприятие в базу данных.
     :param db_path: Путь к файлу базы данных.
@@ -76,7 +76,7 @@ def add_event(db_path, description, date, time, limit, message_id=None, creator_
         cursor.execute("""
             INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (description, date, time, limit, json.dumps([]), json.dumps([]), None, creator_id))
+        """, (description, date, time, limit, json.dumps([]), json.dumps([]), creator_id, None))
         event_id = cursor.lastrowid
         conn.commit()
         conn.close()
