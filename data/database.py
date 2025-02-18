@@ -30,6 +30,7 @@ def init_db(db_path):
             date TEXT NOT NULL,
             time TEXT NOT NULL,
             participant_limit INTEGER,
+            participants TEXT NOT NULL,
             creator_id INTEGER NOT NULL,
             message_id INTEGER
         )
@@ -67,6 +68,7 @@ def add_event(db_path, description, date, time, limit, creator_id, message_id=No
     :param date: Дата мероприятия в формате строки (YYYY-MM-DD).
     :param time: Время мероприятия в формате строки (HH:MM).
     :param limit: Лимит участников. Если None, лимит бесконечный.
+    :param creator_id: ID создателя, для проверки прав.
     :param message_id: ID сообщения в Telegram (опционально).
     :return: ID созданного мероприятия.
     """
@@ -74,7 +76,7 @@ def add_event(db_path, description, date, time, limit, creator_id, message_id=No
         conn = get_db_connection(db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
+            INSERT INTO events (description, date, time, participant_limit, participants, reserve, creator_id, message_id)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (description, date, time, limit, json.dumps([]), json.dumps([]), creator_id, message_id))
         event_id = cursor.lastrowid # Получаем ID добавленного мероприятия
