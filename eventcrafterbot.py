@@ -104,54 +104,108 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Обработка нажатия на кнопку "Создать мероприятие"
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     query = update.callback_query
     await query.answer()
 
     # Сохраняем chat_id в context.user_data
     context.user_data["chat_id"] = query.message.chat_id
 
-    await query.edit_message_text("Введите описание мероприятия:")
+    # Отправляем сообщение с кнопкой "Отмена"
+    await query.edit_message_text(
+        "Введите описание мероприятия:",
+        reply_markup=reply_markup,  # Добавляем клавиатуру с кнопкой
+    )
     return SET_DESCRIPTION
 
 
 # Обработка ввода описания мероприятия
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["description"] = update.message.text
-    await update.message.reply_text("Введите дату мероприятия в формате ДД.ММ.ГГГГ:")
-    return SET_DATE
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Сохраняем описание в context.user_data
+    context.user_data["description"] = update.message.text
+
+    # Отправляем сообщение с кнопкой "Отмена"
+    await update.message.reply_text(
+        "Введите дату мероприятия в формате ДД.ММ.ГГГГ:",
+        reply_markup=reply_markup,
+    )
+    return SET_DATE
 
 # Обработка ввода даты мероприятия
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     date_text = update.message.text
     try:
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
         context.user_data["date"] = date
-        await update.message.reply_text("Введите время мероприятия в формате ЧЧ:ММ:")
+
+        # Отправляем сообщение с кнопкой "Отмена"
+        await update.message.reply_text(
+            "Введите время мероприятия в формате ЧЧ:ММ:",
+            reply_markup=reply_markup,
+        )
         return SET_TIME
     except ValueError:
-        await update.message.reply_text("Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:")
+        # Отправляем сообщение с кнопкой "Отмена" в случае ошибки
+        await update.message.reply_text(
+            "Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:",
+            reply_markup=reply_markup,
+        )
         return SET_DATE
 
 
 # Обработка ввода времени мероприятия
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     time_text = update.message.text
     try:
         time = datetime.strptime(time_text, "%H:%M").time()
         context.user_data["time"] = time
-        await update.message.reply_text("Введите количество участников (0 - неограниченное):")
+
+        # Отправляем сообщение с кнопкой "Отмена"
+        await update.message.reply_text(
+            "Введите количество участников (0 - неограниченное):",
+            reply_markup=reply_markup,
+        )
         return SET_LIMIT
     except ValueError:
-        await update.message.reply_text("Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:")
+        # Отправляем сообщение с кнопкой "Отмена" в случае ошибки
+        await update.message.reply_text(
+            "Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:",
+            reply_markup=reply_markup,
+        )
         return SET_TIME
 
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обрабатывает ввод лимита участников и создает мероприятие.
-    """
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     limit_text = update.message.text
     try:
         # Преобразуем введенный текст в число
@@ -224,8 +278,10 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except ValueError as e:
         logger.error(f"Ошибка при обработке лимита: {e}")
+        # Отправляем сообщение с кнопкой "Отмена" в случае ошибки
         await update.message.reply_text(
-            "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
+            "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:",
+            reply_markup=reply_markup,
         )
         return SET_LIMIT
 
@@ -393,6 +449,7 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}")],
         [InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")],
         [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")],
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")],  # Кнопка "Отмена"
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -409,25 +466,54 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
 
     # Определяем, какое действие выбрал пользователь
-    action, event_id = query.data.split("|")
+    data = query.data
+    if data == "cancel_input":  # Если нажата кнопка "Отмена"
+        await cancel_input(update, context)
+        return ConversationHandler.END
+
+    action, event_id = data.split("|")
     context.user_data["event_id"] = event_id
 
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     if action == "edit_description":
-        await query.edit_message_text("Введите новое описание мероприятия:")
+        await query.edit_message_text(
+            "Введите новое описание мероприятия:",
+            reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
+        )
         return EDIT_DESCRIPTION
     elif action == "edit_date":
-        await query.edit_message_text("Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:")
+        await query.edit_message_text(
+            "Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:",
+            reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
+        )
         return EDIT_DATE
     elif action == "edit_time":
-        await query.edit_message_text("Введите новое время мероприятия в формате ЧЧ:ММ:")
+        await query.edit_message_text(
+            "Введите новое время мероприятия в формате ЧЧ:ММ:",
+            reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
+        )
         return EDIT_TIME
     elif action == "edit_limit":
-        await query.edit_message_text("Введите новый лимит участников (0 - неограниченное):")
+        await query.edit_message_text(
+            "Введите новый лимит участников (0 - неограниченное):",
+            reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
+        )
         return EDIT_LIMIT
 
     # Если действие не распознано, возвращаемся к выбору
     return EDIT_EVENT
 
+async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    await query.edit_message_text("Операция отменена.")
+    return ConversationHandler.END
 
 # Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -440,7 +526,16 @@ async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    await query.edit_message_text("Введите новое описание мероприятия:")
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        "Введите новое описание мероприятия:",
+        reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
+    )
     return EDIT_DESCRIPTION
 
 
@@ -466,7 +561,16 @@ async def edit_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    await query.edit_message_text("Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:")
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        "Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:",
+        reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
+    )
     return EDIT_DATE
 
 
@@ -497,7 +601,16 @@ async def edit_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    await query.edit_message_text("Введите новое время мероприятия в формате ЧЧ:ММ:")
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        "Введите новое время мероприятия в формате ЧЧ:ММ:",
+        reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
+    )
     return EDIT_TIME
 
 
@@ -528,7 +641,16 @@ async def edit_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    await query.edit_message_text("Введите новый лимит участников (0 - неограниченное):")
+    # Создаем клавиатуру с кнопкой "Отмена"
+    keyboard = [
+        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        "Введите новый лимит участников (0 - неограниченное):",
+        reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
+    )
     return EDIT_LIMIT
 
 
@@ -611,10 +733,22 @@ def main():
     conv_handler_create = ConversationHandler(
         entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],
         states={
-            SET_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_description)],
-            SET_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_date)],
-            SET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_time)],
-            SET_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit)],
+            SET_DESCRIPTION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_description),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            ],
+            SET_DATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_date),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            ],
+            SET_TIME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_time),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            ],
+            SET_LIMIT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
@@ -624,11 +758,26 @@ def main():
     conv_handler_edit_event = ConversationHandler(
         entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\\|")],
         states={
-            EDIT_EVENT: [CallbackQueryHandler(handle_edit_choice)],  # Ожидание выбора пользователя
-            EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_description)],
-            EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_date)],
-            EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_time)],
-            EDIT_LIMIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_limit)],
+            EDIT_EVENT: [
+                CallbackQueryHandler(handle_edit_choice),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
+                 ],  # Ожидание выбора пользователя
+            EDIT_DESCRIPTION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, save_description),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
+            ],
+            EDIT_DATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, save_date),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
+            ],
+            EDIT_TIME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, save_time),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
+            ],
+            EDIT_LIMIT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, save_limit),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
+            ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
