@@ -201,6 +201,11 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
         )
         return SET_LIMIT
+    except ValueError:
+        await update.message.reply_text(
+            "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
+        )
+        return SET_LIMIT
 
 
 # Отправка сообщения с информацией о мероприятии
