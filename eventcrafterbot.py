@@ -298,6 +298,18 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
         update_message_id(db_path, event_id, message.message_id)  # Сохраняем message_id в базе данных
 
+        # Пытаемся закрепить сообщение
+        try:
+            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
+            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
+        except error.BadRequest as e:
+            logger.error(f"Ошибка при закреплении сообщения: {e}")
+            logger.error(f"Проверьте, что чат {chat_id} является группой или каналом.")
+        except error.Forbidden as e:
+            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+            logger.error(f"Убедитесь, что бот является администратором и имеет права на закрепление.")
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
