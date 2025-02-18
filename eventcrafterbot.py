@@ -242,11 +242,18 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         logger.error(f"Мероприятие с ID {event_id} не найдено.")
         return
 
-    logger.warning(f"Participants data type: {type(event['participants'])}")
-    logger.warning(f"Participants content: {event['participants']}")
-    participants_list = [f"{p.get('name', 'Без имени')} (ID: {p.get('user_id', 'N/A')})" for p in event["participants"]]
-    participants = "\n".join(participants_list) if participants_list else "Пока никто не участвует."
-    reserve = "\n".join(event["reserve"]) if event["reserve"] else "Резерв пуст."
+    # Обработка участников
+    if event["participants"]:
+        participants = "\n".join([p["name"] for p in event["participants"]])  # Извлекаем имена
+    else:
+        participants = "Пока никто не участвует."
+
+    # Обработка резерва
+    if event["reserve"]:
+        reserve = "\n".join([p["name"] for p in event["reserve"]])  # Извлекаем имена
+    else:
+        reserve = "Резерв пуст."
+
     limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
 
     keyboard = [
@@ -319,7 +326,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = user.id
         user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
 
-        if user_name in event["participants"] or user_name in event["reserve"]:
+        if any(p["user_id"] == user_id for p in event["participants"] + event["reserve"]):
             await query.answer("Вы уже в списке участников или резерва.")
         else:
             if event["limit"] is None or len(event["participants"]) < event["limit"]:
@@ -331,17 +338,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Обработка действия "Не участвовать"
     elif action == "leave":
-        if user_name in event["participants"]:
-            event["participants"].remove(user_name)
+        if any(p["user_id"] == user_id for p in event["participants"]):
+            event["participants"] = [p for p in event["participants"] if p["user_id"] != user_id]
             if event["reserve"]:
                 new_participant = event["reserve"].pop(0)
                 event["participants"].append(new_participant)
                 await query.answer(
-                    f"{user_name}, вы удалены из списка участников. {new_participant} добавлен из резерва.")
+                    f"{user_name}, вы удалены из списка участников. {new_participant['name']} добавлен из резерва."
+                )
             else:
                 await query.answer(f"{user_name}, вы удалены из списка участников.")
-        elif user_name in event["reserve"]:
-            event["reserve"].remove(user_name)
+        elif any(p["user_id"] == user_id for p in event["reserve"]):
+            event["reserve"] = [p for p in event["reserve"] if p["user_id"] != user_id]
             await query.answer(f"{user_name}, вы удалены из резерва.")
         else:
             await query.answer("Вас нет в списке участников или резерва.")
