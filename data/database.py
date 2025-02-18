@@ -1,6 +1,10 @@
 import sqlite3
 import json
 import os
+import logging
+
+from eventcrafterbot import logger
+
 
 def get_db_connection(db_path):
     """
@@ -30,7 +34,6 @@ def init_db(db_path):
             date TEXT NOT NULL,
             time TEXT NOT NULL,
             participant_limit INTEGER,
-            participants TEXT NOT NULL,
             creator_id INTEGER NOT NULL,
             message_id INTEGER
         )
@@ -61,31 +64,36 @@ def migrate_db(db_path):
     conn.close()
 
 def add_event(db_path, description, date, time, limit, creator_id, message_id=None):
-    """
-    Добавляет новое мероприятие в базу данных.
-    :param db_path: Путь к файлу базы данных.
-    :param description: Описание мероприятия.
-    :param date: Дата мероприятия в формате строки (YYYY-MM-DD).
-    :param time: Время мероприятия в формате строки (HH:MM).
-    :param limit: Лимит участников. Если None, лимит бесконечный.
-    :param creator_id: ID создателя, для проверки прав.
-    :param message_id: ID сообщения в Telegram (опционально).
-    :return: ID созданного мероприятия.
-    """
+    """Добавляет мероприятие в базу данных."""
     try:
-        conn = get_db_connection(db_path)
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO events (description, date, time, participant_limit, participants, reserve, creator_id, message_id)
+
+        # Логируем данные перед выполнением запроса
+        logger.info(
+            f"Данные для добавления мероприятия: "
+            f"description={description}, date={date}, time={time}, "
+            f"limit={limit}, creator_id={creator_id}, message_id={message_id}"
+        )
+
+        # Выполняем SQL-запрос
+        cursor.execute(
+            """
+            INSERT INTO events (description, date, time, participant_limit, creator_id, message_id)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (description, date, time, limit, json.dumps([]), json.dumps([]), creator_id, message_id))
-        event_id = cursor.lastrowid # Получаем ID добавленного мероприятия
+            """,
+            (description, date, time, limit, creator_id, message_id),
+        )
+
+        event_id = cursor.lastrowid  # Получаем ID добавленного мероприятия
         conn.commit()
-        conn.close()
-        return event_id # Возвращаем ID
+        logger.info(f"Мероприятие добавлено с ID: {event_id}")
     except sqlite3.Error as e:
-        print(f"Ошибка при добавлении мероприятия: {e}")
-        return None
+        logger.error(f"Ошибка при добавлении мероприятия в базу данных: {e}")
+        event_id = None
+    finally:
+        conn.close()
+    return event_id
 
 def get_event(db_path, event_id):
     """
