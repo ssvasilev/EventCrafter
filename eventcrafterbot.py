@@ -310,8 +310,20 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    await query.edit_message_text(
+        "Что вы хотите изменить?",
+        reply_markup=reply_markup,
+    )
+    # Возвращаем состояние EDIT_EVENT, чтобы бот ждал выбора пользователя
+    return EDIT_EVENT
+
+async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
     # Определяем, какое действие выбрал пользователь
-    action = query.data.split("|")[0]
+    action, event_id = query.data.split("|")
+    context.user_data["event_id"] = event_id
 
     if action == "edit_description":
         await query.edit_message_text("Введите новое описание мероприятия:")
@@ -326,11 +338,8 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Введите новый лимит участников (0 - неограниченное):")
         return EDIT_LIMIT
 
-    await query.edit_message_text(
-        "Что вы хотите изменить?",
-        reply_markup=reply_markup,
-    )
-    #return EDIT_DATE  # Переходим в состояние редактирования
+    # Если действие не распознано, возвращаемся к выбору
+    return EDIT_EVENT
 
 # Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -484,6 +493,7 @@ def main():
     conv_handler_edit_event = ConversationHandler(
         entry_points=[CallbackQueryHandler(edit_event_button, pattern="^edit\\|")],
         states={
+            EDIT_EVENT: [CallbackQueryHandler(handle_edit_choice)],  # Ожидание выбора пользователя
             EDIT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_description)],
             EDIT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_date)],
             EDIT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_time)],
