@@ -154,6 +154,27 @@ def update_event_description(db_path: str, event_id: int, new_description: str):
     conn.commit()
     conn.close()
 
+def update_event_date(db_path: str, event_id: int, new_date: str):
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE events SET date = ? WHERE id = ?", (new_date, event_id))
+    conn.commit()
+    conn.close()
+
+def update_event_time(db_path: str, event_id: int, new_time: str):
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE events SET time = ? WHERE id = ?", (new_time, event_id))
+    conn.commit()
+    conn.close()
+
+def update_event_participant_limit(db_path: str, event_id: int, new_limit: int):
+    conn = get_db_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE events SET participant_limit = ? WHERE id = ?", (new_limit, event_id))
+    conn.commit()
+    conn.close()
+
 def delete_event(db_path: str, event_id: int):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()

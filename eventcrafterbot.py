@@ -12,7 +12,8 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import os
-from data.database import init_db, add_event, get_event, update_event, update_message_id, update_event_description, delete_event
+from data.database import init_db, add_event, get_event, update_event, update_message_id, update_event_description, \
+    delete_event, update_event_participant_limit, update_event_date
 from datetime import datetime, timedelta
 
 # Загружаем переменные окружения из .env
@@ -309,6 +310,22 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Определяем, какое действие выбрал пользователь
+    action = query.data.split("|")[0]
+
+    if action == "edit_description":
+        await query.edit_message_text("Введите новое описание мероприятия:")
+        return EDIT_DESCRIPTION
+    elif action == "edit_date":
+        await query.edit_message_text("Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:")
+        return EDIT_DATE
+    elif action == "edit_time":
+        await query.edit_message_text("Введите новое время мероприятия в формате ЧЧ:ММ:")
+        return EDIT_TIME
+    elif action == "edit_limit":
+        await query.edit_message_text("Введите новый лимит участников (0 - неограниченное):")
+        return EDIT_LIMIT
+
     await query.edit_message_text(
         "Что вы хотите изменить?",
         reply_markup=reply_markup,
@@ -361,7 +378,7 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
         # Обновляем дату в базе данных
-        update_event(db_path, event_id, date=date.strftime("%d-%m-%Y"))
+        update_event_date(db_path, event_id, date.strftime("%d-%m-%Y"))
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
@@ -422,7 +439,7 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError
 
         # Обновляем лимит в базе данных
-        update_event(db_path, event_id, limit=limit if limit != 0 else None)
+        update_event_participant_limit(db_path, event_id, limit if limit != 0 else None)
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
