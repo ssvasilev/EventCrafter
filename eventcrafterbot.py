@@ -142,6 +142,7 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return SET_DATE
 
+
 # Обработка ввода даты мероприятия
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Создаем клавиатуру с кнопкой "Отмена"
@@ -429,7 +430,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Обработка нажатия на кнопку "Редактировать"
 async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
 
     # Сохраняем event_id в context.user_data
     event_id = query.data.split("|")[1]
@@ -439,7 +439,7 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Проверяем, является ли пользователь создателем
     if event["creator_id"] != query.from_user.id:
         # Если пользователь не создатель, показываем уведомление
-        await query.answer("⛔ Вы не можете редактировать это мероприятие.", show_alert=True)
+        await query.answer("Вы не можете редактировать это мероприятие.", show_alert=True)
         return  # Завершаем выполнение функции
 
     # Сохраняем исходное сообщение
@@ -458,6 +458,7 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")],  # Кнопка "Отмена"
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.answer()
 
     await query.edit_message_text(
         "Что вы хотите изменить?",
@@ -513,6 +514,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Если действие не распознано, возвращаемся к выбору
     return EDIT_EVENT
 
+
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -536,6 +538,7 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Операция отменена.")
 
     return ConversationHandler.END
+
 
 # Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -783,7 +786,7 @@ def main():
             EDIT_EVENT: [
                 CallbackQueryHandler(handle_edit_choice),
                 CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
-                 ],  # Ожидание выбора пользователя
+            ],  # Ожидание выбора пользователя
             EDIT_DESCRIPTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, save_description),
                 CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
