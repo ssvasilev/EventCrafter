@@ -128,7 +128,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -146,7 +146,7 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -174,7 +174,7 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -202,7 +202,7 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -454,7 +454,7 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}")],
         [InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")],
         [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")],
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")],  # Кнопка "Отмена"
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")],  # Кнопка "Отмена"
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -480,7 +480,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -549,7 +549,7 @@ async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -584,7 +584,7 @@ async def edit_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -624,7 +624,7 @@ async def edit_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -664,7 +664,7 @@ async def edit_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
-        [InlineKeyboardButton("❌ Отмена", callback_data="cancel_input")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
