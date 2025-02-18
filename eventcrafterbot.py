@@ -441,6 +441,11 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("Вы не можете редактировать это мероприятие.")
         return
 
+    # Сохраняем исходное сообщение
+    context.user_data["original_message_id"] = query.message.message_id  # ID исходного сообщения
+    context.user_data["original_message_text"] = query.message.text  # Текст исходного сообщения
+    context.user_data["original_reply_markup"] = query.message.reply_markup  # Клавиатура исходного сообщения
+
     context.user_data["event_id"] = event_id
 
     # Создаем клавиатуру для выбора параметра редактирования
@@ -457,7 +462,6 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Что вы хотите изменить?",
         reply_markup=reply_markup,
     )
-    # Возвращаем состояние EDIT_EVENT, чтобы бот ждал выбора пользователя
     return EDIT_EVENT
 
 
@@ -512,7 +516,24 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    await query.edit_message_text("Операция отменена.")
+    # Восстанавливаем исходное сообщение
+    original_message_id = context.user_data.get("original_message_id")
+    original_message_text = context.user_data.get("original_message_text")
+    original_reply_markup = context.user_data.get("original_reply_markup")
+
+    if original_message_id and original_message_text:
+        try:
+            await query.edit_message_text(
+                text=original_message_text,
+                reply_markup=original_reply_markup,
+                parse_mode="HTML"  # Если используется HTML-разметка
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при восстановлении сообщения: {e}")
+            await query.edit_message_text("Операция отменена.")
+    else:
+        await query.edit_message_text("Операция отменена.")
+
     return ConversationHandler.END
 
 # Отмена создания мероприятия
