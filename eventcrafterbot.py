@@ -438,8 +438,9 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Проверяем, является ли пользователь создателем
     if event["creator_id"] != query.from_user.id:
-        await query.answer("Вы не можете редактировать это мероприятие.")
-        return
+        # Если пользователь не создатель, показываем уведомление
+        await query.answer("⛔ Вы не можете редактировать это мероприятие.", show_alert=True)
+        return  # Завершаем выполнение функции
 
     # Сохраняем исходное сообщение
     context.user_data["original_message_id"] = query.message.message_id  # ID исходного сообщения
