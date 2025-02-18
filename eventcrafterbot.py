@@ -13,7 +13,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 from data.database import init_db, add_event, get_event, update_event, update_message_id, update_event_description, \
-    delete_event, update_event_participant_limit, update_event_date
+    delete_event, update_event_participant_limit, update_event_date, update_event_time
 from datetime import datetime, timedelta
 
 # Загружаем переменные окружения из .env
