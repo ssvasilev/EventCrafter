@@ -36,7 +36,9 @@ def init_db(db_path):
             time TEXT NOT NULL,
             participant_limit INTEGER,
             creator_id INTEGER NOT NULL,
-            message_id INTEGER
+            message_id INTEGER,
+            participants TEXT,
+            reserve TEXT        
         )
         """
     )
@@ -80,10 +82,10 @@ def add_event(db_path, description, date, time, limit, creator_id, message_id=No
         # Выполняем SQL-запрос
         cursor.execute(
             """
-            INSERT INTO events (description, date, time, participant_limit, creator_id, message_id)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO events (description, date, time, participant_limit, creator_id, message_id, participants, reserve)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (description, date, time, limit, creator_id, message_id),
+            (description, date, time, limit, creator_id, message_id, "[]", "[]"),
         )
 
         event_id = cursor.lastrowid  # Получаем ID добавленного мероприятия
@@ -97,27 +99,36 @@ def add_event(db_path, description, date, time, limit, creator_id, message_id=No
     return event_id
 
 def get_event(db_path, event_id):
-    """
-    Возвращает данные о мероприятии по его ID.
-    :param db_path: Путь к файлу базы данных.
-    :param event_id: ID мероприятия.
-    :return: Словарь с данными о мероприятии или None, если мероприятие не найдено.
-    """
-    conn = get_db_connection(db_path)
-    event = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
+    """Возвращает информацию о мероприятии по его ID."""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row  # Для доступа к полям по имени
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+    event = cursor.fetchone()
+
+    if not event:
+        conn.close()
+        return None
+
+    # Преобразуем JSON-строки в списки
+    participants = json.loads(event["participants"]) if event["participants"] else []
+    reserve = json.loads(event["reserve"]) if event["reserve"] else []
+
+    event_data = {
+        "id": event["id"],
+        "description": event["description"],
+        "date": event["date"],
+        "time": event["time"],
+        "limit": event["participant_limit"],
+        "creator_id": event["creator_id"],
+        "message_id": event["message_id"],
+        "participants": participants,
+        "reserve": reserve,
+    }
+
     conn.close()
-    if event:
-        return {
-            "id": event["id"],
-            "description": event["description"],
-            "date": event["date"],
-            "time": event["time"],
-            "limit": event["participant_limit"],
-            "participants": json.loads(event["participants"]),
-            "reserve": json.loads(event["reserve"]),
-            "message_id": event["message_id"],  # Новый столбец
-        }
-    return None
+    return event_data
 
 def get_all_events(db_path):
     conn = get_db_connection(db_path)
