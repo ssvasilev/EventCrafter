@@ -60,26 +60,27 @@ def migrate_db(db_path):
     conn.close()
 
 def add_event(db_path, description, date, time, limit, creator_id, message_id=None):
-    """Добавляет мероприятие в базу данных."""
+    """
+    Добавляет новое мероприятие в базу данных.
+    :param db_path: Путь к файлу базы данных.
+    :param description: Описание мероприятия.
+    :param date: Дата мероприятия в формате строки (YYYY-MM-DD).
+    :param time: Время мероприятия в формате строки (HH:MM).
+    :param limit: Лимит участников. Если None, лимит бесконечный.
+    :param message_id: ID сообщения в Telegram (опционально).
+    :return: ID созданного мероприятия.
+    """
     try:
-        conn = sqlite3.connect(db_path)
+        conn = get_db_connection(db_path)
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO events (description, date, time, participant_limit, creator_id, message_id)
+        cursor.execute("""
+            INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
             VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (description, date, time, limit, creator_id, message_id),
-        )
-        event_id = cursor.lastrowid  # Получаем ID добавленного мероприятия
+        """, (description, date, time, limit, json.dumps([]), json.dumps([]), creator_id, message_id))
+        event_id = cursor.lastrowid # Получаем ID добавленного мероприятия
         conn.commit()
-        logger.info(f"Мероприятие добавлено с ID: {event_id}")
-    except sqlite3.Error as e:
-        logger.error(f"Ошибка при добавлении мероприятия в базу данных: {e}")
-        event_id = None
-    finally:
         conn.close()
-    return event_id
+        return event_id # Возвращаем ID
     except sqlite3.Error as e:
         print(f"Ошибка при добавлении мероприятия: {e}")
         return None
