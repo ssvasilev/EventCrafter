@@ -242,6 +242,8 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         logger.error(f"Мероприятие с ID {event_id} не найдено.")
         return
 
+    print(f"Participants data type: {type(event['participants'])}")
+    print(f"Participants content: {event['participants']}")
     participants = "\n".join(event["participants"]) if event["participants"] else "Пока никто не участвует."
     reserve = "\n".join(event["reserve"]) if event["reserve"] else "Резерв пуст."
     limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
