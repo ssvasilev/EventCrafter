@@ -160,14 +160,19 @@ def update_message_id(db_path, event_id, message_id):
     :param event_id: ID мероприятия.
     :param message_id: ID сообщения в Telegram.
     """
-    conn = get_db_connection(db_path)
-    conn.execute("""
-        UPDATE events
-        SET message_id = ?
-        WHERE id = ?
-    """, (message_id, event_id))
-    conn.commit()
-    conn.close()
+    try:
+        conn = get_db_connection(db_path)
+        conn.execute("""
+            UPDATE events
+            SET message_id = ?
+            WHERE id = ?
+        """, (message_id, event_id))
+        conn.commit()
+        logger.info(f"message_id={message_id} обновлен для мероприятия с ID={event_id}")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при обновлении message_id: {e}")
+    finally:
+        conn.close()
 
 def update_event_description(db_path: str, event_id: int, new_description: str):
     conn = get_db_connection(db_path)

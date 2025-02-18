@@ -286,7 +286,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             parse_mode="HTML"
         )
         logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
-        update_message_id(db_path, event_id, message.message_id)
+        update_message_id(db_path, event_id, message.message_id)  # Сохраняем message_id в базе данных
 
 
 # Обработка нажатий на кнопки
