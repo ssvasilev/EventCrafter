@@ -1,6 +1,11 @@
 import sqlite3
 import json
 import os
+import logging
+
+# Включаем логирование
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def get_db_connection(db_path):
     """
@@ -19,22 +24,24 @@ def get_db_connection(db_path):
     return conn
 
 def init_db(db_path):
-    """
-    Инициализирует базу данных и применяет миграции.
-    :param db_path: Путь к файлу базы данных.
-    """
-    conn = get_db_connection(db_path)
-    conn.execute("""
+    """Инициализирует базу данных и создает таблицу events, если она не существует."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             description TEXT NOT NULL,
             date TEXT NOT NULL,
             time TEXT NOT NULL,
             participant_limit INTEGER,
-            participants TEXT NOT NULL,
-            reserve TEXT NOT NULL
+            creator_id INTEGER NOT NULL,
+            message_id INTEGER,
+            participants TEXT,
+            reserve TEXT        
         )
-    """)
+        """
+    )
     conn.commit()
     conn.close()
 
@@ -59,54 +66,69 @@ def migrate_db(db_path):
 
     conn.close()
 
-def add_event(db_path, description, date, time, limit, message_id=None):
-    """
-    Добавляет новое мероприятие в базу данных.
-    :param db_path: Путь к файлу базы данных.
-    :param description: Описание мероприятия.
-    :param date: Дата мероприятия в формате строки (YYYY-MM-DD).
-    :param time: Время мероприятия в формате строки (HH:MM).
-    :param limit: Лимит участников. Если None, лимит бесконечный.
-    :param message_id: ID сообщения в Telegram (опционально).
-    :return: ID созданного мероприятия.
-    """
+def add_event(db_path, description, date, time, limit, creator_id, message_id=None):
+    """Добавляет мероприятие в базу данных."""
     try:
-        conn = get_db_connection(db_path)
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (description, date, time, limit, json.dumps([]), json.dumps([]), None))
+
+        # Логируем данные перед выполнением запроса
+        logger.info(
+            f"Данные для добавления мероприятия: "
+            f"description={description}, date={date}, time={time}, "
+            f"limit={limit}, creator_id={creator_id}, message_id={message_id}"
+        )
+
+        # Выполняем SQL-запрос
+        cursor.execute(
+            """
+            INSERT INTO events (description, date, time, participant_limit, creator_id, message_id, participants, reserve)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (description, date, time, limit, creator_id, message_id, "[]", "[]"),
+        )
+
+        event_id = cursor.lastrowid  # Получаем ID добавленного мероприятия
         conn.commit()
-        event_id = cursor.lastrowid
-        conn.close()
-        return event_id
+        logger.info(f"Мероприятие добавлено с ID: {event_id}")
     except sqlite3.Error as e:
-        print(f"Ошибка при добавлении мероприятия: {e}")
-        return None
+        logger.error(f"Ошибка при добавлении мероприятия в базу данных: {e}")
+        event_id = None
+    finally:
+        conn.close()
+    return event_id
 
 def get_event(db_path, event_id):
-    """
-    Возвращает данные о мероприятии по его ID.
-    :param db_path: Путь к файлу базы данных.
-    :param event_id: ID мероприятия.
-    :return: Словарь с данными о мероприятии или None, если мероприятие не найдено.
-    """
-    conn = get_db_connection(db_path)
-    event = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
+    """Возвращает информацию о мероприятии по его ID."""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row  # Для доступа к полям по имени
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+    event = cursor.fetchone()
+
+    if not event:
+        conn.close()
+        return None
+
+    # Преобразуем JSON-строки в списки
+    participants = json.loads(event["participants"]) if event["participants"] else []
+    reserve = json.loads(event["reserve"]) if event["reserve"] else []
+
+    event_data = {
+        "id": event["id"],
+        "description": event["description"],
+        "date": event["date"],
+        "time": event["time"],
+        "limit": event["participant_limit"],
+        "creator_id": event["creator_id"],
+        "message_id": event["message_id"],
+        "participants": participants,
+        "reserve": reserve,
+    }
+
     conn.close()
-    if event:
-        return {
-            "id": event["id"],
-            "description": event["description"],
-            "date": event["date"],
-            "time": event["time"],
-            "limit": event["participant_limit"],
-            "participants": json.loads(event["participants"]),
-            "reserve": json.loads(event["reserve"]),
-            "message_id": event["message_id"],  # Новый столбец
-        }
-    return None
+    return event_data
 
 def get_all_events(db_path):
     conn = get_db_connection(db_path)
@@ -138,14 +160,19 @@ def update_message_id(db_path, event_id, message_id):
     :param event_id: ID мероприятия.
     :param message_id: ID сообщения в Telegram.
     """
-    conn = get_db_connection(db_path)
-    conn.execute("""
-        UPDATE events
-        SET message_id = ?
-        WHERE id = ?
-    """, (message_id, event_id))
-    conn.commit()
-    conn.close()
+    try:
+        conn = get_db_connection(db_path)
+        conn.execute("""
+            UPDATE events
+            SET message_id = ?
+            WHERE id = ?
+        """, (message_id, event_id))
+        conn.commit()
+        logger.info(f"message_id={message_id} обновлен для мероприятия с ID={event_id}")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при обновлении message_id: {e}")
+    finally:
+        conn.close()
 
 def update_event_description(db_path: str, event_id: int, new_description: str):
     conn = get_db_connection(db_path)
