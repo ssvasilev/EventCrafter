@@ -75,12 +75,12 @@ def add_event(db_path, description, date, time, limit, creator_id, message_id=No
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (description, date, time, limit, json.dumps([]), json.dumps([]), creator_id, None))
-        event_id = cursor.lastrowid
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (description, date, time, limit, json.dumps([]), json.dumps([]), creator_id, message_id))
+        event_id = cursor.lastrowid # Получаем ID добавленного мероприятия
         conn.commit()
         conn.close()
-        return event_id
+        return event_id # Возвращаем ID
     except sqlite3.Error as e:
         print(f"Ошибка при добавлении мероприятия: {e}")
         return None
