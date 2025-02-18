@@ -70,16 +70,20 @@ def add_event(db_path, description, date, time, limit, message_id=None):
     :param message_id: ID сообщения в Telegram (опционально).
     :return: ID созданного мероприятия.
     """
-    conn = get_db_connection(db_path)
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (description, date, time, limit, json.dumps([]), json.dumps([]), None))
-    conn.commit()
-    event_id = cursor.lastrowid  # Получаем ID созданного мероприятия
-    conn.close()
-    return event_id
+    try:
+        conn = get_db_connection(db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (description, date, time, limit, json.dumps([]), json.dumps([]), None))
+        conn.commit()
+        event_id = cursor.lastrowid
+        conn.close()
+        return event_id
+    except sqlite3.Error as e:
+        print(f"Ошибка при добавлении мероприятия: {e}")
+        return None
 
 def get_event(db_path, event_id):
     """
@@ -103,6 +107,12 @@ def get_event(db_path, event_id):
             "message_id": event["message_id"],  # Новый столбец
         }
     return None
+
+def get_all_events(db_path):
+    conn = get_db_connection(db_path)
+    events = conn.execute("SELECT * FROM events").fetchall()
+    conn.close()
+    return [dict(event) for event in events]
 
 def update_event(db_path, event_id, participants, reserve):
     """
@@ -138,7 +148,7 @@ def update_message_id(db_path, event_id, message_id):
     conn.close()
 
 def update_event_description(db_path: str, event_id: int, new_description: str):
-    conn = sqlite3.connect(db_path)
+    conn = get_db_connection(db_path)
     cursor = conn.cursor()
     cursor.execute("UPDATE events SET description = ? WHERE id = ?", (new_description, event_id))
     conn.commit()
