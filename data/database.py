@@ -59,7 +59,7 @@ def migrate_db(db_path):
 
     conn.close()
 
-def add_event(db_path, description, date, time, limit, message_id=None):
+def add_event(db_path, description, date, time, limit, message_id=None, creator_id):
     """
     Добавляет новое мероприятие в базу данных.
     :param db_path: Путь к файлу базы данных.
@@ -76,9 +76,9 @@ def add_event(db_path, description, date, time, limit, message_id=None):
         cursor.execute("""
             INSERT INTO events (description, date, time, participant_limit, participants, reserve, message_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (description, date, time, limit, json.dumps([]), json.dumps([]), None))
-        conn.commit()
+        """, (description, date, time, limit, json.dumps([]), json.dumps([]), None, creator_id))
         event_id = cursor.lastrowid
+        conn.commit()
         conn.close()
         return event_id
     except sqlite3.Error as e:

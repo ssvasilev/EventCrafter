@@ -7,6 +7,7 @@ from telegram.ext import (
     ConversationHandler,
     MessageHandler,
     filters,
+    JobQueue,
 )
 import logging
 from datetime import datetime
@@ -144,16 +145,14 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if limit < 0:
             raise ValueError
 
-        # Получаем путь к базе данных
-        db_path = context.bot_data["db_path"]
-
         # Создаём мероприятие в базе данных
         event_id = add_event(
-            db_path=db_path,
+            db_path=context.bot_data["db_path"],
             description=context.user_data["description"],
             date=context.user_data["date"].strftime("%d-%m-%Y"),
             time=context.user_data["time"].strftime("%H:%M"),
             limit=limit if limit != 0 else None,
+            creator_id=update.message.from_user.id,  # Сохраняем ID создателя
         )
 
         await update.message.reply_text("Мероприятие создано!")
@@ -161,6 +160,26 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Отправляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
         await send_event_message(event_id, context, chat_id)
+
+        # Планируем уведомления
+        event_datetime = datetime.strptime(
+            f"{context.user_data['date'].strftime('%d-%m-%Y')} {context.user_data['time'].strftime('%H:%M')}",
+            "%d-%m-%Y %H:%M"
+        )
+
+        # Уведомление за день
+        context.job_queue.run_once(
+            send_notification,
+            when=event_datetime - timedelta(days=1),
+            data={"event_id": event_id, "time_until": "1 день"},
+        )
+
+        # Уведомление за час
+        context.job_queue.run_once(
+            send_notification,
+            when=event_datetime - timedelta(hours=1),
+            data={"event_id": event_id, "time_until": "1 час"},
+        )
 
         return ConversationHandler.END
     except ValueError:
@@ -251,14 +270,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Обработка действия "Участвовать"
     if action == "join":
+        user_id = user.id
+        user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
+
         if user_name in event["participants"] or user_name in event["reserve"]:
             await query.answer("Вы уже в списке участников или резерва.")
         else:
             if event["limit"] is None or len(event["participants"]) < event["limit"]:
-                event["participants"].append(user_name)
+                event["participants"].append({"name": user_name, "user_id": user_id})
                 await query.answer(f"{user_name}, вы добавлены в список участников!")
             else:
-                event["reserve"].append(user_name)
+                event["reserve"].append({"name": user_name, "user_id": user_id})
                 await query.answer(f"{user_name}, вы добавлены в резерв.")
 
     # Обработка действия "Не участвовать"
@@ -280,6 +302,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Обработка действия "Удалить"
     elif action == "delete":
+        if event["creator_id"] != query.from_user.id:
+            await query.answer("Вы не можете удалить это мероприятие.")
+            return
+
         await query.answer("Мероприятие удалено.")
         delete_event(db_path, event_id)
         await query.edit_message_text("Мероприятие удалено.")
@@ -299,6 +325,14 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Сохраняем event_id в context.user_data
     event_id = query.data.split("|")[1]
+    db_path = context.bot_data["db_path"]
+    event = get_event(db_path, event_id)
+
+    # Проверяем, является ли пользователь создателем
+    if event["creator_id"] != query.from_user.id:
+        await query.answer("Вы не можете редактировать это мероприятие.")
+        return
+
     context.user_data["event_id"] = event_id
 
     # Создаем клавиатуру для выбора параметра редактирования
@@ -461,6 +495,38 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
         )
         return EDIT_LIMIT
+
+async def send_notification(context: ContextTypes.DEFAULT_TYPE):
+    """Отправляет уведомление участникам мероприятия."""
+    event_id = context.job.data["event_id"]
+    db_path = context.bot_data["db_path"]
+    event = get_event(db_path, event_id)
+
+    if not event:
+        logger.error(f"Мероприятие с ID {event_id} не найдено.")
+        return
+
+    participants = event["participants"]
+    if not participants:
+        return
+
+    message = (
+        f"⏰ Напоминание о мероприятии:\n"
+        f"📢 <b>{event['description']}</b>\n"
+        f"📅 <i>Дата: </i> {event['date']}\n"
+        f"🕒 <i>Время: </i> {event['time']}\n"
+        f"До начала осталось: {context.job.data['time_until']}"
+    )
+
+    for participant in participants:
+        try:
+            await context.bot.send_message(
+                chat_id=participant["user_id"],  # Нужно сохранять user_id участников
+                text=message,
+                parse_mode="HTML"
+            )
+        except error.TelegramError as e:
+            logger.error(f"Ошибка при отправке уведомления участнику {participant}: {e}")
 
 # Основная функция
 def main():
