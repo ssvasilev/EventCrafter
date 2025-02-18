@@ -244,7 +244,8 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 
     logger.warning(f"Participants data type: {type(event['participants'])}")
     logger.warning(f"Participants content: {event['participants']}")
-    participants = "\n".join(event["participants"]) if event["participants"] else "Пока никто не участвует."
+    participants_list = [f"{p.get('name', 'Без имени')} (ID: {p.get('user_id', 'N/A')})" for p in event["participants"]]
+    participants = "\n".join(participants_list) if participants_list else "Пока никто не участвует."
     reserve = "\n".join(event["reserve"]) if event["reserve"] else "Резерв пуст."
     limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
 
