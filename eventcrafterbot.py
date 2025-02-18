@@ -416,7 +416,7 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         time = datetime.strptime(time_text, "%H:%M").time()
         # Обновляем время в базе данных
-        update_event(db_path, event_id, time.strftime("%H:%M"))
+        update_event_time(db_path, event_id, time.strftime("%H:%M"))
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
