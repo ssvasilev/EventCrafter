@@ -149,11 +149,25 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Обрабатывает ввод лимита участников и создает мероприятие.
+    """
     limit_text = update.message.text
     try:
+        # Преобразуем введенный текст в число
         limit = int(limit_text)
         if limit < 0:
-            raise ValueError
+            raise ValueError("Лимит не может быть отрицательным.")
+
+        # Логируем данные перед передачей в add_event
+        logger.info(
+            f"Данные для создания мероприятия: "
+            f"description={context.user_data['description']}, "
+            f"date={context.user_data['date'].strftime('%d-%m-%Y')}, "
+            f"time={context.user_data['time'].strftime('%H:%M')}, "
+            f"limit={limit}, "
+            f"creator_id={update.message.from_user.id}"
+        )
 
         # Создаём мероприятие в базе данных
         event_id = add_event(
@@ -161,42 +175,55 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             description=context.user_data["description"],
             date=context.user_data["date"].strftime("%d-%m-%Y"),
             time=context.user_data["time"].strftime("%H:%M"),
-            limit=limit if limit != 0 else None,
-            creator_id=update.message.from_user.id,  # Сохраняем ID создателя
+            limit=limit if limit != 0 else None,  # 0 означает неограниченный лимит
+            creator_id=update.message.from_user.id,
         )
 
+        # Проверяем, что мероприятие успешно создано
         if not event_id:
+            logger.error(f"Ошибка: мероприятие не было создано (event_id = None). {event_id}")
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END
 
+        logger.info(f"Мероприятие успешно создано с ID: {event_id}")
+
+        # Отправляем сообщение об успешном создании мероприятия
         await update.message.reply_text("Мероприятие создано!")
 
         # Отправляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
         await send_event_message(event_id, context, chat_id)
 
-        # Планируем уведомления
-        event_datetime = datetime.strptime(
-            f"{context.user_data['date'].strftime('%d-%m-%Y')} {context.user_data['time'].strftime('%H:%M')}",
-            "%d-%m-%Y %H:%M"
-        )
+        # Планируем уведомления (если JobQueue настроен)
+        if hasattr(context, "job_queue"):
+            event_datetime = datetime.strptime(
+                f"{context.user_data['date'].strftime('%d-%m-%Y')} {context.user_data['time'].strftime('%H:%M')}",
+                "%d-%m-%Y %H:%M"
+            )
 
-        # Уведомление за день
-        context.job_queue.run_once(
-            send_notification,
-            when=event_datetime - timedelta(days=1),
-            data={"event_id": event_id, "time_until": "1 день"},
-        )
+            # Уведомление за день до мероприятия
+            context.job_queue.run_once(
+                send_notification,
+                when=event_datetime - timedelta(days=1),
+                data={"event_id": event_id, "time_until": "1 день"},
+            )
 
-        # Уведомление за час
-        context.job_queue.run_once(
-            send_notification,
-            when=event_datetime - timedelta(hours=1),
-            data={"event_id": event_id, "time_until": "1 час"},
-        )
+            # Уведомление за час до мероприятия
+            context.job_queue.run_once(
+                send_notification,
+                when=event_datetime - timedelta(hours=1),
+                data={"event_id": event_id, "time_until": "1 час"},
+            )
 
+            logger.info(f"Уведомления запланированы для мероприятия с ID: {event_id}")
+        else:
+            logger.warning("JobQueue не настроен. Уведомления не будут отправлены.")
+
+        # Завершаем диалог
         return ConversationHandler.END
-    except ValueError:
+
+    except ValueError as e:
+        logger.error(f"Ошибка при обработке лимита: {e}")
         await update.message.reply_text(
             "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
         )
