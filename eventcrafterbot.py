@@ -101,6 +101,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup,
             )
             context.user_data["bot_message_id"] = sent_message.message_id
+            context.user_data["message_text"] = ""  # Инициализируем текст сообщения
             break
 
 
@@ -117,11 +118,14 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Сохраняем chat_id в context.user_data
     context.user_data["chat_id"] = query.message.chat_id
 
+    # Обновляем текст сообщения
+    context.user_data["message_text"] = "Введите описание мероприятия:"
+
     # Редактируем существующее сообщение
     await context.bot.edit_message_text(
         chat_id=query.message.chat_id,
         message_id=context.user_data["bot_message_id"],
-        text="Введите описание мероприятия:",
+        text=context.user_data["message_text"],
         reply_markup=reply_markup,
     )
     return SET_DESCRIPTION
@@ -135,13 +139,17 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Сохраняем описание в context.user_data
-    context.user_data["description"] = update.message.text
+    description = update.message.text
+    context.user_data["description"] = description
+
+    # Обновляем текст сообщения
+    context.user_data["message_text"] = f'"{description}"\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ:'
 
     # Редактируем существующее сообщение
     await context.bot.edit_message_text(
         chat_id=update.message.chat_id,
         message_id=context.user_data["bot_message_id"],
-        text="Введите дату мероприятия в формате ДД.ММ.ГГГГ:",
+        text=context.user_data["message_text"],
         reply_markup=reply_markup,
     )
 
@@ -163,11 +171,18 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
         context.user_data["date"] = date
 
+        # Обновляем текст сообщения
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n'
+            f"Дата: {date_text}\n\n"
+            f"Введите время мероприятия в формате ЧЧ:ММ:"
+        )
+
         # Редактируем существующее сообщение
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text="Введите время мероприятия в формате ЧЧ:ММ:",
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
 
@@ -176,11 +191,17 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return SET_TIME
     except ValueError:
-        # Редактируем существующее сообщение в случае ошибки
+        # Обновляем текст сообщения в случае ошибки
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n\n'
+            f"Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:"
+        )
+
+        # Редактируем существующее сообщение
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text="Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:",
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
 
@@ -202,11 +223,19 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         time = datetime.strptime(time_text, "%H:%M").time()
         context.user_data["time"] = time
 
+        # Обновляем текст сообщения
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n'
+            f"Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
+            f"Время: {time_text}\n\n"
+            f"Введите количество участников (0 - неограниченное):"
+        )
+
         # Редактируем существующее сообщение
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text="Введите количество участников (0 - неограниченное):",
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
 
@@ -215,11 +244,18 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return SET_LIMIT
     except ValueError:
-        # Редактируем существующее сообщение в случае ошибки
+        # Обновляем текст сообщения в случае ошибки
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n'
+            f"Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n\n"
+            f"Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:"
+        )
+
+        # Редактируем существующее сообщение
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text="Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:",
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
 
@@ -270,11 +306,20 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         logger.info(f"Мероприятие успешно создано с ID: {event_id}")
 
+        # Обновляем текст сообщения
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n'
+            f"Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
+            f"Время: {context.user_data['time'].strftime('%H:%M')}\n"
+            f"Лимит участников: {limit if limit != 0 else 'неограниченно'}\n\n"
+            f"Мероприятие создано!"
+        )
+
         # Редактируем существующее сообщение
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text="Мероприятие создано!",
+            text=context.user_data["message_text"],
         )
 
         # Удаляем сообщение пользователя
@@ -314,11 +359,19 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except ValueError as e:
         logger.error(f"Ошибка при обработке лимита: {e}")
-        # Редактируем существующее сообщение в случае ошибки
+        # Обновляем текст сообщения в случае ошибки
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n'
+            f"Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
+            f"Время: {context.user_data['time'].strftime('%H:%M')}\n\n"
+            f"Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
+        )
+
+        # Редактируем существующее сообщение
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text="Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:",
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
 
@@ -461,7 +514,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("Вас нет в списке участников или резерва.")
 
-
     # Обновляем мероприятие в базе данных
     update_event(db_path, event_id, event["participants"], event["reserve"])
 
@@ -566,7 +618,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         db_path = context.bot_data["db_path"]
 
         # Получаем данные о мероприятии
-        event = get_event(db_path, event_id)  #функция для получения мероприятия
+        event = get_event(db_path, event_id)  # функция для получения мероприятия
         if not event:
             await query.edit_message_text("Мероприятие не найдено.")
             return ConversationHandler.END
@@ -577,7 +629,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
 
         # Удаляем мероприятие
-        delete_event(db_path, event_id)  #функция для удаления
+        delete_event(db_path, event_id)  # функция для удаления
         await query.edit_message_text("Мероприятие удалено.")
         return ConversationHandler.END
     else:
