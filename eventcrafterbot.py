@@ -317,7 +317,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
         [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
         [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")],
-        [InlineKeyboardButton("🗑️ Удалить", callback_data=f"delete|{event_id}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -451,11 +450,19 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Создаем клавиатуру для выбора параметра редактирования
     keyboard = [
-        [InlineKeyboardButton("📝 Описание", callback_data=f"edit_description|{event_id}")],
-        [InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}")],
-        [InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")],
-        [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")],
-        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")],  # Кнопка "Отмена"
+        [
+            InlineKeyboardButton("📝 Описание", callback_data=f"edit_description|{event_id}"),
+            InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")
+
+        ],
+        [
+            InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}"),
+            InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")
+        ],
+        [
+            InlineKeyboardButton("🗑️ Удалить", callback_data=f"delete|{event_id}"),
+            InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")
+        ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.answer()
