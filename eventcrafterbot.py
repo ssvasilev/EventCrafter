@@ -306,28 +306,18 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         logger.info(f"Мероприятие успешно создано с ID: {event_id}")
 
-        # Обновляем текст сообщения
-        context.user_data["message_text"] = (
-            f'"{context.user_data["description"]}"\n'
-            f"Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
-            f"Время: {context.user_data['time'].strftime('%H:%M')}\n"
-            f"Лимит участников: {limit if limit != 0 else 'неограниченно'}\n\n"
-            f"Мероприятие создано!"
+        # Удаляем старое сообщение бота
+        await context.bot.delete_message(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"]
         )
 
-        # Редактируем существующее сообщение
-        await context.bot.edit_message_text(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"],
-            text=context.user_data["message_text"],
-        )
+        # Отправляем новое сообщение с информацией о мероприятии и клавиатурой
+        chat_id = update.message.chat_id
+        await send_event_message(event_id, context, chat_id)
 
         # Удаляем сообщение пользователя
         await update.message.delete()
-
-        # Отправляем сообщение с информацией о мероприятии
-        chat_id = update.message.chat_id
-        await send_event_message(event_id, context, chat_id)
 
         # Планируем уведомления (если JobQueue настроен)
         if hasattr(context, "job_queue"):
@@ -425,42 +415,27 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         f"⏳ <i>Резерв: </i>\n{reserve}"
     )
 
-    if event.get("message_id"):
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=event["message_id"],
-                text=message_text,
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
-            logger.info(f"Редактируем сообщение с ID {event['message_id']}")
-        except error.BadRequest as e:
-            logger.error(f"Ошибка при редактировании сообщения: {e}")
-    else:
-        logger.info("Отправляем новое сообщение.")
-        message = await context.bot.send_message(
-            chat_id=chat_id,
-            text=message_text,
-            reply_markup=reply_markup,
-            parse_mode="HTML"
-        )
-        logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
-        update_message_id(db_path, event_id, message.message_id)  # Сохраняем message_id в базе данных
+    # Отправляем новое сообщение
+    message = await context.bot.send_message(
+        chat_id=chat_id,
+        text=message_text,
+        reply_markup=reply_markup,
+        parse_mode="HTML"
+    )
 
-        # Пытаемся закрепить сообщение
-        try:
-            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
-            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
-        except error.BadRequest as e:
-            logger.error(f"Ошибка при закреплении сообщения: {e}")
-            logger.error(f"Проверьте, что чат {chat_id} является группой или каналом.")
-        except error.Forbidden as e:
-            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
-            logger.error(f"Убедитесь, что бот является администратором и имеет права на закрепление.")
-        except Exception as e:
-            logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
+    # Сохраняем message_id нового сообщения
+    update_message_id(db_path, event_id, message.message_id)
 
+    # Пытаемся закрепить сообщение
+    try:
+        await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
+        logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
+    except error.BadRequest as e:
+        logger.error(f"Ошибка при закреплении сообщения: {e}")
+    except error.Forbidden as e:
+        logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+    except Exception as e:
+        logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
