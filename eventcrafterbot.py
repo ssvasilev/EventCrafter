@@ -95,16 +95,17 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await update.message.reply_text(
+            # Отправляем сообщение и сохраняем его message_id
+            sent_message = await update.message.reply_text(
                 "Вы упомянули меня! Хотите создать мероприятие? Нажмите кнопку ниже.",
                 reply_markup=reply_markup,
             )
+            context.user_data["bot_message_id"] = sent_message.message_id
             break
 
 
 # Обработка нажатия на кнопку "Создать мероприятие"
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
@@ -116,17 +117,18 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Сохраняем chat_id в context.user_data
     context.user_data["chat_id"] = query.message.chat_id
 
-    # Отправляем сообщение с кнопкой "Отмена"
-    await query.edit_message_text(
-        "Введите описание мероприятия:",
-        reply_markup=reply_markup,  # Добавляем клавиатуру с кнопкой
+    # Редактируем существующее сообщение
+    await context.bot.edit_message_text(
+        chat_id=query.message.chat_id,
+        message_id=context.user_data["bot_message_id"],
+        text="Введите описание мероприятия:",
+        reply_markup=reply_markup,
     )
     return SET_DESCRIPTION
 
 
 # Обработка ввода описания мероприятия
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
@@ -135,17 +137,22 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Сохраняем описание в context.user_data
     context.user_data["description"] = update.message.text
 
-    # Отправляем сообщение с кнопкой "Отмена"
-    await update.message.reply_text(
-        "Введите дату мероприятия в формате ДД.ММ.ГГГГ:",
+    # Редактируем существующее сообщение
+    await context.bot.edit_message_text(
+        chat_id=update.message.chat_id,
+        message_id=context.user_data["bot_message_id"],
+        text="Введите дату мероприятия в формате ДД.ММ.ГГГГ:",
         reply_markup=reply_markup,
     )
+
+    # Удаляем сообщение пользователя
+    await update.message.delete()
+
     return SET_DATE
 
 
 # Обработка ввода даты мероприятия
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
@@ -156,24 +163,35 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
         context.user_data["date"] = date
 
-        # Отправляем сообщение с кнопкой "Отмена"
-        await update.message.reply_text(
-            "Введите время мероприятия в формате ЧЧ:ММ:",
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text="Введите время мероприятия в формате ЧЧ:ММ:",
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_TIME
     except ValueError:
-        # Отправляем сообщение с кнопкой "Отмена" в случае ошибки
-        await update.message.reply_text(
-            "Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:",
+        # Редактируем существующее сообщение в случае ошибки
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text="Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:",
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_DATE
 
 
 # Обработка ввода времени мероприятия
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
@@ -184,24 +202,35 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         time = datetime.strptime(time_text, "%H:%M").time()
         context.user_data["time"] = time
 
-        # Отправляем сообщение с кнопкой "Отмена"
-        await update.message.reply_text(
-            "Введите количество участников (0 - неограниченное):",
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text="Введите количество участников (0 - неограниченное):",
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_LIMIT
     except ValueError:
-        # Отправляем сообщение с кнопкой "Отмена" в случае ошибки
-        await update.message.reply_text(
-            "Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:",
+        # Редактируем существующее сообщение в случае ошибки
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text="Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:",
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_TIME
 
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
@@ -209,7 +238,6 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     limit_text = update.message.text
     try:
-        # Преобразуем введенный текст в число
         limit = int(limit_text)
         if limit < 0:
             raise ValueError("Лимит не может быть отрицательным.")
@@ -242,8 +270,15 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         logger.info(f"Мероприятие успешно создано с ID: {event_id}")
 
-        # Отправляем сообщение об успешном создании мероприятия
-        await update.message.reply_text("Мероприятие создано!")
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text="Мероприятие создано!",
+        )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
 
         # Отправляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
@@ -279,11 +314,17 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except ValueError as e:
         logger.error(f"Ошибка при обработке лимита: {e}")
-        # Отправляем сообщение с кнопкой "Отмена" в случае ошибки
-        await update.message.reply_text(
-            "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:",
+        # Редактируем существующее сообщение в случае ошибки
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text="Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:",
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_LIMIT
 
 
