@@ -143,7 +143,7 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["description"] = description
 
     # Обновляем текст сообщения
-    context.user_data["message_text"] = f'"📢 <b>{description}</b>"\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ:'
+    context.user_data["message_text"] = f'"📢 {description}"\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ:'
 
     # Редактируем существующее сообщение
     await context.bot.edit_message_text(
@@ -173,8 +173,8 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Обновляем текст сообщения
         context.user_data["message_text"] = (
-            f'"📢 <b>{context.user_data["description"]}</b>"\n'
-            f"📅 <i>Дата: </i>{date_text}\n\n"
+            f'"📢 {context.user_data["description"]}"\n'
+            f"📅 Дата: {date_text}\n\n"
             f"Введите время мероприятия в формате ЧЧ:ММ:"
         )
 
@@ -193,7 +193,7 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         # Обновляем текст сообщения в случае ошибки
         context.user_data["message_text"] = (
-            f'"📢 <b>{context.user_data["description"]}</b>"\n\n'
+            f'"📢 {context.user_data["description"]}"\n\n'
             f"Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:"
         )
 
@@ -225,9 +225,9 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Обновляем текст сообщения
         context.user_data["message_text"] = (
-            f'"📢 <b>{context.user_data["description"]}</b>"\n'
-            f"📅 <i>Дата: </i> {context.user_data['date'].strftime('%d.%m.%Y')}\n"
-            f"🕒 <i>Время: </i> {time_text}\n\n"
+            f'"📢 {context.user_data["description"]}"\n'
+            f"📅 Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
+            f"🕒 Время: {time_text}\n\n"
             f"Введите количество участников (0 - неограниченное):"
         )
 
@@ -246,8 +246,8 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         # Обновляем текст сообщения в случае ошибки
         context.user_data["message_text"] = (
-            f'"📢 <b>{context.user_data["description"]}</b>"\n'
-            f"📅 <i>Дата: </i> {context.user_data['date'].strftime('%d.%m.%Y')}\n\n"
+            f'"📢 {context.user_data["description"]}"\n'
+            f"📅 Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n\n"
             f"Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:"
         )
 
@@ -351,9 +351,9 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка при обработке лимита: {e}")
         # Обновляем текст сообщения в случае ошибки
         context.user_data["message_text"] = (
-            f'"📢 <b>{context.user_data["description"]}</b>"\n'
-            f"📅 <i>Дата: </i> {context.user_data['date'].strftime('%d.%m.%Y')}\n"
-            f"🕒 <i>Время: </i> {context.user_data['time'].strftime('%H:%M')}\n\n"
+            f'"📢 {context.user_data["description"]}"\n'
+            f"📅 Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
+            f"🕒 Время: {context.user_data['time'].strftime('%H:%M')}\n\n"
             f"Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
         )
 
