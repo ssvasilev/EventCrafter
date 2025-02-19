@@ -420,16 +420,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("Вас нет в списке участников или резерва.")
 
-    # Обработка действия "Удалить"
-    elif action == "delete":
-        if event["creator_id"] != query.from_user.id:
-            await query.answer("Вы не можете удалить это мероприятие.")
-            return
-
-        await query.answer("Мероприятие удалено.")
-        delete_event(db_path, event_id)
-        await query.edit_message_text("Мероприятие удалено.")
-        return ConversationHandler.END
 
     # Обновляем мероприятие в базе данных
     update_event(db_path, event_id, event["participants"], event["reserve"])
@@ -530,9 +520,29 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_LIMIT
+    elif action == "delete":
+        # Получаем путь к базе данных
+        db_path = context.bot_data["db_path"]
 
-    # Если действие не распознано, возвращаемся к выбору
-    return EDIT_EVENT
+        # Получаем данные о мероприятии
+        event = get_event(db_path, event_id)  #функция для получения мероприятия
+        if not event:
+            await query.edit_message_text("Мероприятие не найдено.")
+            return ConversationHandler.END
+
+        # Проверяем, является ли пользователь создателем
+        if event["creator_id"] != query.from_user.id:
+            await query.answer("Вы не можете удалить это мероприятие.")
+            return
+
+        # Удаляем мероприятие
+        delete_event(db_path, event_id)  #функция для удаления
+        await query.edit_message_text("Мероприятие удалено.")
+        return ConversationHandler.END
+    else:
+        # Если действие не распознано, возвращаемся к выбору
+        await query.edit_message_text("Неизвестное действие.")
+        return EDIT_EVENT
 
 
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
