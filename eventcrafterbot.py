@@ -317,7 +317,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
         [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
         [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")],
-        [InlineKeyboardButton("🗑️ Удалить", callback_data=f"delete|{event_id}")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -354,6 +353,19 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         )
         logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
         update_message_id(db_path, event_id, message.message_id)  # Сохраняем message_id в базе данных
+
+        # Пытаемся закрепить сообщение
+        try:
+            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
+            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
+        except error.BadRequest as e:
+            logger.error(f"Ошибка при закреплении сообщения: {e}")
+            logger.error(f"Проверьте, что чат {chat_id} является группой или каналом.")
+        except error.Forbidden as e:
+            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+            logger.error(f"Убедитесь, что бот является администратором и имеет права на закрепление.")
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
 
 # Обработка нажатий на кнопки
@@ -408,16 +420,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("Вас нет в списке участников или резерва.")
 
-    # Обработка действия "Удалить"
-    elif action == "delete":
-        if event["creator_id"] != query.from_user.id:
-            await query.answer("Вы не можете удалить это мероприятие.")
-            return
-
-        await query.answer("Мероприятие удалено.")
-        delete_event(db_path, event_id)
-        await query.edit_message_text("Мероприятие удалено.")
-        return ConversationHandler.END
 
     # Обновляем мероприятие в базе данных
     update_event(db_path, event_id, event["participants"], event["reserve"])
@@ -451,11 +453,19 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Создаем клавиатуру для выбора параметра редактирования
     keyboard = [
-        [InlineKeyboardButton("📝 Описание", callback_data=f"edit_description|{event_id}")],
-        [InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}")],
-        [InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")],
-        [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")],
-        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")],  # Кнопка "Отмена"
+        [
+            InlineKeyboardButton("📝 Описание", callback_data=f"edit_description|{event_id}"),
+            InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")
+
+        ],
+        [
+            InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}"),
+            InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")
+        ],
+        [
+            InlineKeyboardButton("🗑️ Удалить", callback_data=f"delete|{event_id}"),
+            InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")
+        ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.answer()
@@ -510,9 +520,29 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_LIMIT
+    elif action == "delete":
+        # Получаем путь к базе данных
+        db_path = context.bot_data["db_path"]
 
-    # Если действие не распознано, возвращаемся к выбору
-    return EDIT_EVENT
+        # Получаем данные о мероприятии
+        event = get_event(db_path, event_id)  #функция для получения мероприятия
+        if not event:
+            await query.edit_message_text("Мероприятие не найдено.")
+            return ConversationHandler.END
+
+        # Проверяем, является ли пользователь создателем
+        if event["creator_id"] != query.from_user.id:
+            await query.answer("Вы не можете удалить это мероприятие.")
+            return
+
+        # Удаляем мероприятие
+        delete_event(db_path, event_id)  #функция для удаления
+        await query.edit_message_text("Мероприятие удалено.")
+        return ConversationHandler.END
+    else:
+        # Если действие не распознано, возвращаемся к выбору
+        await query.edit_message_text("Неизвестное действие.")
+        return EDIT_EVENT
 
 
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
