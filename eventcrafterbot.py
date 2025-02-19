@@ -372,7 +372,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # Отправка сообщения с информацией о мероприятии
-async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
     if not chat_id:
         logger.error("chat_id не найден в send_event_message()")
         return
@@ -383,20 +383,12 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         logger.error(f"Мероприятие с ID {event_id} не найдено.")
         return
 
-    # Обработка участников
-    if event["participants"]:
-        participants = "\n".join([p["name"] for p in event["participants"]])  # Извлекаем имена
-    else:
-        participants = "Пока никто не участвует."
-
-    # Обработка резерва
-    if event["reserve"]:
-        reserve = "\n".join([p["name"] for p in event["reserve"]])  # Извлекаем имена
-    else:
-        reserve = "Резерв пуст."
-
+    # Обработка участников и резерва
+    participants = "\n".join([p["name"] for p in event["participants"]]) if event["participants"] else "Пока никто не участвует."
+    reserve = "\n".join([p["name"] for p in event["reserve"]]) if event["reserve"] else "Резерв пуст."
     limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
 
+    # Клавиатура
     keyboard = [
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
         [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
@@ -404,6 +396,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Текст сообщения
     time_until = time_until_event(event['date'], event['time'])
     message_text = (
         f"📢 <b>{event['description']}</b>\n"
@@ -415,27 +408,39 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         f"⏳ <i>Резерв: </i>\n{reserve}"
     )
 
-    # Отправляем новое сообщение
-    message = await context.bot.send_message(
-        chat_id=chat_id,
-        text=message_text,
-        reply_markup=reply_markup,
-        parse_mode="HTML"
-    )
+    if message_id:
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=message_text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
+    else:
+        # Отправляем новое сообщение
+        message = await context.bot.send_message(
+            chat_id=chat_id,
+            text=message_text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
+        # Сохраняем message_id в базе данных
+        update_message_id(db_path, event_id, message.message_id)
+        message_id = message.message_id
 
-    # Сохраняем message_id нового сообщения
-    update_message_id(db_path, event_id, message.message_id)
+        # Пытаемся закрепить сообщение
+        try:
+            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message_id)
+            logger.info(f"Сообщение {message_id} закреплено в чате {chat_id}.")
+        except error.BadRequest as e:
+            logger.error(f"Ошибка при закреплении сообщения: {e}")
+        except error.Forbidden as e:
+            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+        except Exception as e:
+            logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
-    # Пытаемся закрепить сообщение
-    try:
-        await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
-        logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
-    except error.BadRequest as e:
-        logger.error(f"Ошибка при закреплении сообщения: {e}")
-    except error.Forbidden as e:
-        logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
-    except Exception as e:
-        logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
+    return message_id
 
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -459,6 +464,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Формируем имя пользователя
     user_id = user.id
     user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
+
     # Обработка действия "Участвовать"
     if action == "join":
         if any(p["user_id"] == user_id for p in event["participants"] + event["reserve"]):
@@ -492,9 +498,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обновляем мероприятие в базе данных
     update_event(db_path, event_id, event["participants"], event["reserve"])
 
-    # Отправляем или редактируем сообщение с обновленной информацией
+    # Редактируем существующее сообщение
     chat_id = query.message.chat_id
-    await send_event_message(event_id, context, chat_id)
+    message_id = query.message.message_id  # Получаем message_id текущего сообщения
+    await send_event_message(event_id, context, chat_id, message_id)
 
 
 # Обработка нажатия на кнопку "Редактировать"
