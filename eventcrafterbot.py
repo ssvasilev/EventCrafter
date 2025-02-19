@@ -95,16 +95,18 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await update.message.reply_text(
+            # Отправляем сообщение и сохраняем его message_id
+            sent_message = await update.message.reply_text(
                 "Вы упомянули меня! Хотите создать мероприятие? Нажмите кнопку ниже.",
                 reply_markup=reply_markup,
             )
+            context.user_data["bot_message_id"] = sent_message.message_id
+            context.user_data["message_text"] = ""  # Инициализируем текст сообщения
             break
 
 
 # Обработка нажатия на кнопку "Создать мероприятие"
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
@@ -116,36 +118,49 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Сохраняем chat_id в context.user_data
     context.user_data["chat_id"] = query.message.chat_id
 
-    # Отправляем сообщение с кнопкой "Отмена"
-    await query.edit_message_text(
-        "Введите описание мероприятия:",
-        reply_markup=reply_markup,  # Добавляем клавиатуру с кнопкой
+    # Обновляем текст сообщения
+    context.user_data["message_text"] = "Введите описание мероприятия:"
+
+    # Редактируем существующее сообщение
+    await context.bot.edit_message_text(
+        chat_id=query.message.chat_id,
+        message_id=context.user_data["bot_message_id"],
+        text=context.user_data["message_text"],
+        reply_markup=reply_markup,
     )
     return SET_DESCRIPTION
 
 
 # Обработка ввода описания мероприятия
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Сохраняем описание в context.user_data
-    context.user_data["description"] = update.message.text
+    description = update.message.text
+    context.user_data["description"] = description
 
-    # Отправляем сообщение с кнопкой "Отмена"
-    await update.message.reply_text(
-        "Введите дату мероприятия в формате ДД.ММ.ГГГГ:",
+    # Обновляем текст сообщения
+    context.user_data["message_text"] = f'"{description}"\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ:'
+
+    # Редактируем существующее сообщение
+    await context.bot.edit_message_text(
+        chat_id=update.message.chat_id,
+        message_id=context.user_data["bot_message_id"],
+        text=context.user_data["message_text"],
         reply_markup=reply_markup,
     )
+
+    # Удаляем сообщение пользователя
+    await update.message.delete()
+
     return SET_DATE
 
 
 # Обработка ввода даты мероприятия
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
@@ -156,24 +171,48 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
         context.user_data["date"] = date
 
-        # Отправляем сообщение с кнопкой "Отмена"
-        await update.message.reply_text(
-            "Введите время мероприятия в формате ЧЧ:ММ:",
+        # Обновляем текст сообщения
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n'
+            f"Дата: {date_text}\n\n"
+            f"Введите время мероприятия в формате ЧЧ:ММ:"
+        )
+
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_TIME
     except ValueError:
-        # Отправляем сообщение с кнопкой "Отмена" в случае ошибки
-        await update.message.reply_text(
-            "Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:",
+        # Обновляем текст сообщения в случае ошибки
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n\n'
+            f"Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:"
+        )
+
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_DATE
 
 
 # Обработка ввода времени мероприятия
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
@@ -184,24 +223,50 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         time = datetime.strptime(time_text, "%H:%M").time()
         context.user_data["time"] = time
 
-        # Отправляем сообщение с кнопкой "Отмена"
-        await update.message.reply_text(
-            "Введите количество участников (0 - неограниченное):",
+        # Обновляем текст сообщения
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n'
+            f"Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
+            f"Время: {time_text}\n\n"
+            f"Введите количество участников (0 - неограниченное):"
+        )
+
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_LIMIT
     except ValueError:
-        # Отправляем сообщение с кнопкой "Отмена" в случае ошибки
-        await update.message.reply_text(
-            "Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:",
+        # Обновляем текст сообщения в случае ошибки
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n'
+            f"Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n\n"
+            f"Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:"
+        )
+
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_TIME
 
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
@@ -209,7 +274,6 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     limit_text = update.message.text
     try:
-        # Преобразуем введенный текст в число
         limit = int(limit_text)
         if limit < 0:
             raise ValueError("Лимит не может быть отрицательным.")
@@ -242,12 +306,18 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         logger.info(f"Мероприятие успешно создано с ID: {event_id}")
 
-        # Отправляем сообщение об успешном создании мероприятия
-        await update.message.reply_text("Мероприятие создано!")
+        # Удаляем старое сообщение бота
+        await context.bot.delete_message(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"]
+        )
 
-        # Отправляем сообщение с информацией о мероприятии
+        # Отправляем новое сообщение с информацией о мероприятии и клавиатурой
         chat_id = update.message.chat_id
         await send_event_message(event_id, context, chat_id)
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
 
         # Планируем уведомления (если JobQueue настроен)
         if hasattr(context, "job_queue"):
@@ -279,16 +349,30 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except ValueError as e:
         logger.error(f"Ошибка при обработке лимита: {e}")
-        # Отправляем сообщение с кнопкой "Отмена" в случае ошибки
-        await update.message.reply_text(
-            "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:",
+        # Обновляем текст сообщения в случае ошибки
+        context.user_data["message_text"] = (
+            f'"{context.user_data["description"]}"\n'
+            f"Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
+            f"Время: {context.user_data['time'].strftime('%H:%M')}\n\n"
+            f"Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
+        )
+
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text=context.user_data["message_text"],
             reply_markup=reply_markup,
         )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
         return SET_LIMIT
 
 
 # Отправка сообщения с информацией о мероприятии
-async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
     if not chat_id:
         logger.error("chat_id не найден в send_event_message()")
         return
@@ -299,20 +383,12 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         logger.error(f"Мероприятие с ID {event_id} не найдено.")
         return
 
-    # Обработка участников
-    if event["participants"]:
-        participants = "\n".join([p["name"] for p in event["participants"]])  # Извлекаем имена
-    else:
-        participants = "Пока никто не участвует."
-
-    # Обработка резерва
-    if event["reserve"]:
-        reserve = "\n".join([p["name"] for p in event["reserve"]])  # Извлекаем имена
-    else:
-        reserve = "Резерв пуст."
-
+    # Обработка участников и резерва
+    participants = "\n".join([p["name"] for p in event["participants"]]) if event["participants"] else "Пока никто не участвует."
+    reserve = "\n".join([p["name"] for p in event["reserve"]]) if event["reserve"] else "Резерв пуст."
     limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
 
+    # Клавиатура
     keyboard = [
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
         [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
@@ -320,6 +396,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Текст сообщения
     time_until = time_until_event(event['date'], event['time'])
     message_text = (
         f"📢 <b>{event['description']}</b>\n"
@@ -331,42 +408,39 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         f"⏳ <i>Резерв: </i>\n{reserve}"
     )
 
-    if event.get("message_id"):
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=event["message_id"],
-                text=message_text,
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
-            logger.info(f"Редактируем сообщение с ID {event['message_id']}")
-        except error.BadRequest as e:
-            logger.error(f"Ошибка при редактировании сообщения: {e}")
+    if message_id:
+        # Редактируем существующее сообщение
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=message_text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
     else:
-        logger.info("Отправляем новое сообщение.")
+        # Отправляем новое сообщение
         message = await context.bot.send_message(
             chat_id=chat_id,
             text=message_text,
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
-        logger.info(f"Сохраняем message_id: {message.message_id} для мероприятия {event_id}")
-        update_message_id(db_path, event_id, message.message_id)  # Сохраняем message_id в базе данных
+        # Сохраняем message_id в базе данных
+        update_message_id(db_path, event_id, message.message_id)
+        message_id = message.message_id
 
         # Пытаемся закрепить сообщение
         try:
-            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id)
-            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
+            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message_id)
+            logger.info(f"Сообщение {message_id} закреплено в чате {chat_id}.")
         except error.BadRequest as e:
             logger.error(f"Ошибка при закреплении сообщения: {e}")
-            logger.error(f"Проверьте, что чат {chat_id} является группой или каналом.")
         except error.Forbidden as e:
             logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
-            logger.error(f"Убедитесь, что бот является администратором и имеет права на закрепление.")
         except Exception as e:
             logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
+    return message_id
 
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -390,6 +464,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Формируем имя пользователя
     user_id = user.id
     user_name = f"{user.first_name} (@{user.username})" if user.username else f"{user.first_name} (ID: {user.id})"
+
     # Обработка действия "Участвовать"
     if action == "join":
         if any(p["user_id"] == user_id for p in event["participants"] + event["reserve"]):
@@ -420,13 +495,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("Вас нет в списке участников или резерва.")
 
-
     # Обновляем мероприятие в базе данных
     update_event(db_path, event_id, event["participants"], event["reserve"])
 
-    # Отправляем или редактируем сообщение с обновленной информацией
+    # Редактируем существующее сообщение
     chat_id = query.message.chat_id
-    await send_event_message(event_id, context, chat_id)
+    message_id = query.message.message_id  # Получаем message_id текущего сообщения
+    await send_event_message(event_id, context, chat_id, message_id)
 
 
 # Обработка нажатия на кнопку "Редактировать"
@@ -525,7 +600,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         db_path = context.bot_data["db_path"]
 
         # Получаем данные о мероприятии
-        event = get_event(db_path, event_id)  #функция для получения мероприятия
+        event = get_event(db_path, event_id)  # функция для получения мероприятия
         if not event:
             await query.edit_message_text("Мероприятие не найдено.")
             return ConversationHandler.END
@@ -536,7 +611,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
 
         # Удаляем мероприятие
-        delete_event(db_path, event_id)  #функция для удаления
+        delete_event(db_path, event_id)  # функция для удаления
         await query.edit_message_text("Мероприятие удалено.")
         return ConversationHandler.END
     else:
