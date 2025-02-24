@@ -122,7 +122,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 # Отправляем сообщение с запросом даты
                 sent_message = await update.message.reply_text(
-                    f"Описание мероприятия: {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
+                    f"📢 {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
                     reply_markup=reply_markup,
                 )
 
