@@ -948,9 +948,10 @@ def main():
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("date", set_date))
 
     # Регистрируем обработчик для упоминания бота
-    application.add_handler(MessageHandler(filters.Entity("mention") & filters.TEXT, mention_handler))
+    #application.add_handler(MessageHandler(filters.Entity("mention") & filters.TEXT, mention_handler))
 
     # ConversationHandler для создания мероприятия
     conv_handler_create = ConversationHandler(
