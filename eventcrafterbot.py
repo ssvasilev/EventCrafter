@@ -949,15 +949,12 @@ def main():
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
 
-    # Регистрируем обработчик упоминаний
-    application.add_handler(MessageHandler(filters.Entity("mention"), mention_handler))
+    # Регистрируем обработчик для упоминания бота
+    application.add_handler(MessageHandler(filters.Entity("mention") & filters.TEXT, mention_handler))
 
     # ConversationHandler для создания мероприятия
     conv_handler_create = ConversationHandler(
-        entry_points=[
-            CallbackQueryHandler(create_event_button, pattern="^create_event$"),  # Кнопка "Создать мероприятие"
-            MessageHandler(filters.Entity("mention") & filters.TEXT, mention_handler),  # Упоминание бота
-        ],
+        entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],  # Кнопка "Создать мероприятие"
         states={
             SET_DESCRIPTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, set_description),
@@ -979,6 +976,7 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     application.add_handler(conv_handler_create)
+
 
     # ConversationHandler для редактирования мероприятия
     conv_handler_edit_event = ConversationHandler(
