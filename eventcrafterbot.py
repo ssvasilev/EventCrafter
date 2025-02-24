@@ -189,7 +189,7 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["message_text"] = (
             f'"📢 {context.user_data["description"]}"\n'
             f"📅 Дата: {date_text}\n\n"
-            f"Введите время мероприятия в формате ЧЧ:ММ:"
+            f"Введите время мероприятия в формате ЧЧ:ММ"
         )
 
         # Редактируем существующее сообщение
@@ -208,7 +208,7 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Обновляем текст сообщения в случае ошибки
         context.user_data["message_text"] = (
             f'"📢 {context.user_data["description"]}"\n\n'
-            f"Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:"
+            f"Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ"
         )
 
         # Редактируем существующее сообщение
@@ -262,7 +262,7 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["message_text"] = (
             f'"📢 {context.user_data["description"]}"\n'
             f"📅 Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n\n"
-            f"Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:"
+            f"Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ"
         )
 
         # Редактируем существующее сообщение
@@ -618,13 +618,13 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return EDIT_DESCRIPTION
     elif action == "edit_date":
         await query.edit_message_text(
-            "Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:",
+            "Введите новую дату мероприятия в формате ДД.ММ.ГГГГ",
             reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_DATE
     elif action == "edit_time":
         await query.edit_message_text(
-            "Введите новое время мероприятия в формате ЧЧ:ММ:",
+            "Введите новое время мероприятия в формате ЧЧ:ММ",
             reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_TIME
@@ -737,7 +737,7 @@ async def edit_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        "Введите новую дату мероприятия в формате ДД.ММ.ГГГГ:",
+        "Введите новую дату мероприятия в формате ДД.ММ.ГГГГ",
         reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
     )
     return EDIT_DATE
@@ -761,7 +761,7 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Дата мероприятия обновлена!")
         return ConversationHandler.END
     except ValueError:
-        await update.message.reply_text("Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ:")
+        await update.message.reply_text("Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ")
         return EDIT_DATE
 
 
@@ -777,7 +777,7 @@ async def edit_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        "Введите новое время мероприятия в формате ЧЧ:ММ:",
+        "Введите новое время мероприятия в формате ЧЧ:ММ",
         reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
     )
     return EDIT_TIME
@@ -801,7 +801,7 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Время мероприятия обновлено!")
         return ConversationHandler.END
     except ValueError:
-        await update.message.reply_text("Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ:")
+        await update.message.reply_text("Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ")
         return EDIT_TIME
 
 
