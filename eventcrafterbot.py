@@ -103,22 +103,52 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.entities:
         return
 
+    # Проверяем, упомянут ли бот
     for entity in update.message.entities:
         if entity.type == "mention" and update.message.text[
                                         entity.offset:entity.offset + entity.length] == f"@{context.bot.username}":
-            keyboard = [
-                [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+            # Получаем текст сообщения после упоминания
+            mention_text = update.message.text[entity.offset + entity.length:].strip()
 
-            # Отправляем сообщение и сохраняем его message_id
-            sent_message = await update.message.reply_text(
-                "Вы упомянули меня! Хотите создать мероприятие? Нажмите кнопку ниже.",
-                reply_markup=reply_markup,
-            )
-            context.user_data["bot_message_id"] = sent_message.message_id
-            context.user_data["message_text"] = ""  # Инициализируем текст сообщения
-            break
+            # Если текст после упоминания не пустой, сохраняем его как описание
+            if mention_text:
+                context.user_data["description"] = mention_text
+
+                # Создаем клавиатуру с кнопкой "Отмена"
+                keyboard = [
+                    [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+
+                # Отправляем сообщение с запросом даты
+                sent_message = await update.message.reply_text(
+                    f"Описание мероприятия: {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
+                    reply_markup=reply_markup,
+                )
+
+                # Сохраняем ID сообщения для дальнейшего редактирования
+                context.user_data["bot_message_id"] = sent_message.message_id
+                context.user_data["chat_id"] = update.message.chat_id
+
+                # Удаляем сообщение пользователя
+                await update.message.delete()
+
+                # Переходим к состоянию SET_DATE
+                return SET_DATE
+            else:
+                # Если текст после упоминания пустой, предлагаем создать мероприятие
+                keyboard = [
+                    [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+
+                sent_message = await update.message.reply_text(
+                    "Вы упомянули меня! Хотите создать мероприятие? Нажмите кнопку ниже.",
+                    reply_markup=reply_markup,
+                )
+                context.user_data["bot_message_id"] = sent_message.message_id
+                context.user_data["message_text"] = ""
+                break
 
 
 # Обработка нажатия на кнопку "Создать мероприятие"
