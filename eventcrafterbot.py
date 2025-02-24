@@ -399,14 +399,29 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         logger.error(f"Мероприятие с ID {event_id} не найдено.")
         return
 
-    # Обработка участников, резерва и отказавшихся
+    # Получаем участников, резерв и отказавшихся
     participants = get_participants(db_path, event_id)
     reserve = get_reserve(db_path, event_id)
     declined = get_declined(db_path, event_id)
 
-    participants_text = "\n".join([p["user_name"] for p in participants]) if participants else "Пока никто не участвует."
-    reserve_text = "\n".join([p["user_name"] for p in reserve]) if reserve else "Резерв пуст."
-    declined_text = "\n".join([p["user_name"] for p in declined]) if declined else "Отказавшихся нет."
+    # Форматируем списки
+    participants_text = (
+        "\n".join([p["user_name"] for p in participants])
+        if participants
+        else "Ещё никто не участвует."
+    )
+    reserve_text = (
+        "\n".join([p["user_name"] for p in reserve])
+        if reserve
+        else "Резерв пуст."
+    )
+    declined_text = (
+        "\n".join([p["user_name"] for p in declined])
+        if declined
+        else "Отказавшихся нет."
+    )
+
+    # Лимит участников
     limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
 
     # Клавиатура
@@ -425,9 +440,9 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         f"🕒 <i>Время: </i> {event['time']}\n"
         f"⏳ <i>До мероприятия: </i> {time_until}\n"
         f"👥 <i>Лимит участников: </i> {limit_text}\n\n"
-        f"✅ <i>Участники: </i>\n{participants}\n\n"
-        f"⏳ <i>Резерв: </i>\n{reserve}\n\n"
-        f"❌ <i>Отказавшиеся: </i>\n{declined}"
+        f"✅ <i>Участники: </i>\n{participants_text}\n\n"
+        f"⏳ <i>Резерв: </i>\n{reserve_text}\n\n"
+        f"❌ <i>Отказавшиеся: </i>\n{declined_text}"
     )
 
     if message_id:
