@@ -16,6 +16,7 @@ import os
 from data.database import init_db, add_event, get_event, update_event, update_message_id, update_event_description, \
     delete_event, update_event_participant_limit, update_event_date, update_event_time
 from datetime import datetime, timedelta
+import pytz  # Библиотека для работы с часовыми поясами
 
 # Загружаем переменные окружения из .env
 load_dotenv("data/.env")  # Указываем путь к .env
@@ -23,9 +24,19 @@ load_dotenv("data/.env")  # Указываем путь к .env
 # Получаем токен бота из переменной окружения
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
+# Получаем часовой пояс из переменной окружения
+TIMEZONE = os.getenv('TIMEZONE', 'UTC')  # По умолчанию используется UTC
+
 # Проверяем, что токен загружен
 if not BOT_TOKEN:
     raise ValueError("Токен бота не найден в .env файле.")
+
+# Устанавливаем часовой пояс
+try:
+    tz = pytz.timezone(TIMEZONE)
+except pytz.UnknownTimeZoneError:
+    logger.error(f"Неизвестный часовой пояс: {TIMEZONE}. Используется UTC.")
+    tz = pytz.UTC
 
 # Включаем логирование
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -34,14 +45,17 @@ logger = logging.getLogger(__name__)
 
 def time_until_event(event_date: str, event_time: str) -> str:
     """
-    Вычисляет оставшееся время до мероприятия.
+    Вычисляет оставшееся время до мероприятия с учетом часового пояса.
     :param event_date: Дата мероприятия в формате "дд-мм-гггг".
     :param event_time: Время мероприятия в формате "чч:мм".
     :return: Строка с оставшимся временем в формате "X дней, Y часов, Z минут".
     """
     # Преобразуем дату и время мероприятия в объект datetime
     event_datetime = datetime.strptime(f"{event_date} {event_time}", "%d-%m-%Y %H:%M")
-    now = datetime.now()
+    event_datetime = tz.localize(event_datetime)  # Устанавливаем часовой пояс
+
+    # Получаем текущее время с учетом часового пояса
+    now = datetime.now(tz)
 
     # Если мероприятие уже прошло, возвращаем соответствующее сообщение
     if event_datetime <= now:
@@ -319,12 +333,12 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Удаляем сообщение пользователя
         await update.message.delete()
 
-        # Планируем уведомления (если JobQueue настроен)
         if hasattr(context, "job_queue"):
             event_datetime = datetime.strptime(
                 f"{context.user_data['date'].strftime('%d-%m-%Y')} {context.user_data['time'].strftime('%H:%M')}",
                 "%d-%m-%Y %H:%M"
             )
+            event_datetime = tz.localize(event_datetime)  # Устанавливаем часовой пояс
 
             # Уведомление за день до мероприятия
             context.job_queue.run_once(
@@ -812,7 +826,7 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_notification(context: ContextTypes.DEFAULT_TYPE):
-    """Отправляет уведомление участникам мероприятия."""
+    """Отправляет уведомление участникам мероприятия с учетом часового пояса."""
     event_id = context.job.data["event_id"]
     db_path = context.bot_data["db_path"]
     event = get_event(db_path, event_id)
@@ -825,11 +839,15 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE):
     if not participants:
         return
 
+    # Преобразуем дату и время мероприятия с учетом часового пояса
+    event_datetime = datetime.strptime(f"{event['date']} {event['time']}", "%d-%m-%Y %H:%M")
+    event_datetime = tz.localize(event_datetime)
+
     message = (
         f"⏰ Напоминание о мероприятии:\n"
         f"📢 <b>{event['description']}</b>\n"
-        f"📅 <i>Дата: </i> {event['date']}\n"
-        f"🕒 <i>Время: </i> {event['time']}\n"
+        f"📅 <i>Дата: </i> {event_datetime.strftime('%d-%m-%Y')}\n"
+        f"🕒 <i>Время: </i> {event_datetime.strftime('%H:%M')} ({TIMEZONE})\n"
         f"До начала осталось: {context.job.data['time_until']}"
     )
 
