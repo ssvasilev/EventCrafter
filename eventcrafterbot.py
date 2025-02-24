@@ -113,6 +113,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Если текст после упоминания не пустой, сохраняем его как описание
             if mention_text:
                 context.user_data["description"] = mention_text
+                context.user_data["message_text"] = ""
 
                 # Создаем клавиатуру с кнопкой "Отмена"
                 keyboard = [
