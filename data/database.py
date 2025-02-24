@@ -136,6 +136,19 @@ def get_all_events(db_path):
     conn.close()
     return [dict(event) for event in events]
 
+def update_event_field(db_path: str, event_id: int, field: str, value: str | int | None):
+    """
+    Универсальная функция для обновления любого поля в таблице events.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param field: Название поля (например, "description", "date", "time", "participant_limit").
+    :param value: Новое значение поля.
+    """
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"UPDATE events SET {field} = ? WHERE id = ?", (value, event_id))
+        conn.commit()
+
 def update_event(db_path, event_id, participants, reserve, declined):
     """
     Обновляет списки участников, резерва и отказавшихся.
@@ -182,37 +195,9 @@ def update_message_id(db_path, event_id, message_id):
     finally:
         conn.close()
 
-def update_event_description(db_path: str, event_id: int, new_description: str):
-    conn = get_db_connection(db_path)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE events SET description = ? WHERE id = ?", (new_description, event_id))
-    conn.commit()
-    conn.close()
-
-def update_event_date(db_path: str, event_id: int, new_date: str):
-    conn = get_db_connection(db_path)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE events SET date = ? WHERE id = ?", (new_date, event_id))
-    conn.commit()
-    conn.close()
-
-def update_event_time(db_path: str, event_id: int, new_time: str):
-    conn = get_db_connection(db_path)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE events SET time = ? WHERE id = ?", (new_time, event_id))
-    conn.commit()
-    conn.close()
-
-def update_event_participant_limit(db_path: str, event_id: int, new_limit: int):
-    conn = get_db_connection(db_path)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE events SET participant_limit = ? WHERE id = ?", (new_limit, event_id))
-    conn.commit()
-    conn.close()
 
 def delete_event(db_path: str, event_id: int):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
-    conn.commit()
-    conn.close()
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
+        conn.commit()

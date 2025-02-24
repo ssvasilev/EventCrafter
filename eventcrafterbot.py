@@ -13,8 +13,8 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import os
-from data.database import init_db, add_event, get_event, update_event, update_message_id, update_event_description, \
-    delete_event, update_event_participant_limit, update_event_date, update_event_time
+from data.database import init_db, add_event, get_event, update_event, update_message_id, \
+    delete_event, update_event_field
 from datetime import datetime, timedelta
 import pytz  # Библиотека для работы с часовыми поясами
 
@@ -715,7 +715,7 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_path = context.bot_data["db_path"]
 
     # Обновляем описание в базе данных
-    update_event_description(db_path, event_id, new_description)
+    update_event_field(db_path, event_id, "description", new_description)
 
     # Обновляем сообщение с информацией о мероприятии
     chat_id = update.message.chat_id
@@ -752,7 +752,7 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
         # Обновляем дату в базе данных
-        update_event_date(db_path, event_id, date.strftime("%d-%m-%Y"))
+        update_event_field(db_path, event_id, "date", date.strftime("%d-%m-%Y"))
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
@@ -792,7 +792,7 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         time = datetime.strptime(time_text, "%H:%M").time()
         # Обновляем время в базе данных
-        update_event_time(db_path, event_id, time.strftime("%H:%M"))
+        update_event_field(db_path, event_id, "time", time.strftime("%H:%M"))
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
@@ -835,7 +835,7 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError
 
         # Обновляем лимит в базе данных
-        update_event_participant_limit(db_path, event_id, limit if limit != 0 else None)
+        update_event_field(db_path, event_id, "participant_limit", limit if limit != 0 else None)
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
