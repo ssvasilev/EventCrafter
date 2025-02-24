@@ -24,9 +24,11 @@ def get_db_connection(db_path):
     return conn
 
 def init_db(db_path):
-    """Инициализирует базу данных и создает таблицу events, если она не существует."""
+    """Инициализирует базу данных и создает таблицы, если они не существуют."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+
+    # Таблица мероприятий
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS events (
@@ -36,18 +38,60 @@ def init_db(db_path):
             time TEXT NOT NULL,
             participant_limit INTEGER,
             creator_id INTEGER NOT NULL,
-            message_id INTEGER,
-            participants TEXT,
-            reserve TEXT,
-            declined TEXT DEFAULT '[]'        
+            message_id INTEGER
         )
         """
     )
+
+    # Таблица участников
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS participants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            user_name TEXT NOT NULL,
+            FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
+        )
+        """
+    )
+
+    # Таблица резерва
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS reserve (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            user_name TEXT NOT NULL,
+            FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
+        )
+        """
+    )
+
+    # Таблица отказавшихся
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS declined (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            user_name TEXT NOT NULL,
+            FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
+        )
+        """
+    )
+
+    # Создание индексов
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_participants_event_id ON participants (event_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_reserve_event_id ON reserve (event_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_declined_event_id ON declined (event_id)")
+
     conn.commit()
     conn.close()
 
     # Применяем миграции
-    migrate_db(db_path)
+    # migrate_db(db_path)
 
 def migrate_db(db_path):
     """
@@ -68,7 +112,17 @@ def migrate_db(db_path):
     conn.close()
 
 def add_event(db_path, description, date, time, limit, creator_id, message_id=None):
-    """Добавляет мероприятие в базу данных."""
+    """
+    Добавляет мероприятие в базу данных.
+    :param db_path: Путь к базе данных.
+    :param description: Описание мероприятия.
+    :param date: Дата мероприятия в формате "дд-мм-гггг".
+    :param time: Время мероприятия в формате "чч:мм".
+    :param limit: Лимит участников (0 означает неограниченный лимит).
+    :param creator_id: ID создателя мероприятия.
+    :param message_id: ID сообщения в Telegram (опционально).
+    :return: ID добавленного мероприятия.
+    """
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -80,13 +134,13 @@ def add_event(db_path, description, date, time, limit, creator_id, message_id=No
             f"limit={limit}, creator_id={creator_id}, message_id={message_id}"
         )
 
-        # Выполняем SQL-запрос
+        # Выполняем SQL-запрос для добавления мероприятия
         cursor.execute(
             """
-            INSERT INTO events (description, date, time, participant_limit, creator_id, message_id, participants, reserve)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO events (description, date, time, participant_limit, creator_id, message_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (description, date, time, limit, creator_id, message_id, "[]", "[]"),
+            (description, date, time, limit, creator_id, message_id),
         )
 
         event_id = cursor.lastrowid  # Получаем ID добавленного мероприятия
@@ -104,16 +158,25 @@ def get_event(db_path, event_id):
     with get_db_connection(db_path) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
+
+        # Получаем основную информацию о мероприятии
         cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
         event = cursor.fetchone()
 
         if not event:
             return None
 
-        # Преобразуем JSON-строки в списки
-        participants = json.loads(event["participants"]) if event["participants"] else []
-        reserve = json.loads(event["reserve"]) if event["reserve"] else []
-        declined = json.loads(event["declined"]) if event["declined"] else []
+        # Получаем участников
+        cursor.execute("SELECT user_id, user_name FROM participants WHERE event_id = ?", (event_id,))
+        participants = [{"user_id": row["user_id"], "name": row["user_name"]} for row in cursor.fetchall()]
+
+        # Получаем резерв
+        cursor.execute("SELECT user_id, user_name FROM reserve WHERE event_id = ?", (event_id,))
+        reserve = [{"user_id": row["user_id"], "name": row["user_name"]} for row in cursor.fetchall()]
+
+        # Получаем отказавшихся
+        cursor.execute("SELECT user_id, user_name FROM declined WHERE event_id = ?", (event_id,))
+        declined = [{"user_id": row["user_id"], "name": row["user_name"]} for row in cursor.fetchall()]
 
         event_data = {
             "id": event["id"],
@@ -136,6 +199,112 @@ def get_all_events(db_path):
     conn.close()
     return [dict(event) for event in events]
 
+#Получение одного из списков
+def get_participants(db_path, event_id):
+    """Возвращает список участников мероприятия."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, user_name FROM participants WHERE event_id = ?", (event_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+def get_reserve(db_path, event_id):
+    """Возвращает список резерва мероприятия."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, user_name FROM reserve WHERE event_id = ?", (event_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+def get_declined(db_path, event_id):
+    """Возвращает список отказавшихся."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, user_name FROM declined WHERE event_id = ?", (event_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+def is_user_in_participants(db_path, event_id, user_id):
+    """Проверяет, есть ли пользователь в списке участников."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM participants WHERE event_id = ? AND user_id = ?", (event_id, user_id))
+        return cursor.fetchone() is not None
+
+def is_user_in_reserve(db_path, event_id, user_id):
+    """Проверяет, есть ли пользователь в резерве."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM reserve WHERE event_id = ? AND user_id = ?", (event_id, user_id))
+        return cursor.fetchone() is not None
+
+def is_user_in_declined(db_path, event_id, user_id):
+    """Проверяет, есть ли пользователь в списке отказавшихся."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM declined WHERE event_id = ? AND user_id = ?", (event_id, user_id))
+        return cursor.fetchone() is not None
+
+#Добавление в один из трёх списков
+def add_participant(db_path, event_id, user_id, user_name):
+    """Добавляет участника в таблицу participants."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO participants (event_id, user_id, user_name) VALUES (?, ?, ?)",
+            (event_id, user_id, user_name),
+        )
+        conn.commit()
+
+def add_to_reserve(db_path, event_id, user_id, user_name):
+    """Добавляет пользователя в резерв."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO reserve (event_id, user_id, user_name) VALUES (?, ?, ?)",
+            (event_id, user_id, user_name),
+        )
+        conn.commit()
+
+def add_to_declined(db_path, event_id, user_id, user_name):
+    """Добавляет пользователя в список отказавшихся."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO declined (event_id, user_id, user_name) VALUES (?, ?, ?)",
+            (event_id, user_id, user_name),
+        )
+        conn.commit()
+
+#Удаление из списков
+def remove_participant(db_path, event_id, user_id):
+    """Удаляет участника из таблицы participants."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM participants WHERE event_id = ? AND user_id = ?", (event_id, user_id))
+        conn.commit()
+
+def remove_from_reserve(db_path, event_id, user_id):
+    """Удаляет пользователя из резерва."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM reserve WHERE event_id = ? AND user_id = ?", (event_id, user_id))
+        conn.commit()
+
+def remove_from_declined(db_path, event_id, user_id):
+    """Удаляет пользователя из списка отказавшихся."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM declined WHERE event_id = ? AND user_id = ?", (event_id, user_id))
+        conn.commit()
+
+#Подсчёт количества участников
+def get_participants_count(db_path, event_id):
+    """Возвращает количество участников мероприятия."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM participants WHERE event_id = ?", (event_id,))
+        return cursor.fetchone()[0]
+
+
+#Обновление поля в мероприятии
 def update_event_field(db_path: str, event_id: int, field: str, value: str | int | None):
     """
     Универсальная функция для обновления любого поля в таблице events.
@@ -152,27 +321,37 @@ def update_event_field(db_path: str, event_id: int, field: str, value: str | int
 def update_event(db_path, event_id, participants, reserve, declined):
     """
     Обновляет списки участников, резерва и отказавшихся.
-    :param db_path: Путь к файлу базы данных.
-    :param event_id: ID мероприятия.
-    :param participants: Список участников.
-    :param reserve: Список резерва.
-    :param declined: Список отказавшихся.
     """
-    try:
-        with get_db_connection(db_path) as conn:
-            cursor = conn.cursor()
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+
+        # Удаляем старые записи
+        cursor.execute("DELETE FROM participants WHERE event_id = ?", (event_id,))
+        cursor.execute("DELETE FROM reserve WHERE event_id = ?", (event_id,))
+        cursor.execute("DELETE FROM declined WHERE event_id = ?", (event_id,))
+
+        # Добавляем новых участников
+        for participant in participants:
             cursor.execute(
-                """
-                UPDATE events
-                SET participants = ?, reserve = ?, declined = ?
-                WHERE id = ?
-                """,
-                (json.dumps(participants), json.dumps(reserve), json.dumps(declined), event_id),
+                "INSERT INTO participants (event_id, user_id, user_name) VALUES (?, ?, ?)",
+                (event_id, participant["user_id"], participant["name"]),
             )
-            conn.commit()
-            logger.info(f"Мероприятие с ID={event_id} обновлено.")
-    except sqlite3.Error as e:
-        logger.error(f"Ошибка при обновлении мероприятия: {e}")
+
+        # Добавляем новый резерв
+        for user in reserve:
+            cursor.execute(
+                "INSERT INTO reserve (event_id, user_id, user_name) VALUES (?, ?, ?)",
+                (event_id, user["user_id"], user["name"]),
+            )
+
+        # Добавляем новых отказавшихся
+        for user in declined:
+            cursor.execute(
+                "INSERT INTO declined (event_id, user_id, user_name) VALUES (?, ?, ?)",
+                (event_id, user["user_id"], user["name"]),
+            )
+
+        conn.commit()
 
 def update_message_id(db_path, event_id, message_id):
     """

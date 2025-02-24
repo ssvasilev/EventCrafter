@@ -14,7 +14,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 from data.database import init_db, add_event, get_event, update_event, update_message_id, \
-    delete_event, update_event_field
+    delete_event, update_event_field, is_user_in_declined, remove_from_declined, is_user_in_participants, \
+    is_user_in_reserve, add_participant, get_participants_count, add_to_reserve, remove_participant, add_to_declined, \
+    remove_from_reserve, get_reserve, get_participants, get_declined
 from datetime import datetime, timedelta
 import pytz  # Библиотека для работы с часовыми поясами
 
@@ -398,9 +400,13 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         return
 
     # Обработка участников, резерва и отказавшихся
-    participants = "\n".join([p["name"] for p in event["participants"]]) if event["participants"] else "Пока никто не участвует."
-    reserve = "\n".join([p["name"] for p in event["reserve"]]) if event["reserve"] else "Резерв пуст."
-    declined = "\n".join([p["name"] for p in event["declined"]]) if event["declined"] else "Отказавшихся нет."
+    participants = get_participants(db_path, event_id)
+    reserve = get_reserve(db_path, event_id)
+    declined = get_declined(db_path, event_id)
+
+    participants_text = "\n".join([p["user_name"] for p in participants]) if participants else "Пока никто не участвует."
+    reserve_text = "\n".join([p["user_name"] for p in reserve]) if reserve else "Резерв пуст."
+    declined_text = "\n".join([p["user_name"] for p in declined]) if declined else "Отказавшихся нет."
     limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
 
     # Клавиатура
@@ -484,58 +490,57 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обработка действия "Участвовать"
     if action == "join":
         # Если пользователь в списке "Отказавшиеся", удаляем его оттуда
-        if any(p["user_id"] == user_id for p in event["declined"]):
-            event["declined"] = [p for p in event["declined"] if p["user_id"] != user_id]
+        if is_user_in_declined(db_path, event_id, user_id):
+            remove_from_declined(db_path, event_id, user_id)
 
         # Если пользователь уже в списке участников или резерва
-        if any(p["user_id"] == user_id for p in event["participants"] + event["reserve"]):
+        if is_user_in_participants(db_path, event_id, user_id) or is_user_in_reserve(db_path, event_id, user_id):
             await query.answer("Вы уже в списке участников или резерва.")
         else:
             # Если есть свободные места, добавляем в участники
-            if event["limit"] is None or len(event["participants"]) < event["limit"]:
-                event["participants"].append({"name": user_name, "user_id": user_id})
+            if event["limit"] is None or get_participants_count(db_path, event_id) < event["limit"]:
+                add_participant(db_path, event_id, user_id, user_name)
                 await query.answer(f"{user_name}, вы добавлены в список участников!")
             else:
                 # Если мест нет, добавляем в резерв
-                event["reserve"].append({"name": user_name, "user_id": user_id})
+                add_to_reserve(db_path, event_id, user_id, user_name)
                 await query.answer(f"{user_name}, вы добавлены в резерв.")
 
     # Обработка действия "Не участвовать"
     elif action == "leave":
         # Если пользователь в списке участников
-        if any(p["user_id"] == user_id for p in event["participants"]):
+        if is_user_in_participants(db_path, event_id, user_id):
             # Удаляем пользователя из участников
-            event["participants"] = [p for p in event["participants"] if p["user_id"] != user_id]
+            remove_participant(db_path, event_id, user_id)
             # Добавляем его в список "Отказавшиеся"
-            event["declined"].append({"name": user_name, "user_id": user_id})
+            add_to_declined(db_path, event_id, user_id, user_name)
 
             # Если в резерве есть пользователи, перемещаем первого из резерва в участники
-            if event["reserve"]:
-                new_participant = event["reserve"].pop(0)
-                event["participants"].append(new_participant)
+            reserve = get_reserve(db_path, event_id)
+            if reserve:
+                new_participant = reserve[0]
+                remove_from_reserve(db_path, event_id, new_participant["user_id"])
+                add_participant(db_path, event_id, new_participant["user_id"], new_participant["user_name"])
                 await query.answer(
                     f"{user_name}, вы удалены из списка участников и добавлены в список отказавшихся. "
-                    f"{new_participant['name']} перемещён из резерва в участники."
+                    f"{new_participant['user_name']} перемещён из резерва в участники."
                 )
             else:
                 await query.answer(f"{user_name}, вы удалены из списка участников и добавлены в список отказавшихся.")
 
         # Если пользователь в резерве
-        elif any(p["user_id"] == user_id for p in event["reserve"]):
+        elif is_user_in_reserve(db_path, event_id, user_id):
             # Удаляем пользователя из резерва
-            event["reserve"] = [p for p in event["reserve"] if p["user_id"] != user_id]
+            remove_from_reserve(db_path, event_id, user_id)
             # Добавляем его в список "Отказавшиеся"
-            event["declined"].append({"name": user_name, "user_id": user_id})
+            add_to_declined(db_path, event_id, user_id, user_name)
             await query.answer(f"{user_name}, вы удалены из резерва и добавлены в список отказавшихся.")
 
         # Если пользователь уже в списке "Отказавшиеся"
-        elif any(p["user_id"] == user_id for p in event["declined"]):
+        elif is_user_in_declined(db_path, event_id, user_id):
             await query.answer("Вы уже в списке отказавшихся.")
         else:
             await query.answer("Вас нет в списке участников или резерва.")
-
-    # Обновляем мероприятие в базе данных
-    update_event(db_path, event_id, event["participants"], event["reserve"], event["declined"])
 
     # Редактируем существующее сообщение
     chat_id = query.message.chat_id
