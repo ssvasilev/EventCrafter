@@ -502,16 +502,32 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Обработка действия "Не участвовать"
     elif action == "leave":
-        # Если пользователь в списке участников, удаляем его и добавляем в "Отказавшиеся"
+        # Если пользователь в списке участников
         if any(p["user_id"] == user_id for p in event["participants"]):
+            # Удаляем пользователя из участников
             event["participants"] = [p for p in event["participants"] if p["user_id"] != user_id]
+            # Добавляем его в список "Отказавшиеся"
             event["declined"].append({"name": user_name, "user_id": user_id})
-            await query.answer(f"{user_name}, вы удалены из списка участников и добавлены в список отказавшихся.")
-        # Если пользователь в резерве, удаляем его и добавляем в "Отказавшиеся"
+
+            # Если в резерве есть пользователи, перемещаем первого из резерва в участники
+            if event["reserve"]:
+                new_participant = event["reserve"].pop(0)
+                event["participants"].append(new_participant)
+                await query.answer(
+                    f"{user_name}, вы удалены из списка участников и добавлены в список отказавшихся. "
+                    f"{new_participant['name']} перемещён из резерва в участники."
+                )
+            else:
+                await query.answer(f"{user_name}, вы удалены из списка участников и добавлены в список отказавшихся.")
+
+        # Если пользователь в резерве
         elif any(p["user_id"] == user_id for p in event["reserve"]):
+            # Удаляем пользователя из резерва
             event["reserve"] = [p for p in event["reserve"] if p["user_id"] != user_id]
+            # Добавляем его в список "Отказавшиеся"
             event["declined"].append({"name": user_name, "user_id": user_id})
             await query.answer(f"{user_name}, вы удалены из резерва и добавлены в список отказавшихся.")
+
         # Если пользователь уже в списке "Отказавшиеся"
         elif any(p["user_id"] == user_id for p in event["declined"]):
             await query.answer("Вы уже в списке отказавшихся.")
