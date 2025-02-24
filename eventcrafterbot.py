@@ -157,7 +157,7 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["description"] = description
 
     # Обновляем текст сообщения
-    context.user_data["message_text"] = f'"📢 {description}"\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ:'
+    context.user_data["message_text"] = f'"📢 {description}"\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ'
 
     # Редактируем существующее сообщение
     await context.bot.edit_message_text(
