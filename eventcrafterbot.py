@@ -977,6 +977,26 @@ def main():
     )
     application.add_handler(conv_handler_create)
 
+    # ConversationHandler для создания мероприятия по упоминанию
+    conv_handler_create_mention = ConversationHandler(
+        entry_points=[MessageHandler(filters.Entity("mention") & filters.TEXT, mention_handler)],  # Упоминание бота
+        states={
+            SET_DATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_date),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            ],
+            SET_TIME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_time),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            ],
+            SET_LIMIT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),
+                CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    application.add_handler(conv_handler_create_mention)
 
     # ConversationHandler для редактирования мероприятия
     conv_handler_edit_event = ConversationHandler(
