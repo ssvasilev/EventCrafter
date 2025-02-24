@@ -113,7 +113,6 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Если текст после упоминания не пустой, сохраняем его как описание
             if mention_text:
                 context.user_data["description"] = mention_text
-                context.user_data["message_text"] = ""
 
                 # Создаем клавиатуру с кнопкой "Отмена"
                 keyboard = [
@@ -127,7 +126,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=reply_markup,
                 )
 
-                # Сохраняем ID сообщения для дальнейшего редактирования
+                # Сохраняем ID сообщения и chat_id
                 context.user_data["bot_message_id"] = sent_message.message_id
                 context.user_data["chat_id"] = update.message.chat_id
 
@@ -955,7 +954,10 @@ def main():
 
     # ConversationHandler для создания мероприятия
     conv_handler_create = ConversationHandler(
-        entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],
+        entry_points=[
+            CallbackQueryHandler(create_event_button, pattern="^create_event$"),  # Кнопка "Создать мероприятие"
+            MessageHandler(filters.Entity("mention") & filters.TEXT, mention_handler),  # Упоминание бота
+        ],
         states={
             SET_DESCRIPTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, set_description),
