@@ -38,7 +38,8 @@ def init_db(db_path):
             creator_id INTEGER NOT NULL,
             message_id INTEGER,
             participants TEXT,
-            reserve TEXT        
+            reserve TEXT,
+            declined TEXT DEFAULT '[]'        
         )
         """
     )
@@ -100,35 +101,34 @@ def add_event(db_path, description, date, time, limit, creator_id, message_id=No
 
 def get_event(db_path, event_id):
     """Возвращает информацию о мероприятии по его ID."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row  # Для доступа к полям по имени
-    cursor = conn.cursor()
+    with get_db_connection(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+        event = cursor.fetchone()
 
-    cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
-    event = cursor.fetchone()
+        if not event:
+            return None
 
-    if not event:
-        conn.close()
-        return None
+        # Преобразуем JSON-строки в списки
+        participants = json.loads(event["participants"]) if event["participants"] else []
+        reserve = json.loads(event["reserve"]) if event["reserve"] else []
+        declined = json.loads(event["declined"]) if event["declined"] else []
 
-    # Преобразуем JSON-строки в списки
-    participants = json.loads(event["participants"]) if event["participants"] else []
-    reserve = json.loads(event["reserve"]) if event["reserve"] else []
+        event_data = {
+            "id": event["id"],
+            "description": event["description"],
+            "date": event["date"],
+            "time": event["time"],
+            "limit": event["participant_limit"],
+            "creator_id": event["creator_id"],
+            "message_id": event["message_id"],
+            "participants": participants,
+            "reserve": reserve,
+            "declined": declined,
+        }
 
-    event_data = {
-        "id": event["id"],
-        "description": event["description"],
-        "date": event["date"],
-        "time": event["time"],
-        "limit": event["participant_limit"],
-        "creator_id": event["creator_id"],
-        "message_id": event["message_id"],
-        "participants": participants,
-        "reserve": reserve,
-    }
-
-    conn.close()
-    return event_data
+        return event_data
 
 def get_all_events(db_path):
     conn = get_db_connection(db_path)
@@ -136,22 +136,30 @@ def get_all_events(db_path):
     conn.close()
     return [dict(event) for event in events]
 
-def update_event(db_path, event_id, participants, reserve):
+def update_event(db_path, event_id, participants, reserve, declined):
     """
-    Обновляет списки участников и резерва мероприятия.
+    Обновляет списки участников, резерва и отказавшихся.
     :param db_path: Путь к файлу базы данных.
     :param event_id: ID мероприятия.
     :param participants: Список участников.
     :param reserve: Список резерва.
+    :param declined: Список отказавшихся.
     """
-    conn = get_db_connection(db_path)
-    conn.execute("""
-        UPDATE events
-        SET participants = ?, reserve = ?
-        WHERE id = ?
-    """, (json.dumps(participants), json.dumps(reserve), event_id))
-    conn.commit()
-    conn.close()
+    try:
+        with get_db_connection(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE events
+                SET participants = ?, reserve = ?, declined = ?
+                WHERE id = ?
+                """,
+                (json.dumps(participants), json.dumps(reserve), json.dumps(declined), event_id),
+            )
+            conn.commit()
+            logger.info(f"Мероприятие с ID={event_id} обновлено.")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при обновлении мероприятия: {e}")
 
 def update_message_id(db_path, event_id, message_id):
     """
