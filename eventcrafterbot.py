@@ -584,8 +584,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Если пользователь уже в списке "Отказавшиеся"
         elif is_user_in_declined(db_path, event_id, user_id):
             await query.answer("Вы уже в списке отказавшихся.")
+
+        # Если пользователя нет ни в одном из списков
         else:
-            await query.answer("Вас нет в списке участников или резерва.")
+            # Добавляем пользователя в список "Отказавшиеся"
+            add_to_declined(db_path, event_id, user_id, user_name)
+            await query.answer(f"{user_name}, вы добавлены в список отказавшихся.")
 
     # Редактируем существующее сообщение
     chat_id = query.message.chat_id
