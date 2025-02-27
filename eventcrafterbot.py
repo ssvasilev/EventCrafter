@@ -1051,6 +1051,32 @@ async def unpin_and_delete_event(context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
         logger.info(f"Задача для мероприятия с ID {event_id} удалена из базы данных.")
 
+async def schedule_unpin_and_delete(event_id: int, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+    """Создаёт новую задачу на открепление и удаление мероприятия."""
+    db_path = context.bot_data["db_path"]
+
+    # Получаем обновлённые дату и время из базы
+    event = get_event(db_path, event_id)
+    if not event:
+        logger.error(f"Ошибка: мероприятие {event_id} не найдено в базе!")
+        return
+
+    event_datetime = datetime.strptime(f"{event['date']} {event['time']}", "%d-%m-%Y %H:%M").replace(tzinfo=tz)
+
+    # Создаём новую задачу
+    job = context.application.job_queue.run_once(
+        unpin_and_delete_event,
+        when=event_datetime,
+        data={"event_id": event_id, "chat_id": chat_id},
+        name=str(event_id)  # Имя задачи — ID мероприятия
+    )
+
+    # Сохраняем новую задачу в базе
+    add_scheduled_job(db_path, event_id, job.id, chat_id, event_datetime.isoformat())
+
+    logger.info(f"Создана новая задача {job.id} для мероприятия {event_id} на {event_datetime}")
+
+
 
 async def restore_scheduled_jobs(application: Application):
     """
