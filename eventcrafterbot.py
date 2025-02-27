@@ -16,7 +16,7 @@ import os
 from data.database import init_db, add_event, get_event, update_event, update_message_id, \
     delete_event, update_event_field, is_user_in_declined, remove_from_declined, is_user_in_participants, \
     is_user_in_reserve, add_participant, get_participants_count, add_to_reserve, remove_participant, add_to_declined, \
-    remove_from_reserve, get_reserve, get_participants, get_declined, get_db_connection
+    remove_from_reserve, get_reserve, get_participants, get_declined, get_db_connection, add_scheduled_job
 from datetime import datetime, timedelta
 import pytz  # Библиотека для работы с часовыми поясами
 import locale
