@@ -88,9 +88,9 @@ def init_db(db_path):
         CREATE TABLE IF NOT EXISTS scheduled_jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_id INTEGER NOT NULL,
-            job_id TEXT NOT NULL,  # ID задачи в JobQueue
-            chat_id INTEGER NOT NULL,  # ID чата
-            execute_at TEXT NOT NULL,  # Время выполнения задачи (в формате ISO)
+            job_id TEXT NOT NULL,
+            chat_id INTEGER NOT NULL,
+            execute_at TEXT NOT NULL,
             FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
         )
         """
