@@ -97,11 +97,9 @@ def init_db(db_path):
     )
 
     # Создание индексов
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_participants_event_id ON events (event_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_participants_event_id ON participants (event_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reserve_event_id ON reserve (event_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_declined_event_id ON declined (event_id)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_participants_event_id ON scheduled_jobs (event_id)")
 
     conn.commit()
     conn.close()
