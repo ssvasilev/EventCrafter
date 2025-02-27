@@ -16,7 +16,8 @@ import os
 from data.database import init_db, add_event, get_event, update_event, update_message_id, \
     delete_event, update_event_field, is_user_in_declined, remove_from_declined, is_user_in_participants, \
     is_user_in_reserve, add_participant, get_participants_count, add_to_reserve, remove_participant, add_to_declined, \
-    remove_from_reserve, get_reserve, get_participants, get_declined, get_db_connection, add_scheduled_job
+    remove_from_reserve, get_reserve, get_participants, get_declined, get_db_connection, add_scheduled_job, \
+    get_scheduled_job_id, delete_scheduled_job
 from datetime import datetime, timedelta
 import pytz  # Библиотека для работы с часовыми поясами
 import locale
@@ -852,24 +853,32 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_path = context.bot_data["db_path"]
 
     try:
-        # Преобразуем введённую дату в объект datetime
+        # Преобразуем введённую дату
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
 
         # Форматируем дату с днём недели
-        formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+        formatted_date = date.strftime("%d.%m.%Y (%A)")
 
         # Обновляем дату в базе данных
         update_event_field(db_path, event_id, "date", date.strftime("%d-%m-%Y"))
 
-        # Сохраняем отформатированную дату в context.user_data
+        # Сохраняем в context.user_data
         context.user_data["formatted_date"] = formatted_date
 
-        # Обновляем сообщение с информацией о мероприятии
+        # Удаляем старую задачу из JobQueue
+        remove_existing_job(event_id, context)
+
+        # Создаём новую задачу с обновлённой датой
+        await schedule_unpin_and_delete(event_id, context, update.message.chat_id)
+
+        # Обновляем сообщение
         chat_id = update.message.chat_id
         await send_event_message(event_id, context, chat_id)
 
         await update.message.reply_text("Дата мероприятия обновлена!")
+
         return ConversationHandler.END
+
     except ValueError:
         await update.message.reply_text("Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ")
         return EDIT_DATE
@@ -900,16 +909,25 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_path = context.bot_data["db_path"]
 
     try:
+        # Преобразуем введённое время
         time = datetime.strptime(time_text, "%H:%M").time()
+
         # Обновляем время в базе данных
         update_event_field(db_path, event_id, "time", time.strftime("%H:%M"))
 
-        # Обновляем сообщение с информацией о мероприятии
+        # Удаляем старую задачу из JobQueue
+        remove_existing_job(event_id, context)
+
+        # Создаём новую задачу с обновлённым временем
+        await schedule_unpin_and_delete(event_id, context, update.message.chat_id)
+
+        # Обновляем сообщение
         chat_id = update.message.chat_id
         await send_event_message(event_id, context, chat_id)
 
         await update.message.reply_text("Время мероприятия обновлено!")
         return ConversationHandler.END
+
     except ValueError:
         await update.message.reply_text("Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ")
         return EDIT_TIME
@@ -1063,6 +1081,21 @@ async def restore_scheduled_jobs(application: Application):
                 cursor.execute("DELETE FROM scheduled_jobs WHERE id = ?", (job["id"],))
                 conn.commit()
                 logger.info(f"Удалена устаревшая задача для мероприятия с ID: {event_id}")
+
+def remove_existing_job(event_id: int, context: ContextTypes.DEFAULT_TYPE):
+    """Удаляет существующую задачу для мероприятия, если она есть."""
+    db_path = context.bot_data["db_path"]
+
+    # Получаем ID старой задачи из базы
+    job_id = get_scheduled_job_id(db_path, event_id)
+    if job_id:
+        job = context.application.job_queue.get_jobs_by_name(str(job_id))
+        if job:
+            job[0].schedule_removal()
+            logger.info(f"Удалена старая задача {job_id} для мероприятия {event_id}")
+
+        # Удаляем запись из базы
+        delete_scheduled_job(db_path, event_id)
 
 
 # Основная функция

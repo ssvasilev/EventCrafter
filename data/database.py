@@ -408,6 +408,21 @@ def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at):
         )
         conn.commit()
 
+def get_scheduled_job_id(db_path: str, event_id: int) -> str:
+    """Возвращает job_id запланированной задачи для указанного мероприятия."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT job_id FROM scheduled_jobs WHERE event_id = ?", (event_id,))
+        result = cursor.fetchone()
+        return result["job_id"] if result else None
+
+def delete_scheduled_job(db_path: str, event_id: int):
+    """Удаляет задачу из базы данных по event_id."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM scheduled_jobs WHERE event_id = ?", (event_id,))
+        conn.commit()
+        logger.info(f"Задача для мероприятия {event_id} удалена из базы")
 
 def delete_event(db_path: str, event_id: int):
     with get_db_connection(db_path) as conn:
