@@ -224,13 +224,20 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     date_text = update.message.text
     try:
+        # Преобразуем введённую дату в объект datetime
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
+
+        # Форматируем дату с днём недели
+        formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+
+        # Сохраняем дату и отформатированную строку
         context.user_data["date"] = date
+        context.user_data["formatted_date"] = formatted_date
 
         # Обновляем текст сообщения
         context.user_data["message_text"] = (
             f"📢 {context.user_data['description']}\n"
-            f"📅 Дата: {date_text}\n\n"
+            f"📅 Дата: {formatted_date}\n\n"  # Используем отформатированную дату
             f"Введите время мероприятия в формате ЧЧ:ММ"
         )
 
@@ -444,8 +451,8 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     reserve = get_reserve(db_path, event_id)
     declined = get_declined(db_path, event_id)
 
-    # Форматируем дату с днем недели
-    formatted_date = format_date_with_weekday(event['date'])
+    # Используем отформатированную дату с днём недели
+    formatted_date = context.user_data.get("formatted_date", event['date'])
 
     # Форматируем списки
     participants_text = (
