@@ -82,10 +82,26 @@ def init_db(db_path):
         """
     )
 
+    # Таблица для хранения запланированных задач
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS scheduled_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            job_id TEXT NOT NULL,  # ID задачи в JobQueue
+            chat_id INTEGER NOT NULL,  # ID чата
+            execute_at TEXT NOT NULL,  # Время выполнения задачи (в формате ISO)
+            FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
+        )
+        """
+    )
+
     # Создание индексов
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_participants_event_id ON events (event_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_participants_event_id ON participants (event_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reserve_event_id ON reserve (event_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_declined_event_id ON declined (event_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_participants_event_id ON scheduled_jobs (event_id)")
 
     conn.commit()
     conn.close()
@@ -373,6 +389,26 @@ def update_message_id(db_path, event_id, message_id):
         logger.error(f"Ошибка при обновлении message_id: {e}")
     finally:
         conn.close()
+
+def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at):
+    """
+    Сохраняет информацию о запланированной задаче в базу данных.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param job_id: ID задачи в JobQueue.
+    :param chat_id: ID чата.
+    :param execute_at: Время выполнения задачи (в формате ISO).
+    """
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO scheduled_jobs (event_id, job_id, chat_id, execute_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (event_id, job_id, chat_id, execute_at),
+        )
+        conn.commit()
 
 
 def delete_event(db_path: str, event_id: int):

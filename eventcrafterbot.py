@@ -16,10 +16,11 @@ import os
 from data.database import init_db, add_event, get_event, update_event, update_message_id, \
     delete_event, update_event_field, is_user_in_declined, remove_from_declined, is_user_in_participants, \
     is_user_in_reserve, add_participant, get_participants_count, add_to_reserve, remove_participant, add_to_declined, \
-    remove_from_reserve, get_reserve, get_participants, get_declined
+    remove_from_reserve, get_reserve, get_participants, get_declined, get_db_connection
 from datetime import datetime, timedelta
 import pytz  # Библиотека для работы с часовыми поясами
 import locale
+
 locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
 
 # Загружаем переменные окружения из .env
@@ -73,6 +74,7 @@ def time_until_event(event_date: str, event_time: str) -> str:
 
     return f"{days} дней, {hours} часов, {minutes} минут"
 
+
 def format_date_with_weekday(date_str):
     """
     Форматирует дату в формате "дд-мм-гггг" в строку с днем недели.
@@ -81,6 +83,7 @@ def format_date_with_weekday(date_str):
     """
     date_obj = datetime.strptime(date_str, "%d-%m-%Y")
     return date_obj.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+
 
 # Состояния для ConversationHandler
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
@@ -407,6 +410,30 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             logger.warning("JobQueue не настроен. Уведомления не будут отправлены.")
 
+        # Создаем задачу для открепления сообщения и удаления мероприятия
+        event_datetime = datetime.strptime(
+            f"{context.user_data['date'].strftime('%d-%m-%Y')} {context.user_data['time'].strftime('%H:%M')}",
+            "%d-%m-%Y %H:%M"
+        )
+        event_datetime = tz.localize(event_datetime)  # Устанавливаем часовой пояс
+
+        job = context.job_queue.run_once(
+            unpin_and_delete_event,
+            when=event_datetime,  # Время окончания мероприятия
+            data={"event_id": event_id, "chat_id": update.message.chat_id},
+        )
+
+        # Сохраняем задачу в базу данных
+        add_scheduled_job(
+            db_path=context.bot_data["db_path"],
+            event_id=event_id,
+            job_id=job.id,  # ID задачи
+            chat_id=update.message.chat_id,
+            execute_at=event_datetime.isoformat(),  # Время выполнения задачи
+        )
+
+        logger.info(f"Задача для открепления и удаления мероприятия создана для ID: {event_id}")
+
         # Завершаем диалог
         return ConversationHandler.END
 
@@ -528,6 +555,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
 
     return message_id
+
 
 # Обработка нажатий на кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -969,6 +997,74 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Ошибка при отправке уведомления участнику {participant}: {e}")
 
 
+async def unpin_and_delete_event(context: ContextTypes.DEFAULT_TYPE):
+    """
+    Открепляет сообщение мероприятия и удаляет его из базы данных.
+    """
+    event_id = context.job.data["event_id"]
+    chat_id = context.job.data["chat_id"]
+    db_path = context.bot_data["db_path"]
+
+    # Получаем данные о мероприятии
+    event = get_event(db_path, event_id)
+    if not event:
+        logger.error(f"Мероприятие с ID {event_id} не найдено.")
+        return
+
+    # Открепляем сообщение
+    try:
+        await context.bot.unpin_chat_message(chat_id=chat_id, message_id=event["message_id"])
+        logger.info(f"Сообщение {event['message_id']} откреплено в чате {chat_id}.")
+    except error.BadRequest as e:
+        logger.error(f"Ошибка при откреплении сообщения: {e}")
+    except error.Forbidden as e:
+        logger.error(f"Бот не имеет прав на открепление сообщений: {e}")
+    except Exception as e:
+        logger.error(f"Неизвестная ошибка при откреплении сообщения: {e}")
+
+    # Удаляем мероприятие из базы данных
+    delete_event(db_path, event_id)
+    logger.info(f"Мероприятие с ID {event_id} удалено из базы данных.")
+
+    # Удаляем задачу из базы данных
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM scheduled_jobs WHERE event_id = ?", (event_id,))
+        conn.commit()
+        logger.info(f"Задача для мероприятия с ID {event_id} удалена из базы данных.")
+
+
+async def restore_scheduled_jobs(application: Application):
+    """
+    Восстанавливает запланированные задачи из базы данных при запуске бота.
+    """
+    db_path = application.bot_data["db_path"]
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM scheduled_jobs")
+        jobs = cursor.fetchall()
+
+        for job in jobs:
+            event_id = job["event_id"]
+            chat_id = job["chat_id"]
+            execute_at = datetime.fromisoformat(job["execute_at"])
+
+            # Проверяем, не истекло ли время выполнения задачи
+            if execute_at > datetime.now(tz):
+                # Создаем задачу
+                application.job_queue.run_once(
+                    unpin_and_delete_event,
+                    when=execute_at,
+                    data={"event_id": event_id, "chat_id": chat_id},
+                )
+                logger.info(f"Восстановлена задача для мероприятия с ID: {event_id}")
+            else:
+                # Если время выполнения задачи истекло, удаляем её из базы данных
+                cursor.execute("DELETE FROM scheduled_jobs WHERE id = ?", (job["id"],))
+                conn.commit()
+                logger.info(f"Удалена устаревшая задача для мероприятия с ID: {event_id}")
+
+
 # Основная функция
 def main():
     # Создаём приложение и передаём токен
@@ -978,12 +1074,16 @@ def main():
     # Сохраняем путь к базе данных в context.bot_data
     application.bot_data["db_path"] = DB_PATH
 
+    # Восстанавливаем запланированные задачи
+    application.run_polling(on_startup=restore_scheduled_jobs)
+
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
 
     # ConversationHandler для создания мероприятия
     conv_handler_create = ConversationHandler(
-        entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],  # Кнопка "Создать мероприятие"
+        entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],  # Кнопка "Создать
+        # мероприятие"
         states={
             SET_DESCRIPTION: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, set_description),
