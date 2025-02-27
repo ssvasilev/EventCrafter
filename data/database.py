@@ -82,6 +82,20 @@ def init_db(db_path):
         """
     )
 
+    # Таблица для хранения запланированных задач
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS scheduled_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            job_id TEXT NOT NULL,
+            chat_id INTEGER NOT NULL,
+            execute_at TEXT NOT NULL,
+            FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
+        )
+        """
+    )
+
     # Создание индексов
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_participants_event_id ON participants (event_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reserve_event_id ON reserve (event_id)")
@@ -374,6 +388,41 @@ def update_message_id(db_path, event_id, message_id):
     finally:
         conn.close()
 
+def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at):
+    """
+    Сохраняет информацию о запланированной задаче в базу данных.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param job_id: ID задачи в JobQueue.
+    :param chat_id: ID чата.
+    :param execute_at: Время выполнения задачи (в формате ISO).
+    """
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO scheduled_jobs (event_id, job_id, chat_id, execute_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (event_id, job_id, chat_id, execute_at),
+        )
+        conn.commit()
+
+def get_scheduled_job_id(db_path: str, event_id: int) -> str:
+    """Возвращает job_id запланированной задачи для указанного мероприятия."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT job_id FROM scheduled_jobs WHERE event_id = ?", (event_id,))
+        result = cursor.fetchone()
+        return result["job_id"] if result else None
+
+def delete_scheduled_job(db_path: str, event_id: int):
+    """Удаляет задачу из базы данных по event_id."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM scheduled_jobs WHERE event_id = ?", (event_id,))
+        conn.commit()
+        logger.info(f"Задача для мероприятия {event_id} удалена из базы")
 
 def delete_event(db_path: str, event_id: int):
     with get_db_connection(db_path) as conn:
