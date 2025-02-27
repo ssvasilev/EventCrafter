@@ -1075,7 +1075,7 @@ def main():
     application.bot_data["db_path"] = DB_PATH
 
     # Восстанавливаем запланированные задачи
-    application.run_polling(on_startup=restore_scheduled_jobs)
+    application.run_polling(post_init=restore_scheduled_jobs)
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
