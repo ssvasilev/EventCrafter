@@ -19,6 +19,9 @@ from data.database import init_db, add_event, get_event, update_event, update_me
     remove_from_reserve, get_reserve, get_participants, get_declined
 from datetime import datetime, timedelta
 import pytz  # Библиотека для работы с часовыми поясами
+import locale
+locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
+locale.setlocale(locale.LC_TIME, 'Russian')  # Для Windows
 
 # Загружаем переменные окружения из .env
 load_dotenv("data/.env")  # Указываем путь к .env
