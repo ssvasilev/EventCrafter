@@ -71,6 +71,14 @@ def time_until_event(event_date: str, event_time: str) -> str:
 
     return f"{days} дней, {hours} часов, {minutes} минут"
 
+def format_date_with_weekday(date_str):
+    """
+    Форматирует дату в формате "дд-мм-гггг" в строку с днем недели.
+    :param date_str: Дата в формате "дд-мм-гггг".
+    :return: Строка в формате "дд.мм.гггг (ДеньНедели)".
+    """
+    date_obj = datetime.strptime(date_str, "%d-%m-%Y")
+    return date_obj.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
 
 # Состояния для ConversationHandler
 SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
@@ -434,6 +442,9 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     reserve = get_reserve(db_path, event_id)
     declined = get_declined(db_path, event_id)
 
+    # Форматируем дату с днем недели
+    formatted_date = format_date_with_weekday(event['date'])
+
     # Форматируем списки
     participants_text = (
         "\n".join([p["user_name"] for p in participants])
@@ -466,7 +477,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     time_until = time_until_event(event['date'], event['time'])
     message_text = (
         f"📢 <b>{event['description']}</b>\n"
-        f"📅 <i>Дата: </i> {event['date']}\n"
+        f"📅 <i>Дата: </i> {formatted_date}\n"  # Используем отформатированную дату
         f"🕒 <i>Время: </i> {event['time']}\n"
         f"⏳ <i>До мероприятия: </i> {time_until}\n"
         f"👥 <i>Лимит участников: </i> {limit_text}\n\n"
