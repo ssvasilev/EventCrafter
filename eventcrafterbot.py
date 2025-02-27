@@ -1074,9 +1074,6 @@ def main():
     # Сохраняем путь к базе данных в context.bot_data
     application.bot_data["db_path"] = DB_PATH
 
-    # Восстанавливаем запланированные задачи
-    application.run_polling(post_init=restore_scheduled_jobs)
-
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
 
@@ -1161,6 +1158,9 @@ def main():
 
     # Запускаем бота
     application.run_polling()
+
+    # Восстанавливаем запланированные задачи
+    application.run_polling(post_init=restore_scheduled_jobs)
 
 
 if __name__ == "__main__":
