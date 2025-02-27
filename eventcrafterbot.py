@@ -824,9 +824,17 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_path = context.bot_data["db_path"]
 
     try:
+        # Преобразуем введённую дату в объект datetime
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
+
+        # Форматируем дату с днём недели
+        formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+
         # Обновляем дату в базе данных
         update_event_field(db_path, event_id, "date", date.strftime("%d-%m-%Y"))
+
+        # Сохраняем отформатированную дату в context.user_data
+        context.user_data["formatted_date"] = formatted_date
 
         # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
