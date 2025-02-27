@@ -21,7 +21,6 @@ from datetime import datetime, timedelta
 import pytz  # Библиотека для работы с часовыми поясами
 import locale
 locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
-locale.setlocale(locale.LC_TIME, 'Russian')  # Для Windows
 
 # Загружаем переменные окружения из .env
 load_dotenv("data/.env")  # Указываем путь к .env
