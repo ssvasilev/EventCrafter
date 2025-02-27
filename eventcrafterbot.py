@@ -865,7 +865,7 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Сохраняем в context.user_data
         context.user_data["formatted_date"] = formatted_date
 
-        # Удаляем старую задачу из JobQueue
+        # Удаляем старую задачу из JobQueue и базы данных
         remove_existing_job(event_id, context)
 
         # Создаём новую задачу с обновлённой датой
@@ -876,7 +876,6 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_event_message(event_id, context, chat_id)
 
         await update.message.reply_text("Дата мероприятия обновлена!")
-
         return ConversationHandler.END
 
     except ValueError:
@@ -915,7 +914,7 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Обновляем время в базе данных
         update_event_field(db_path, event_id, "time", time.strftime("%H:%M"))
 
-        # Удаляем старую задачу из JobQueue
+        # Удаляем старую задачу из JobQueue и базы данных
         remove_existing_job(event_id, context)
 
         # Создаём новую задачу с обновлённым временем
@@ -1061,17 +1060,19 @@ async def schedule_unpin_and_delete(event_id: int, context: ContextTypes.DEFAULT
         logger.error(f"Ошибка: мероприятие {event_id} не найдено в базе!")
         return
 
-    event_datetime = datetime.strptime(f"{event['date']} {event['time']}", "%d-%m-%Y %H:%M").replace(tzinfo=tz)
+    # Преобразуем дату и время мероприятия
+    event_datetime = datetime.strptime(f"{event['date']} {event['time']}", "%d-%m-%Y %H:%M")
+    event_datetime = tz.localize(event_datetime)  # Устанавливаем часовой пояс
 
     # Создаём новую задачу
-    job = context.application.job_queue.run_once(
+    job = context.job_queue.run_once(
         unpin_and_delete_event,
         when=event_datetime,
         data={"event_id": event_id, "chat_id": chat_id},
         name=str(event_id)  # Имя задачи — ID мероприятия
     )
 
-    # Сохраняем новую задачу в базе
+    # Сохраняем новую задачу в базу
     add_scheduled_job(db_path, event_id, job.id, chat_id, event_datetime.isoformat())
 
     logger.info(f"Создана новая задача {job.id} для мероприятия {event_id} на {event_datetime}")
@@ -1115,13 +1116,18 @@ def remove_existing_job(event_id: int, context: ContextTypes.DEFAULT_TYPE):
     # Получаем ID старой задачи из базы
     job_id = get_scheduled_job_id(db_path, event_id)
     if job_id:
-        job = context.application.job_queue.get_jobs_by_name(str(job_id))
-        if job:
-            job[0].schedule_removal()
-            logger.info(f"Удалена старая задача {job_id} для мероприятия {event_id}")
+        # Удаляем задачу из JobQueue
+        jobs = context.job_queue.get_jobs_by_name(str(event_id))
+        if jobs:
+            for job in jobs:
+                job.schedule_removal()
+                logger.info(f"Удалена старая задача {job.id} для мероприятия {event_id}")
 
         # Удаляем запись из базы
         delete_scheduled_job(db_path, event_id)
+        logger.info(f"Задача для мероприятия {event_id} удалена из базы данных.")
+    else:
+        logger.warning(f"Задача для мероприятия {event_id} не найдена в базе данных.")
 
 
 # Основная функция
