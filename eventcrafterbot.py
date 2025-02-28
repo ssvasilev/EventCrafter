@@ -419,8 +419,10 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             description=context.user_data["description"],
             date=context.user_data["date"].strftime("%d-%m-%Y"),
             time=context.user_data["time"].strftime("%H:%M"),
-            limit=limit if limit != 0 else None,  # 0 означает неограниченный лимит
+            limit=limit if limit != 0 else None,
             creator_id=update.message.from_user.id,
+            chat_id=update.message.chat_id,  # Добавьте chat_id
+            message_id=context.user_data.get("message_id")  # Если message_id есть
         )
 
         # Проверяем, что мероприятие успешно создано
