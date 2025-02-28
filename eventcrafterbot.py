@@ -707,6 +707,27 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     action, event_id = data.split("|")
     context.user_data["event_id"] = event_id
 
+    # Получаем данные о мероприятии
+    db_path = context.bot_data["db_path"]
+    event = get_event(db_path, event_id)
+    if not event:
+        await query.edit_message_text("Мероприятие не найдено.")
+        return ConversationHandler.END
+
+    # Открепляем сообщение, если оно закреплено
+    try:
+        await context.bot.unpin_chat_message(
+            chat_id=query.message.chat_id,
+            message_id=event["message_id"]
+        )
+        logger.info(f"Сообщение {event['message_id']} откреплено.")
+    except error.BadRequest as e:
+        logger.error(f"Ошибка при откреплении сообщения: {e}")
+    except error.Forbidden as e:
+        logger.error(f"Бот не имеет прав на открепление сообщений: {e}")
+    except Exception as e:
+        logger.error(f"Неизвестная ошибка при откреплении сообщения: {e}")
+
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
@@ -738,15 +759,6 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return EDIT_LIMIT
     elif action == "delete":
-        # Получаем путь к базе данных
-        db_path = context.bot_data["db_path"]
-
-        # Получаем данные о мероприятии
-        event = get_event(db_path, event_id)  # функция для получения мероприятия
-        if not event:
-            await query.edit_message_text("Мероприятие не найдено.")
-            return ConversationHandler.END
-
         # Проверяем, является ли пользователь создателем
         if event["creator_id"] != query.from_user.id:
             await query.answer("Вы не можете удалить это мероприятие.")
