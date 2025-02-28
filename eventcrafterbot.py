@@ -839,14 +839,18 @@ async def edit_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
+    # Отправляем сообщение с запросом новой даты
+    sent_message = await query.edit_message_text(
         "Введите новую дату мероприятия в формате ДД.ММ.ГГГГ",
-        reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
+        reply_markup=reply_markup,
     )
+
+    # Сохраняем ID сообщения бота
+    context.user_data["bot_message_id"] = sent_message.message_id
+
     return EDIT_DATE
 
 
-# Обработка ввода новой даты
 async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     date_text = update.message.text
     event_id = context.user_data.get("event_id")
@@ -871,7 +875,14 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Создаём новую задачу с обновлённой датой
         await schedule_unpin_and_delete(event_id, context, update.message.chat_id)
 
-        # Обновляем сообщение
+        # Удаляем сообщения бота и пользователя
+        await context.bot.delete_message(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"]
+        )
+        await update.message.delete()
+
+        # Обновляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
         await send_event_message(event_id, context, chat_id)
 
