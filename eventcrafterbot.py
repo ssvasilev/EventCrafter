@@ -225,27 +225,25 @@ async def my_events_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Обработка нажатия на кнопку "Создать мероприятие"
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    query = update.callback_query
-    await query.answer()
-
-    # Сохраняем chat_id в context.user_data
-    context.user_data["chat_id"] = query.message.chat_id
-
-    # Обновляем текст сообщения
-    context.user_data["message_text"] = "Введите описание мероприятия:"
-
-    # Редактируем существующее сообщение
-    await context.bot.edit_message_text(
+    # Отправляем новое сообщение
+    sent_message = await context.bot.send_message(
         chat_id=query.message.chat_id,
-        message_id=context.user_data["bot_message_id"],
-        text=context.user_data["message_text"],
+        text="Введите описание мероприятия:",
         reply_markup=reply_markup,
     )
+
+    # Сохраняем ID нового сообщения
+    context.user_data["bot_message_id"] = sent_message.message_id
+
     return SET_DESCRIPTION
 
 
