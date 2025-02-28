@@ -2,6 +2,7 @@ import sqlite3
 import json
 import os
 import logging
+from datetime import datetime
 
 # Включаем логирование
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
