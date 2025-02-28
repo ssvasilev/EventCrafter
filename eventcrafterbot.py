@@ -17,7 +17,7 @@ from data.database import init_db, add_event, get_event, update_event, update_me
     delete_event, update_event_field, is_user_in_declined, remove_from_declined, is_user_in_participants, \
     is_user_in_reserve, add_participant, get_participants_count, add_to_reserve, remove_participant, add_to_declined, \
     remove_from_reserve, get_reserve, get_participants, get_declined, get_db_connection, add_scheduled_job, \
-    get_scheduled_job_id, delete_scheduled_job
+    get_scheduled_job_id, delete_scheduled_job, get_events_by_participant
 from datetime import datetime, timedelta
 import pytz  # Библиотека для работы с часовыми поясами
 import locale
@@ -102,12 +102,13 @@ init_db(DB_PATH)
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")]
+        [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")],
+        [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="my_events")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        "Привет! Я бот для организации мероприятий. Нажми кнопку ниже, чтобы создать мероприятие.",
+        "Привет! Я бот для организации мероприятий. Выберите действие:",
         reply_markup=reply_markup,
     )
 
@@ -163,6 +164,63 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.user_data["bot_message_id"] = sent_message.message_id
                 context.user_data["message_text"] = ""
                 break
+
+#Обработка нажатия на кнопку "Мои мероприятия"
+async def my_events_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    db_path = context.bot_data["db_path"]
+
+    # Получаем мероприятия, в которых участвует пользователь
+    events = get_events_by_participant(db_path, user_id)
+
+    if not events:
+        await query.edit_message_text("Вы не участвуете ни в одном мероприятии.")
+        return
+
+    # Группируем мероприятия по чатам
+    events_by_chat = {}
+    for event in events:
+        chat_id = event["chat_id"]
+        if chat_id not in events_by_chat:
+            events_by_chat[chat_id] = []
+        events_by_chat[chat_id].append(event)
+
+    # Формируем сообщение с группировкой по чатам
+    message_text = "📋 Мероприятия, в которых вы участвуете:\n\n"
+    for chat_id, events_in_chat in events_by_chat.items():
+        # Получаем информацию о чате
+        try:
+            chat = await context.bot.get_chat(chat_id)
+            chat_name = chat.title or chat.username or f"Чат {chat_id}"
+            chat_link = chat.invite_link or f"https://t.me/{chat.username}" if chat.username else f"Чат {chat_id}"
+        except Exception as e:
+            logger.error(f"Ошибка при получении информации о чате {chat_id}: {e}")
+            chat_name = f"Чат {chat_id}"
+            chat_link = f"Чат {chat_id}"
+
+        message_text += f"💬 <b>{chat_name}</b> ({chat_link}):\n"
+        for event in events_in_chat:
+            event_link = f"https://t.me/c/{str(chat_id).replace('-100', '')}/{event['message_id']}"
+            message_text += f"  - <a href='{event_link}'>📅 {event['description']}</a> ({event['date']} {event['time']})\n"
+        message_text += "\n"
+
+    # Отправляем сообщение в личный чат с пользователем
+    try:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=message_text,
+            parse_mode="HTML",
+            disable_web_page_preview=True
+        )
+        await query.edit_message_text("Список мероприятий отправлен вам в личные сообщения.")
+    except error.Forbidden:
+        await query.edit_message_text("Не удалось отправить сообщение. Пожалуйста, начните чат с ботом.")
+    except Exception as e:
+        logger.error(f"Ошибка при отправке сообщения: {e}")
+        await query.edit_message_text("Произошла ошибка при отправке списка мероприятий.")
 
 
 # Обработка нажатия на кнопку "Создать мероприятие"
@@ -1153,6 +1211,8 @@ def main():
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
+    #Обработчик для кнопки Мои мероприятия
+    application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
 
     # ConversationHandler для создания мероприятия
     conv_handler_create = ConversationHandler(
