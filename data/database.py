@@ -2,6 +2,7 @@ import sqlite3
 import json
 import os
 import logging
+from datetime import datetime
 
 # Включаем логирование
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -38,6 +39,7 @@ def init_db(db_path):
             time TEXT NOT NULL,
             participant_limit INTEGER,
             creator_id INTEGER NOT NULL,
+            chat_id INTEGER,
             message_id INTEGER
         )
         """
@@ -125,7 +127,7 @@ def migrate_db(db_path):
 
     conn.close()
 
-def add_event(db_path, description, date, time, limit, creator_id, message_id=None):
+def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id=None):
     """
     Добавляет мероприятие в базу данных.
     :param db_path: Путь к базе данных.
@@ -136,36 +138,54 @@ def add_event(db_path, description, date, time, limit, creator_id, message_id=No
     :param creator_id: ID создателя мероприятия.
     :param message_id: ID сообщения в Telegram (опционально).
     :return: ID добавленного мероприятия.
+    :param chat_id: ID чата, в котором создано мероприятие.
     """
+    # Проверка входных данных
+    if not all([description, date, time, creator_id, chat_id]):
+        logger.error("Не все обязательные поля переданы.")
+        return None
+
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        datetime.strptime(date, "%d-%m-%Y")
+        datetime.strptime(time, "%H:%M")
+    except ValueError as e:
+        logger.error(f"Неверный формат даты или времени: {e}")
+        return None
 
-        # Логируем данные перед выполнением запроса
-        logger.info(
-            f"Данные для добавления мероприятия: "
-            f"description={description}, date={date}, time={time}, "
-            f"limit={limit}, creator_id={creator_id}, message_id={message_id}"
-        )
+    if limit is not None and limit < 0:
+        logger.error("Лимит участников не может быть отрицательным.")
+        return None
 
-        # Выполняем SQL-запрос для добавления мероприятия
-        cursor.execute(
-            """
-            INSERT INTO events (description, date, time, participant_limit, creator_id, message_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (description, date, time, limit, creator_id, message_id),
-        )
+    # Если limit равен 0, сохраняем как NULL (неограниченный лимит)
+    limit = None if limit == 0 else limit
 
-        event_id = cursor.lastrowid  # Получаем ID добавленного мероприятия
-        conn.commit()
-        logger.info(f"Мероприятие добавлено с ID: {event_id}")
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+
+            # Логируем данные перед выполнением запроса
+            logger.info(
+                f"Данные для добавления мероприятия: "
+                f"description={description}, date={date}, time={time}, "
+                f"limit={limit}, creator_id={creator_id}, chat_id={chat_id}, message_id={message_id}"
+            )
+
+            # Выполняем SQL-запрос для добавления мероприятия
+            cursor.execute(
+                """
+                INSERT INTO events (description, date, time, participant_limit, creator_id, chat_id, message_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (description, date, time, limit, creator_id, chat_id, message_id),
+            )
+
+            event_id = cursor.lastrowid  # Получаем ID добавленного мероприятия
+            conn.commit()
+            logger.info(f"Мероприятие добавлено с ID: {event_id}")
+            return event_id
     except sqlite3.Error as e:
         logger.error(f"Ошибка при добавлении мероприятия в базу данных: {e}")
-        event_id = None
-    finally:
-        conn.close()
-    return event_id
+        return None
 
 def get_event(db_path, event_id):
     """Возвращает информацию о мероприятии по его ID."""
@@ -206,6 +226,23 @@ def get_event(db_path, event_id):
         }
 
         return event_data
+
+def get_events_by_participant(db_path, user_id):
+    """
+    Возвращает список мероприятий, в которых участвует пользователь.
+    """
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT e.id, e.description, e.date, e.time, e.chat_id, e.message_id
+            FROM events e
+            JOIN participants p ON e.id = p.event_id
+            WHERE p.user_id = ?
+            """,
+            (user_id,),
+        )
+        return cursor.fetchall()
 
 def get_all_events(db_path):
     conn = get_db_connection(db_path)
