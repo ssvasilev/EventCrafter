@@ -38,8 +38,8 @@ def init_db(db_path):
             time TEXT NOT NULL,
             participant_limit INTEGER,
             creator_id INTEGER NOT NULL,
-            chat_id INTEGER,  # Добавлено поле для ID чата
-            message_id INTEGER  # Добавлено поле для ID сообщения
+            chat_id INTEGER,
+            message_id INTEGER
         )
         """
     )
