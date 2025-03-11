@@ -843,6 +843,7 @@ async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Обработка ввода нового описания
 async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Получаем новое описание
     new_description = update.message.text
     event_id = context.user_data.get("event_id")
     db_path = context.bot_data["db_path"]
@@ -850,14 +851,37 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обновляем описание в базе данных
     update_event_field(db_path, event_id, "description", new_description)
 
-    # Удаляем последнее сообщение бота с запросом нового описания
-    await context.bot.delete_message(
-        chat_id=update.message.chat_id,
-        message_id=context.user_data["bot_message_id"]
+    # Получаем информацию о мероприятии
+    event = get_event(db_path, event_id)
+    if not event:
+        await update.message.reply_text("Ошибка: мероприятие не найдено.")
+        return ConversationHandler.END
+
+    # Формируем текст для обновления сообщения
+    event_text = (
+        f"📢 <b>{new_description}</b>\n"
+        f"📅 <i>Дата: </i> {event['date']}\n"
+        f"🕒 <i>Время: </i> {event['time']}\n"
+        f"👥 <i>Лимит участников: </i> {'∞' if event['participant_limit'] is None else event['participant_limit']}\n\n"
+        f"Описание мероприятия обновлено!"
     )
 
-    # Отправляем новое сообщение с информацией о мероприятии
-    await send_event_message(event_id, context, update.message.chat_id)
+    try:
+        # Редактируем существующее сообщение бота
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text=event_text,
+            parse_mode="HTML"
+        )
+    except telegram.error.BadRequest as e:
+        # Если сообщение не найдено, отправляем новое сообщение
+        logger.warning(f"Не удалось отредактировать сообщение: {e}")
+        await context.bot.send_message(
+            chat_id=update.message.chat_id,
+            text=event_text,
+            parse_mode="HTML"
+        )
 
     # Удаляем сообщение пользователя
     await update.message.delete()
