@@ -452,6 +452,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Завершаем диалог
+        context.user_data.clear()  # Очищаем user_data
         return ConversationHandler.END
 
     except ValueError as e:
@@ -476,12 +477,17 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return SET_LIMIT
 
 
+
 # Отправка сообщения с информацией о мероприятии
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
-    if not chat_id:
-        logger.error("chat_id не найден в send_event_message()")
-        return
-
+    """
+    Отправляет или редактирует сообщение с информацией о мероприятии.
+    :param event_id: ID мероприятия.
+    :param context: Контекст бота.
+    :param chat_id: ID чата, куда отправляется сообщение.
+    :param message_id: ID сообщения для редактирования (если None, отправляется новое сообщение).
+    :return: ID отправленного или отредактированного сообщения.
+    """
     db_path = context.bot_data.get("db_path", DB_PATH)
     event = get_event(db_path, event_id)
     if not event:
@@ -492,9 +498,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     participants = get_participants(db_path, event_id)
     reserve = get_reserve(db_path, event_id)
     declined = get_declined(db_path, event_id)
-
-    # Используем отформатированную дату с днём недели
-    formatted_date = context.user_data.get("formatted_date", event['date'])
 
     # Форматируем списки
     participants_text = (
@@ -528,7 +531,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     time_until = time_until_event(event['date'], event['time'])
     message_text = (
         f"📢 <b>{event['description']}</b>\n"
-        f"📅 <i>Дата: </i> {formatted_date}\n"  # Используем отформатированную дату
+        f"📅 <i>Дата: </i> {event['date']}\n"
         f"🕒 <i>Время: </i> {event['time']}\n"
         f"⏳ <i>До мероприятия: </i> {time_until}\n"
         f"👥 <i>Лимит участников: </i> {limit_text}\n\n"
@@ -547,38 +550,45 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
                 reply_markup=reply_markup,
                 parse_mode="HTML"
             )
+            logger.info(f"Сообщение {message_id} отредактировано.")
         except telegram.error.BadRequest as e:
             if "Message is not modified" in str(e):
                 # Если сообщение не изменилось, просто игнорируем ошибку
                 logger.info(f"Сообщение {message_id} не изменилось.")
             else:
+                logger.error(f"Ошибка при редактировании сообщения: {e}")
                 raise e  # Если ошибка другая, пробрасываем её дальше
         return message_id
     else:
         # Отправляем новое сообщение
-        message = await context.bot.send_message(
-            chat_id=chat_id,
-            text=message_text,
-            reply_markup=reply_markup,
-            parse_mode="HTML"
-        )
-        # Сохраняем message_id в базе данных
-        update_message_id(db_path, event_id, message.message_id)
-
-        # Закрепляем сообщение в чате
         try:
-            await context.bot.pin_chat_message(
+            message = await context.bot.send_message(
                 chat_id=chat_id,
-                message_id=message.message_id,
-                disable_notification=True  # Отключаем уведомление о закреплении
+                text=message_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
             )
-            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
-        except telegram.error.BadRequest as e:
-            logger.error(f"Ошибка при закреплении сообщения: {e}")
-        except telegram.error.Forbidden as e:
-            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+            # Сохраняем message_id в базе данных
+            update_message_id(db_path, event_id, message.message_id)
+            logger.info(f"Новое сообщение отправлено с ID: {message.message_id}")
 
-        return message.message_id
+            # Закрепляем сообщение в чате
+            try:
+                await context.bot.pin_chat_message(
+                    chat_id=chat_id,
+                    message_id=message.message_id,
+                    disable_notification=True  # Отключаем уведомление о закреплении
+                )
+                logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
+            except telegram.error.BadRequest as e:
+                logger.error(f"Ошибка при закреплении сообщения: {e}")
+            except telegram.error.Forbidden as e:
+                logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+
+            return message.message_id
+        except Exception as e:
+            logger.error(f"Ошибка при отправке сообщения: {e}")
+            raise e
 
 
 # Обработка нажатий на кнопки
@@ -676,7 +686,10 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Получаем event_id из callback_data
+    # Очищаем user_data перед началом редактирования
+    context.user_data.clear()
+
+    # Сохраняем event_id и message_id в context.user_data
     event_id = query.data.split("|")[1]
     db_path = context.bot_data["db_path"]
 
@@ -829,6 +842,7 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.edit_message_text("Операция отменена.")
 
+    context.user_data.clear()  # Очищаем user_data
     return ConversationHandler.END
 
 
