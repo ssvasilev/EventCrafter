@@ -391,133 +391,99 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Обрабатывает ввод лимита участников и создаёт мероприятие в базе данных.
+    """
+    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Получаем текст сообщения с лимитом участников
     limit_text = update.message.text
     try:
+        # Преобразуем введённый текст в число
         limit = int(limit_text)
+
+        # Проверяем, что лимит не отрицательный
         if limit < 0:
             raise ValueError("Лимит не может быть отрицательным.")
 
-        # Логируем данные перед передачей в add_event
-        logger.info(
-            f"Данные для создания мероприятия: "
-            f"description={context.user_data['description']}, "
-            f"date={context.user_data['date'].strftime('%d-%m-%Y')}, "
-            f"time={context.user_data['time'].strftime('%H:%M')}, "
-            f"limit={limit}, "
-            f"creator_id={update.message.from_user.id}"
-        )
+        # Получаем данные мероприятия из context.user_data
+        description = context.user_data.get("description")
+        date = context.user_data.get("date")
+        time = context.user_data.get("time")
+        creator_id = update.message.from_user.id
+        chat_id = update.message.chat_id
+
+        # Проверяем, что все необходимые данные есть
+        if not all([description, date, time, creator_id, chat_id]):
+            await update.message.reply_text("Ошибка: недостаточно данных для создания мероприятия.")
+            return ConversationHandler.END
 
         # Создаём мероприятие в базе данных
         event_id = add_event(
             db_path=context.bot_data["db_path"],
-            description=context.user_data["description"],
-            date=context.user_data["date"].strftime("%d-%m-%Y"),
-            time=context.user_data["time"].strftime("%H:%M"),
-            limit=limit if limit != 0 else None,
-            creator_id=update.message.from_user.id,
-            chat_id=update.message.chat_id,  # Добавьте chat_id
-            message_id=context.user_data.get("message_id")  # Если message_id есть
+            description=description,
+            date=date.strftime("%d-%m-%Y"),  # Преобразуем дату в строку
+            time=time.strftime("%H:%M"),     # Преобразуем время в строку
+            limit=limit if limit != 0 else None,  # Лимит участников (0 -> None)
+            creator_id=creator_id,
+            chat_id=chat_id,
+            message_id=None  # message_id будет обновлён после отправки сообщения
         )
 
         # Проверяем, что мероприятие успешно создано
         if not event_id:
-            logger.error(f"Ошибка: мероприятие не было создано (event_id = None). {event_id}")
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END
 
-        logger.info(f"Мероприятие успешно создано с ID: {event_id}")
+        # Сохраняем event_id в context.user_data для дальнейшего использования
+        context.user_data["event_id"] = event_id
 
-        # Удаляем старое сообщение бота
-        await context.bot.delete_message(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"]
-        )
-
-        # Отправляем новое сообщение с информацией о мероприятии и клавиатурой
+        # Отправляем сообщение с информацией о мероприятии
         chat_id = update.message.chat_id
-        await send_event_message(event_id, context, chat_id)
+        message_id = await send_event_message(event_id, context, chat_id)
 
-        # Удаляем сообщение пользователя
-        await update.message.delete()
+        # Сохраняем message_id в базе данных
+        update_message_id(context.bot_data["db_path"], event_id, message_id)
 
-        if hasattr(context, "job_queue"):
-            event_datetime = datetime.strptime(
-                f"{context.user_data['date'].strftime('%d-%m-%Y')} {context.user_data['time'].strftime('%H:%M')}",
-                "%d-%m-%Y %H:%M"
-            )
-            event_datetime = tz.localize(event_datetime)  # Устанавливаем часовой пояс
-
-            # Уведомление за день до мероприятия
-            context.job_queue.run_once(
-                send_notification,
-                when=event_datetime - timedelta(days=1),
-                data={"event_id": event_id, "time_until": "1 день"},
-            )
-
-            # Уведомление за час до мероприятия
-            context.job_queue.run_once(
-                send_notification,
-                when=event_datetime - timedelta(hours=1),
-                data={"event_id": event_id, "time_until": "1 час"},
-            )
-
-            logger.info(f"Уведомления запланированы для мероприятия с ID: {event_id}")
-        else:
-            logger.warning("JobQueue не настроен. Уведомления не будут отправлены.")
-
-        # Создаем задачу для открепления сообщения и удаления мероприятия
-        event_datetime = datetime.strptime(
-            f"{context.user_data['date'].strftime('%d-%m-%Y')} {context.user_data['time'].strftime('%H:%M')}",
-            "%d-%m-%Y %H:%M"
-        )
+        # Планируем задачи для уведомлений и удаления мероприятия
+        event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
         event_datetime = tz.localize(event_datetime)  # Устанавливаем часовой пояс
 
-        job = context.job_queue.run_once(
+        # Уведомление за день до мероприятия
+        context.job_queue.run_once(
+            send_notification,
+            when=event_datetime - timedelta(days=1),
+            data={"event_id": event_id, "time_until": "1 день"},
+        )
+
+        # Уведомление за 15 минут до мероприятия
+        context.job_queue.run_once(
+            send_notification,
+            when=event_datetime - timedelta(minutes=15),
+            data={"event_id": event_id, "time_until": "15 минут"},
+        )
+
+        # Задача для открепления и удаления мероприятия после его завершения
+        context.job_queue.run_once(
             unpin_and_delete_event,
-            when=event_datetime,  # Время окончания мероприятия
-            data={"event_id": event_id, "chat_id": update.message.chat_id},
+            when=event_datetime,
+            data={"event_id": event_id, "chat_id": chat_id},
         )
 
-        # Сохраняем задачу в базу данных
-        add_scheduled_job(
-            db_path=context.bot_data["db_path"],
-            event_id=event_id,
-            job_id=job.id,  # ID задачи
-            chat_id=update.message.chat_id,
-            execute_at=event_datetime.isoformat(),  # Время выполнения задачи
-        )
-
-        logger.info(f"Задача для открепления и удаления мероприятия создана для ID: {event_id}")
-
-        # Завершаем диалог
+        # Отправляем подтверждение обновления
+        await update.message.reply_text("Мероприятие успешно создано!")
         return ConversationHandler.END
 
     except ValueError as e:
-        logger.error(f"Ошибка при обработке лимита: {e}")
-        # Обновляем текст сообщения в случае ошибки
-        context.user_data["message_text"] = (
-            f"📢 {context.user_data['description']}\n"
-            f"📅 Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
-            f"🕒 Время: {context.user_data['time'].strftime('%H:%M')}\n\n"
-            f"Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
+        # Если введённый текст не является числом или лимит отрицательный
+        error_message = (
+            "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
         )
-
-        # Редактируем существующее сообщение
-        await context.bot.edit_message_text(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"],
-            text=context.user_data["message_text"],
-            reply_markup=reply_markup,
-        )
-
-        # Удаляем сообщение пользователя
-        await update.message.delete()
-
+        await update.message.reply_text(error_message)
         return SET_LIMIT
 
 
@@ -936,10 +902,15 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Сохраняем в context.user_data
         context.user_data["formatted_date"] = formatted_date
 
-        # Удаляем старую задачу из JobQueue и базы данных
-        remove_existing_job(event_id, context)
+        # Удаляем старые задачи (открепление, удаление и уведомления)
+        delete_scheduled_job(db_path, event_id)  # Удаляем все задачи для этого мероприятия
 
-        # Создаём новую задачу с обновлённой датой
+        # Создаём новую дату и время мероприятия
+        event = get_event(db_path, event_id)
+        event_datetime = datetime.strptime(f"{event['date']} {event['time']}", "%d-%m-%Y %H:%M")
+        event_datetime = tz.localize(event_datetime)
+
+        # Создаём новые задачи (открепление, удаление и уведомления)
         await schedule_unpin_and_delete(event_id, context, update.message.chat_id)
 
         # Обновляем сообщение
@@ -985,11 +956,17 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Обновляем время в базе данных
         update_event_field(db_path, event_id, "time", time.strftime("%H:%M"))
 
-        # Удаляем старую задачу из JobQueue и базы данных
-        remove_existing_job(event_id, context)
+        # Удаляем старые задачи (открепление, удаление и уведомления)
+        delete_scheduled_job(db_path, event_id)  # Удаляем все задачи для этого мероприятия
 
-        # Создаём новую задачу с обновлённым временем
+        # Создаём новую дату и время мероприятия
+        event = get_event(db_path, event_id)
+        event_datetime = datetime.strptime(f"{event['date']} {event['time']}", "%d-%m-%Y %H:%M")
+        event_datetime = tz.localize(event_datetime)
+
+        # Создаём новые задачи (открепление, удаление и уведомления)
         await schedule_unpin_and_delete(event_id, context, update.message.chat_id)
+        await schedule_notifications(event_id, context, event_datetime)
 
         # Обновляем сообщение
         chat_id = update.message.chat_id
@@ -1121,6 +1098,34 @@ async def unpin_and_delete_event(context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
         logger.info(f"Задача для мероприятия с ID {event_id} удалена из базы данных.")
 
+async def schedule_notifications(event_id: int, context: ContextTypes.DEFAULT_TYPE, event_datetime: datetime):
+    """
+    Создаёт задачи для уведомлений за сутки и за 15 минут до мероприятия.
+    """
+    db_path = context.bot_data["db_path"]
+
+    # Уведомление за сутки
+    job_day = context.job_queue.run_once(
+        send_notification,
+        when=event_datetime - timedelta(days=1),
+        data={"event_id": event_id, "time_until": "1 день"},
+        name=f"notification_{event_id}_day"
+    )
+
+    # Уведомление за 15 минут
+    job_minutes = context.job_queue.run_once(
+        send_notification,
+        when=event_datetime - timedelta(minutes=15),
+        data={"event_id": event_id, "time_until": "15 минут"},
+        name=f"notification_{event_id}_minutes"
+    )
+
+    # Сохраняем задачи в базу данных
+    add_scheduled_job(db_path, event_id, job_day.id, event_datetime.isoformat(), job_type="notification_day")
+    add_scheduled_job(db_path, event_id, job_minutes.id, event_datetime.isoformat(), job_type="notification_minutes")
+
+    logger.info(f"Созданы новые задачи напоминания для мероприятия {event_id}.")
+
 async def schedule_unpin_and_delete(event_id: int, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
     """Создаёт новую задачу на открепление и удаление мероприятия."""
     db_path = context.bot_data["db_path"]
@@ -1144,7 +1149,7 @@ async def schedule_unpin_and_delete(event_id: int, context: ContextTypes.DEFAULT
     )
 
     # Сохраняем новую задачу в базу
-    add_scheduled_job(db_path, event_id, job.id, chat_id, event_datetime.isoformat())
+    add_scheduled_job(db_path, event_id, job.id, chat_id, event_datetime.isoformat(), job_type="unpin_delete")
 
     logger.info(f"Создана новая задача {job.id} для мероприятия {event_id} на {event_datetime}")
 
@@ -1200,6 +1205,20 @@ def remove_existing_job(event_id: int, context: ContextTypes.DEFAULT_TYPE):
     else:
         logger.warning(f"Задача для мероприятия {event_id} не найдена в базе данных.")
 
+def remove_existing_notification_jobs(event_id: int, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Удаляет существующие задачи напоминания для мероприятия.
+    """
+    db_path = context.bot_data["db_path"]
+
+    # Удаляем задачи из JobQueue
+    jobs = context.job_queue.get_jobs_by_name(f"notification_{event_id}")
+    for job in jobs:
+        job.schedule_removal()
+        logger.info(f"Удалена задача напоминания {job.id} для мероприятия {event_id}")
+
+    # Удаляем задачи из базы данных
+    delete_scheduled_job(db_path, event_id, job_type="notification")
 
 # Основная функция
 def main():
