@@ -371,15 +371,6 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обрабатывает ввод лимита участников и создаёт мероприятие в базе данных.
-    """
-    # Создаем клавиатуру с кнопкой "Отмена"
-    keyboard = [
-        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     # Получаем текст сообщения с лимитом участников
     limit_text = update.message.text
     try:
@@ -454,8 +445,17 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             data={"event_id": event_id, "chat_id": chat_id},
         )
 
-        # Отправляем подтверждение обновления
-        await update.message.reply_text("Мероприятие успешно создано!")
+        # Редактируем существующее сообщение бота с итоговой информацией
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text=f"Мероприятие успешно создано!\n\n📢 {description}\n📅 Дата: {date.strftime('%d.%m.%Y')}\n🕒 Время: {time.strftime('%H:%M')}\n👥 Лимит участников: {'∞' if limit == 0 else limit}",
+        )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
+        # Завершаем диалог
         return ConversationHandler.END
 
     except ValueError as e:
@@ -463,7 +463,19 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         error_message = (
             "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
         )
-        await update.message.reply_text(error_message)
+
+        # Редактируем существующее сообщение бота с ошибкой
+        await context.bot.edit_message_text(
+            chat_id=update.message.chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text=error_message,
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]])
+        )
+
+        # Удаляем сообщение пользователя
+        await update.message.delete()
+
+        # Остаемся в состоянии SET_LIMIT
         return SET_LIMIT
 
 
