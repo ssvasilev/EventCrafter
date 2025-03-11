@@ -846,21 +846,8 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обновляем описание в базе данных
     update_event_field(db_path, event_id, "description", new_description)
 
-    # Удаляем последнее сообщение бота с запросом нового описания
-    try:
-        await context.bot.delete_message(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"]
-        )
-    except telegram.error.BadRequest as e:
-        # Если сообщение не найдено, просто игнорируем ошибку
-        logger.warning(f"Не удалось удалить сообщение: {e}")
-
-    # Отправляем новое сообщение с информацией о мероприятии
-    sent_message_id = await send_event_message(event_id, context, update.message.chat_id)
-
-    # Сохраняем ID нового сообщения в context.user_data
-    context.user_data["bot_message_id"] = sent_message_id
+    # Редактируем существующее сообщение с информацией о мероприятии
+    await send_event_message(event_id, context, update.message.chat_id, context.user_data["bot_message_id"])
 
     # Удаляем сообщение пользователя
     await update.message.delete()
