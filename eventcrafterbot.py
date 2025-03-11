@@ -924,12 +924,6 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Удаляем старые задачи на уведомления
         remove_existing_notification_jobs(event_id, context)
 
-        # Удаляем последнее сообщение бота с запросом новой даты
-        await context.bot.delete_message(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"]
-        )
-
         # Получаем обновлённые данные о мероприятии
         event = get_event(db_path, event_id)
         if not event:
@@ -1005,6 +999,15 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Обновляем время в базе данных
         update_event_field(db_path, event_id, "time", time.strftime("%H:%M"))
 
+        # Удаляем старые задачи на уведомления
+        remove_existing_notification_jobs(event_id, context)
+
+        # Получаем обновлённые данные о мероприятии
+        event = get_event(db_path, event_id)
+        if not event:
+            await update.message.reply_text("Мероприятие не найдено.")
+            return ConversationHandler.END
+
         # Преобразуем дату и время мероприятия
         event_datetime = datetime.strptime(f"{event['date']} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
         event_datetime = tz.localize(event_datetime)  # Устанавливаем часовой пояс
@@ -1014,12 +1017,6 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Редактируем существующее сообщение с информацией о мероприятии
         await send_event_message(event_id, context, update.message.chat_id, context.user_data["bot_message_id"])
-
-        # Удаляем последнее сообщение бота с запросом нового времени
-        await context.bot.delete_message(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"]
-        )
 
         # Удаляем сообщение пользователя
         await update.message.delete()
