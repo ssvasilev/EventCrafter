@@ -651,31 +651,37 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Обработка нажатия на кнопку "Редактировать"
 async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
 
-    # Сохраняем event_id в context.user_data
+    # Получаем event_id из callback_data
     event_id = query.data.split("|")[1]
     db_path = context.bot_data["db_path"]
-    event = get_event(db_path, event_id)
 
-    # Проверяем, является ли пользователь создателем
+    # Получаем данные о мероприятии
+    event = get_event(db_path, event_id)
+    if not event:
+        await query.edit_message_text("Мероприятие не найдено.")
+        return ConversationHandler.END
+
+    # Проверяем, является ли пользователь создателем мероприятия
     if event["creator_id"] != query.from_user.id:
         # Если пользователь не создатель, показываем уведомление
         await query.answer("Вы не можете редактировать это мероприятие.")
         return  # Завершаем выполнение функции
 
-    # Сохраняем исходное сообщение
-    context.user_data["original_message_id"] = query.message.message_id  # ID исходного сообщения
-    context.user_data["original_message_text"] = query.message.text  # Текст исходного сообщения
-    context.user_data["original_reply_markup"] = query.message.reply_markup  # Клавиатура исходного сообщения
-
+    # Сохраняем event_id и message_id в context.user_data
     context.user_data["event_id"] = event_id
+    context.user_data["bot_message_id"] = query.message.message_id  # Сохраняем ID сообщения
+
+    # Сохраняем исходный текст и клавиатуру
+    context.user_data["original_text"] = query.message.text
+    context.user_data["original_reply_markup"] = query.message.reply_markup
 
     # Создаем клавиатуру для выбора параметра редактирования
     keyboard = [
         [
             InlineKeyboardButton("📝 Описание", callback_data=f"edit_description|{event_id}"),
             InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_limit|{event_id}")
-
         ],
         [
             InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}"),
@@ -687,8 +693,8 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.answer()
 
+    # Редактируем сообщение с кнопкой "Редактировать"
     await query.edit_message_text(
         "Что вы хотите изменить?",
         reply_markup=reply_markup,
@@ -781,16 +787,18 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     # Восстанавливаем исходное сообщение
-    original_message_id = context.user_data.get("original_message_id")
-    original_message_text = context.user_data.get("original_message_text")
+    original_message_id = context.user_data.get("bot_message_id")
+    original_text = context.user_data.get("original_text")
     original_reply_markup = context.user_data.get("original_reply_markup")
 
-    if original_message_id and original_message_text:
+    if original_message_id and original_text:
         try:
-            await query.edit_message_text(
-                text=original_message_text,
+            await context.bot.edit_message_text(
+                chat_id=query.message.chat_id,
+                message_id=original_message_id,
+                text=original_text,
                 reply_markup=original_reply_markup,
-                parse_mode="HTML"  # Если используется HTML-разметка
+                parse_mode="HTML"
             )
         except Exception as e:
             logger.error(f"Ошибка при восстановлении сообщения: {e}")
@@ -846,7 +854,7 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обновляем описание в базе данных
     update_event_field(db_path, event_id, "description", new_description)
 
-    # Редактируем существующее сообщение с информацией о мероприятии
+    # Редактируем сообщение с новым описанием
     await send_event_message(event_id, context, update.message.chat_id, context.user_data["bot_message_id"])
 
     # Удаляем сообщение пользователя
