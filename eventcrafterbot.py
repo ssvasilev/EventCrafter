@@ -101,16 +101,22 @@ init_db(DB_PATH)
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Создаем клавиатуру с кнопками
     keyboard = [
         [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")],
         [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="my_events")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(
+    # Отправляем сообщение с клавиатурой
+    sent_message = await update.message.reply_text(
         "Привет! Я бот для организации мероприятий. Выберите действие:",
         reply_markup=reply_markup,
     )
+
+    # Сохраняем ID сообщения бота в context.user_data
+    context.user_data["bot_message_id"] = sent_message.message_id
+    context.user_data["chat_id"] = update.message.chat_id
 
 
 # Обработка упоминания бота
@@ -141,7 +147,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=reply_markup,
                 )
 
-                # Сохраняем ID сообщения и chat_id
+                # Сохраняем ID сообщения бота и chat_id
                 context.user_data["bot_message_id"] = sent_message.message_id
                 context.user_data["chat_id"] = update.message.chat_id
 
@@ -158,12 +164,15 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
+                # Отправляем сообщение с клавиатурой
                 sent_message = await update.message.reply_text(
                     "Вы упомянули меня! Хотите создать мероприятие? Нажмите кнопку ниже.",
                     reply_markup=reply_markup,
                 )
+
+                # Сохраняем ID сообщения бота
                 context.user_data["bot_message_id"] = sent_message.message_id
-                context.user_data["message_text"] = ""
+                context.user_data["chat_id"] = update.message.chat_id
                 break
 
 #Обработка нажатия на кнопку "Мои мероприятия"
@@ -250,142 +259,114 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 # Обработка ввода описания мероприятия
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Сохраняем описание мероприятия
+    description = update.message.text
+    context.user_data["description"] = description
+
+    # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Сохраняем описание в context.user_data
-    description = update.message.text
-    context.user_data["description"] = description
-
-    # Обновляем текст сообщения
-    context.user_data["message_text"] = f"📢 {description}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ"
-
-    # Редактируем существующее сообщение
+    # Редактируем существующее сообщение бота
     await context.bot.edit_message_text(
         chat_id=update.message.chat_id,
         message_id=context.user_data["bot_message_id"],
-        text=context.user_data["message_text"],
+        text=f"📢 {description}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
         reply_markup=reply_markup,
     )
 
     # Удаляем сообщение пользователя
     await update.message.delete()
 
+    # Переходим к состоянию SET_DATE
     return SET_DATE
 
 
 # Обработка ввода даты мероприятия
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
+    # Сохраняем дату мероприятия
     date_text = update.message.text
     try:
-        # Преобразуем введённую дату в объект datetime
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
-
-        # Форматируем дату с днём недели
-        formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
-
-        # Сохраняем дату и отформатированную строку
         context.user_data["date"] = date
-        context.user_data["formatted_date"] = formatted_date
 
-        # Обновляем текст сообщения
-        context.user_data["message_text"] = (
-            f"📢 {context.user_data['description']}\n"
-            f"📅 Дата: {formatted_date}\n\n"  # Используем отформатированную дату
-            f"Введите время мероприятия в формате ЧЧ:ММ"
-        )
+        # Создаем клавиатуру с кнопкой "Отмена"
+        keyboard = [
+            [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Редактируем существующее сообщение
+        # Редактируем существующее сообщение бота
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text=context.user_data["message_text"],
+            text=f"📢 {context.user_data['description']}\n\n📅 Дата: {date_text}\n\nВведите время мероприятия в формате ЧЧ:ММ",
             reply_markup=reply_markup,
         )
 
         # Удаляем сообщение пользователя
         await update.message.delete()
 
+        # Переходим к состоянию SET_TIME
         return SET_TIME
     except ValueError:
-        # Обновляем текст сообщения в случае ошибки
-        context.user_data["message_text"] = (
-            f"📢 {context.user_data['description']}\n\n"
-            f"Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ"
-        )
-
-        # Редактируем существующее сообщение
+        # Если формат даты неверный, редактируем сообщение бота с ошибкой
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text=context.user_data["message_text"],
-            reply_markup=reply_markup,
+            text="Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]])
         )
 
         # Удаляем сообщение пользователя
         await update.message.delete()
 
+        # Остаемся в состоянии SET_DATE
         return SET_DATE
 
 
 # Обработка ввода времени мероприятия
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
+    # Сохраняем время мероприятия
     time_text = update.message.text
     try:
         time = datetime.strptime(time_text, "%H:%M").time()
         context.user_data["time"] = time
 
-        # Обновляем текст сообщения
-        context.user_data["message_text"] = (
-            f"📢 {context.user_data['description']}\n"
-            f"📅 Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n"
-            f"🕒 Время: {time_text}\n\n"
-            f"Введите количество участников (0 - неограниченное):"
-        )
+        # Создаем клавиатуру с кнопкой "Отмена"
+        keyboard = [
+            [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Редактируем существующее сообщение
+        # Редактируем существующее сообщение бота
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text=context.user_data["message_text"],
+            text=f"📢 {context.user_data['description']}\n\n📅 Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n\n🕒 Время: {time_text}\n\nВведите количество участников (0 - неограниченное):",
             reply_markup=reply_markup,
         )
 
         # Удаляем сообщение пользователя
         await update.message.delete()
 
+        # Переходим к состоянию SET_LIMIT
         return SET_LIMIT
     except ValueError:
-        # Обновляем текст сообщения в случае ошибки
-        context.user_data["message_text"] = (
-            f"📢 {context.user_data['description']}\n"
-            f"📅 Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n\n"
-            f"Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ"
-        )
-
-        # Редактируем существующее сообщение
+        # Если формат времени неверный, редактируем сообщение бота с ошибкой
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text=context.user_data["message_text"],
-            reply_markup=reply_markup,
+            text="Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]])
         )
 
         # Удаляем сообщение пользователя
         await update.message.delete()
 
+        # Остаемся в состоянии SET_TIME
         return SET_TIME
 
 
