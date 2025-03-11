@@ -546,6 +546,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
+        return message_id
     else:
         # Отправляем новое сообщение
         message = await context.bot.send_message(
@@ -556,20 +557,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         )
         # Сохраняем message_id в базе данных
         update_message_id(db_path, event_id, message.message_id)
-        message_id = message.message_id
-
-        # Пытаемся закрепить сообщение
-        try:
-            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message_id)
-            logger.info(f"Сообщение {message_id} закреплено в чате {chat_id}.")
-        except error.BadRequest as e:
-            logger.error(f"Ошибка при закреплении сообщения: {e}")
-        except error.Forbidden as e:
-            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
-        except Exception as e:
-            logger.error(f"Неизвестная ошибка при закреплении сообщения: {e}")
-
-    return message_id
+        return message.message_id
 
 
 # Обработка нажатий на кнопки
@@ -828,22 +816,21 @@ async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     event_id = query.data.split("|")[1]
     context.user_data["event_id"] = event_id
 
-    # Сохраняем ID сообщения бота
-    context.user_data["bot_message_id"] = query.message.message_id
-
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Редактируем существующее сообщение бота
-    await context.bot.edit_message_text(
+    # Отправляем новое сообщение с запросом нового описания
+    sent_message = await context.bot.send_message(
         chat_id=query.message.chat_id,
-        message_id=context.user_data["bot_message_id"],
         text="Введите новое описание мероприятия:",
         reply_markup=reply_markup,
     )
+
+    # Сохраняем ID нового сообщения в context.user_data
+    context.user_data["bot_message_id"] = sent_message.message_id
 
     # Переходим к состоянию EDIT_DESCRIPTION
     return EDIT_DESCRIPTION
@@ -870,7 +857,10 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning(f"Не удалось удалить сообщение: {e}")
 
     # Отправляем новое сообщение с информацией о мероприятии
-    await send_event_message(event_id, context, update.message.chat_id)
+    sent_message = await send_event_message(event_id, context, update.message.chat_id)
+
+    # Сохраняем ID нового сообщения в context.user_data
+    context.user_data["bot_message_id"] = sent_message
 
     # Удаляем сообщение пользователя
     await update.message.delete()
