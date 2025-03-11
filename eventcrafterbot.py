@@ -859,46 +859,18 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обновляем описание в базе данных
     update_event_field(db_path, event_id, "description", new_description)
 
-    # Получаем информацию о мероприятии
-    event = get_event(db_path, event_id)
-    if not event:
-        await update.message.reply_text("Ошибка: мероприятие не найдено.")
-        return ConversationHandler.END
-
-    # Формируем текст для обновления сообщения
-    limit_text = "∞" if event.get("participant_limit") is None else event.get("participant_limit", "не указано")
-    event_text = (
-        f"📢 <b>{new_description}</b>\n"
-        f"📅 <i>Дата: </i> {event.get('date', 'не указано')}\n"
-        f"🕒 <i>Время: </i> {event.get('time', 'не указано')}\n"
-        f"👥 <i>Лимит участников: </i> {limit_text}\n\n"
-        f"Описание мероприятия обновлено!"
-    )
-
+    # Удаляем последнее сообщение бота с запросом нового описания
     try:
-        # Редактируем существующее сообщение бота
-        if "bot_message_id" in context.user_data:
-            await context.bot.edit_message_text(
-                chat_id=update.message.chat_id,
-                message_id=context.user_data["bot_message_id"],
-                text=event_text,
-                parse_mode="HTML"
-            )
-        else:
-            # Если bot_message_id отсутствует, отправляем новое сообщение
-            await context.bot.send_message(
-                chat_id=update.message.chat_id,
-                text=event_text,
-                parse_mode="HTML"
-            )
-    except telegram.error.BadRequest as e:
-        # Если сообщение не найдено, отправляем новое сообщение
-        logger.warning(f"Не удалось отредактировать сообщение: {e}")
-        await context.bot.send_message(
+        await context.bot.delete_message(
             chat_id=update.message.chat_id,
-            text=event_text,
-            parse_mode="HTML"
+            message_id=context.user_data["bot_message_id"]
         )
+    except telegram.error.BadRequest as e:
+        # Если сообщение не найдено, просто игнорируем ошибку
+        logger.warning(f"Не удалось удалить сообщение: {e}")
+
+    # Отправляем новое сообщение с информацией о мероприятии
+    await send_event_message(event_id, context, update.message.chat_id)
 
     # Удаляем сообщение пользователя
     await update.message.delete()
