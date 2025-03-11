@@ -413,22 +413,14 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Сохраняем event_id в context.user_data для дальнейшего использования
         context.user_data["event_id"] = event_id
 
-        # Формируем текст итогового сообщения
-        event_text = (
-            f"📢 <b>{description}</b>\n"
-            f"📅 <i>Дата: </i> {date.strftime('%d.%m.%Y')}\n"
-            f"🕒 <i>Время: </i> {time.strftime('%H:%M')}\n"
-            f"👥 <i>Лимит участников: </i> {'∞' if limit == 0 else limit}\n\n"
-            f"Мероприятие успешно создано!"
+        # Удаляем последнее сообщение бота с параметрами мероприятия
+        await context.bot.delete_message(
+            chat_id=chat_id,
+            message_id=context.user_data["bot_message_id"]
         )
 
-        # Редактируем существующее сообщение бота с итоговой информацией
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=context.user_data["bot_message_id"],
-            text=event_text,
-            parse_mode="HTML"
-        )
+        # Отправляем новое сообщение с информацией о мероприятии
+        await send_event_message(event_id, context, chat_id)
 
         # Удаляем сообщение пользователя
         await update.message.delete()
