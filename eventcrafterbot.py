@@ -513,7 +513,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     )
 
     # Лимит участников
-    limit_text = "∞ (бесконечный)" if event["limit"] is None else str(event["limit"])
+    limit_text = "∞ (бесконечный)" if event["participant_limit"] is None else str(event["participant_limit"])
 
     # Клавиатура
     keyboard = [
