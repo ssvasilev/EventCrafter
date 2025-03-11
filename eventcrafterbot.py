@@ -1,3 +1,4 @@
+import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, error
 from telegram.ext import (
     Application,
@@ -823,6 +824,13 @@ async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    # Сохраняем event_id в context.user_data
+    event_id = query.data.split("|")[1]
+    context.user_data["event_id"] = event_id
+
+    # Сохраняем ID сообщения бота
+    context.user_data["bot_message_id"] = query.message.message_id
+
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
@@ -858,22 +866,31 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     # Формируем текст для обновления сообщения
+    limit_text = "∞" if event.get("participant_limit") is None else event.get("participant_limit", "не указано")
     event_text = (
         f"📢 <b>{new_description}</b>\n"
-        f"📅 <i>Дата: </i> {event['date']}\n"
-        f"🕒 <i>Время: </i> {event['time']}\n"
-        f"👥 <i>Лимит участников: </i> {'∞' if event['participant_limit'] is None else event['participant_limit']}\n\n"
+        f"📅 <i>Дата: </i> {event.get('date', 'не указано')}\n"
+        f"🕒 <i>Время: </i> {event.get('time', 'не указано')}\n"
+        f"👥 <i>Лимит участников: </i> {limit_text}\n\n"
         f"Описание мероприятия обновлено!"
     )
 
     try:
         # Редактируем существующее сообщение бота
-        await context.bot.edit_message_text(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"],
-            text=event_text,
-            parse_mode="HTML"
-        )
+        if "bot_message_id" in context.user_data:
+            await context.bot.edit_message_text(
+                chat_id=update.message.chat_id,
+                message_id=context.user_data["bot_message_id"],
+                text=event_text,
+                parse_mode="HTML"
+            )
+        else:
+            # Если bot_message_id отсутствует, отправляем новое сообщение
+            await context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text=event_text,
+                parse_mode="HTML"
+            )
     except telegram.error.BadRequest as e:
         # Если сообщение не найдено, отправляем новое сообщение
         logger.warning(f"Не удалось отредактировать сообщение: {e}")
