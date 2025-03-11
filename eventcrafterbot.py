@@ -857,10 +857,10 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning(f"Не удалось удалить сообщение: {e}")
 
     # Отправляем новое сообщение с информацией о мероприятии
-    sent_message = await send_event_message(event_id, context, update.message.chat_id)
+    sent_message_id = await send_event_message(event_id, context, update.message.chat_id)
 
     # Сохраняем ID нового сообщения в context.user_data
-    context.user_data["bot_message_id"] = sent_message
+    context.user_data["bot_message_id"] = sent_message_id
 
     # Удаляем сообщение пользователя
     await update.message.delete()
