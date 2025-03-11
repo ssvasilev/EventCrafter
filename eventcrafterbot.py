@@ -911,10 +911,11 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         event_datetime = tz.localize(event_datetime)
 
         # Создаём новые задачи (открепление, удаление и уведомления)
-        await schedule_unpin_and_delete(event_id, context, update.message.chat_id)
+        chat_id = update.message.chat_id  # Получаем chat_id
+        await schedule_unpin_and_delete(event_id, context, chat_id)
+        await schedule_notifications(event_id, context, event_datetime, chat_id)  # Передаём chat_id
 
         # Обновляем сообщение
-        chat_id = update.message.chat_id
         await send_event_message(event_id, context, chat_id)
 
         await update.message.reply_text("Дата мероприятия обновлена!")
@@ -965,8 +966,9 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         event_datetime = tz.localize(event_datetime)
 
         # Создаём новые задачи (открепление, удаление и уведомления)
-        await schedule_unpin_and_delete(event_id, context, update.message.chat_id)
-        await schedule_notifications(event_id, context, event_datetime)
+        chat_id = update.message.chat_id  # Получаем chat_id
+        await schedule_unpin_and_delete(event_id, context, chat_id)
+        await schedule_notifications(event_id, context, event_datetime, chat_id)  # Передаём chat_id
 
         # Обновляем сообщение
         chat_id = update.message.chat_id
@@ -1098,9 +1100,13 @@ async def unpin_and_delete_event(context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
         logger.info(f"Задача для мероприятия с ID {event_id} удалена из базы данных.")
 
-async def schedule_notifications(event_id: int, context: ContextTypes.DEFAULT_TYPE, event_datetime: datetime):
+async def schedule_notifications(event_id: int, context: ContextTypes.DEFAULT_TYPE, event_datetime: datetime, chat_id: int):
     """
     Создаёт задачи для уведомлений за сутки и за 15 минут до мероприятия.
+    :param event_id: ID мероприятия.
+    :param context: Контекст бота.
+    :param event_datetime: Дата и время мероприятия.
+    :param chat_id: ID чата, в котором создано мероприятие.
     """
     db_path = context.bot_data["db_path"]
 
@@ -1121,8 +1127,8 @@ async def schedule_notifications(event_id: int, context: ContextTypes.DEFAULT_TY
     )
 
     # Сохраняем задачи в базу данных
-    add_scheduled_job(db_path, event_id, job_day.id, event_datetime.isoformat(), job_type="notification_day")
-    add_scheduled_job(db_path, event_id, job_minutes.id, event_datetime.isoformat(), job_type="notification_minutes")
+    add_scheduled_job(db_path, event_id, job_day.id, chat_id, event_datetime.isoformat(), job_type="notification_day")
+    add_scheduled_job(db_path, event_id, job_minutes.id, chat_id, event_datetime.isoformat(), job_type="notification_minutes")
 
     logger.info(f"Созданы новые задачи напоминания для мероприятия {event_id}.")
 
