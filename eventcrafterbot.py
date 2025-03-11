@@ -244,16 +244,15 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Отправляем новое сообщение
-    sent_message = await context.bot.send_message(
+    # Редактируем существующее сообщение бота
+    await context.bot.edit_message_text(
         chat_id=query.message.chat_id,
+        message_id=context.user_data["bot_message_id"],
         text="Введите описание мероприятия:",
         reply_markup=reply_markup,
     )
 
-    # Сохраняем ID нового сообщения
-    context.user_data["bot_message_id"] = sent_message.message_id
-
+    # Переходим к состоянию SET_DESCRIPTION
     return SET_DESCRIPTION
 
 
