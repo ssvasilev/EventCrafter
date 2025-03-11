@@ -538,14 +538,21 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     )
 
     if message_id:
-        # Редактируем существующее сообщение
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=message_id,
-            text=message_text,
-            reply_markup=reply_markup,
-            parse_mode="HTML"
-        )
+        try:
+            # Редактируем существующее сообщение
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=message_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML"
+            )
+        except telegram.error.BadRequest as e:
+            if "Message is not modified" in str(e):
+                # Если сообщение не изменилось, просто игнорируем ошибку
+                logger.info(f"Сообщение {message_id} не изменилось.")
+            else:
+                raise e  # Если ошибка другая, пробрасываем её дальше
         return message_id
     else:
         # Отправляем новое сообщение
@@ -606,15 +613,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Если пользователь уже в списке участников или резерва
         if is_user_in_participants(db_path, event_id, user_id) or is_user_in_reserve(db_path, event_id, user_id):
             await query.answer("Вы уже в списке участников или резерва.")
+            return  # Прекращаем выполнение, так как данные не изменились
+
+        # Если есть свободные места, добавляем в участники
+        if event["participant_limit"] is None or get_participants_count(db_path, event_id) < event["participant_limit"]:
+            add_participant(db_path, event_id, user_id, user_name)
+            await query.answer(f"{user_name}, вы добавлены в список участников!")
         else:
-            # Если есть свободные места, добавляем в участники
-            if event["participant_limit"] is None or get_participants_count(db_path, event_id) < event["participant_limit"]:
-                add_participant(db_path, event_id, user_id, user_name)
-                await query.answer(f"{user_name}, вы добавлены в список участников!")
-            else:
-                # Если мест нет, добавляем в резерв
-                add_to_reserve(db_path, event_id, user_id, user_name)
-                await query.answer(f"{user_name}, вы добавлены в резерв.")
+            # Если мест нет, добавляем в резерв
+            add_to_reserve(db_path, event_id, user_id, user_name)
+            await query.answer(f"{user_name}, вы добавлены в резерв.")
 
     # Обработка действия "Не участвовать"
     elif action == "leave":
@@ -649,6 +657,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Если пользователь уже в списке "Отказавшиеся"
         elif is_user_in_declined(db_path, event_id, user_id):
             await query.answer("Вы уже в списке отказавшихся.")
+            return  # Прекращаем выполнение, так как данные не изменились
 
         # Если пользователя нет ни в одном из списков
         else:
@@ -656,7 +665,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             add_to_declined(db_path, event_id, user_id, user_name)
             await query.answer(f"{user_name}, вы добавлены в список отказавшихся.")
 
-    # Редактируем существующее сообщение
+    # Редактируем сообщение только если данные изменились
     chat_id = query.message.chat_id
     message_id = query.message.message_id
     await send_event_message(event_id, context, chat_id, message_id)
