@@ -557,6 +557,20 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         )
         # Сохраняем message_id в базе данных
         update_message_id(db_path, event_id, message.message_id)
+
+        # Закрепляем сообщение в чате
+        try:
+            await context.bot.pin_chat_message(
+                chat_id=chat_id,
+                message_id=message.message_id,
+                disable_notification=True  # Отключаем уведомление о закреплении
+            )
+            logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
+        except telegram.error.BadRequest as e:
+            logger.error(f"Ошибка при закреплении сообщения: {e}")
+        except telegram.error.Forbidden as e:
+            logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+
         return message.message_id
 
 
