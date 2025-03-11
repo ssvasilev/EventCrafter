@@ -91,6 +91,7 @@ def init_db(db_path):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_id INTEGER NOT NULL,
             job_id TEXT NOT NULL,
+            job_type TEXT,
             chat_id INTEGER NOT NULL,
             execute_at TEXT NOT NULL,
             FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
@@ -136,41 +137,13 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
     :param time: Время мероприятия в формате "чч:мм".
     :param limit: Лимит участников (0 означает неограниченный лимит).
     :param creator_id: ID создателя мероприятия.
+    :param chat_id: ID чата, в котором создано мероприятие.
     :param message_id: ID сообщения в Telegram (опционально).
     :return: ID добавленного мероприятия.
-    :param chat_id: ID чата, в котором создано мероприятие.
     """
-    # Проверка входных данных
-    if not all([description, date, time, creator_id, chat_id]):
-        logger.error("Не все обязательные поля переданы.")
-        return None
-
-    try:
-        datetime.strptime(date, "%d-%m-%Y")
-        datetime.strptime(time, "%H:%M")
-    except ValueError as e:
-        logger.error(f"Неверный формат даты или времени: {e}")
-        return None
-
-    if limit is not None and limit < 0:
-        logger.error("Лимит участников не может быть отрицательным.")
-        return None
-
-    # Если limit равен 0, сохраняем как NULL (неограниченный лимит)
-    limit = None if limit == 0 else limit
-
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
-
-            # Логируем данные перед выполнением запроса
-            logger.info(
-                f"Данные для добавления мероприятия: "
-                f"description={description}, date={date}, time={time}, "
-                f"limit={limit}, creator_id={creator_id}, chat_id={chat_id}, message_id={message_id}"
-            )
-
-            # Выполняем SQL-запрос для добавления мероприятия
             cursor.execute(
                 """
                 INSERT INTO events (description, date, time, participant_limit, creator_id, chat_id, message_id)
@@ -178,7 +151,6 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
                 """,
                 (description, date, time, limit, creator_id, chat_id, message_id),
             )
-
             event_id = cursor.lastrowid  # Получаем ID добавленного мероприятия
             conn.commit()
             logger.info(f"Мероприятие добавлено с ID: {event_id}")
@@ -425,7 +397,7 @@ def update_message_id(db_path, event_id, message_id):
     finally:
         conn.close()
 
-def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at):
+def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at, job_type=None):
     """
     Сохраняет информацию о запланированной задаче в базу данных.
     :param db_path: Путь к базе данных.
@@ -433,18 +405,18 @@ def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at):
     :param job_id: ID задачи в JobQueue.
     :param chat_id: ID чата.
     :param execute_at: Время выполнения задачи (в формате ISO).
+    :param job_type: Тип задачи (например, "notification_day", "notification_minutes", "unpin_delete").
     """
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO scheduled_jobs (event_id, job_id, chat_id, execute_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO scheduled_jobs (event_id, job_id, chat_id, execute_at, job_type)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (event_id, job_id, chat_id, execute_at),
+            (event_id, job_id, chat_id, execute_at, job_type),
         )
         conn.commit()
-
 def get_scheduled_job_id(db_path: str, event_id: int) -> str:
     """Возвращает job_id запланированной задачи для указанного мероприятия."""
     with get_db_connection(db_path) as conn:
@@ -453,13 +425,22 @@ def get_scheduled_job_id(db_path: str, event_id: int) -> str:
         result = cursor.fetchone()
         return result["job_id"] if result else None
 
-def delete_scheduled_job(db_path: str, event_id: int):
-    """Удаляет задачу из базы данных по event_id."""
+def delete_scheduled_job(db_path: str, event_id: int, job_id: str = None, job_type: str = None):
+    """
+    Удаляет задачу из базы данных по event_id.
+    Если указан job_id, удаляет только задачу с этим ID.
+    Если указан job_type, удаляет только задачи этого типа.
+    """
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM scheduled_jobs WHERE event_id = ?", (event_id,))
+        if job_id:
+            cursor.execute("DELETE FROM scheduled_jobs WHERE event_id = ? AND job_id = ?", (event_id, job_id))
+        elif job_type:
+            cursor.execute("DELETE FROM scheduled_jobs WHERE event_id = ? AND job_type = ?", (event_id, job_type))
+        else:
+            cursor.execute("DELETE FROM scheduled_jobs WHERE event_id = ?", (event_id,))
         conn.commit()
-        logger.info(f"Задача для мероприятия {event_id} удалена из базы")
+        logger.info(f"Задачи для мероприятия {event_id} удалены из базы данных.")
 
 def delete_event(db_path: str, event_id: int):
     with get_db_connection(db_path) as conn:
