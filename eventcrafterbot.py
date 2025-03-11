@@ -605,7 +605,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("Вы уже в списке участников или резерва.")
         else:
             # Если есть свободные места, добавляем в участники
-            if event["limit"] is None or get_participants_count(db_path, event_id) < event["limit"]:
+            if event["participant_limit"] is None or get_participants_count(db_path, event_id) < event["participant_limit"]:
                 add_participant(db_path, event_id, user_id, user_name)
                 await query.answer(f"{user_name}, вы добавлены в список участников!")
             else:
