@@ -191,6 +191,7 @@ def get_event(db_path, event_id):
             "time": event["time"],
             "participant_limit": event["participant_limit"],  # Переименовано с "limit" на "participant_limit"
             "creator_id": event["creator_id"],
+            "chat_id": event["chat_id"],  # Добавлено поле chat_id
             "message_id": event["message_id"],
             "participants": participants,
             "reserve": reserve,
