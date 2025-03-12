@@ -649,9 +649,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 new_participant = reserve[0]
                 remove_from_reserve(db_path, event_id, new_participant["user_id"])
                 add_participant(db_path, event_id, new_participant["user_id"], new_participant["user_name"])
+
+                # Отправляем сообщение в чат с упоминанием пользователей
+                await context.bot.send_message(
+                    chat_id=event["chat_id"],
+                    text=f"👋 {user_name} больше не участвует в мероприятии.\n"
+                         f"🎉 {new_participant['user_name']} был(а) перемещён(а) из резерва в список участников!",
+                )
+
                 await query.answer(
                     f"{user_name}, вы удалены из списка участников и добавлены в список отказавшихся. "
-                    f"{new_participant['user_name']} перемещён из резерва в участники."
+                    f"{new_participant['user_name']} перемещён(а) из резерва в участники."
                 )
             else:
                 await query.answer(f"{user_name}, вы удалены из списка участников и добавлены в список отказавшихся.")
