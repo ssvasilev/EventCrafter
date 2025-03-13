@@ -9,7 +9,7 @@ from telegram.ext import (
 )
 
 from buttons.edit_event_button import edit_event_button
-from database.db_operations import delete_event
+from database.db_operations import delete_event, get_event
 import logging
 
 from event.edit.date import save_date
@@ -35,41 +35,69 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     action, event_id = data.split("|")
     context.user_data["event_id"] = event_id
 
+    # Получаем данные о мероприятии
+    db_path = context.bot_data["db_path"]
+    event = get_event(db_path, event_id)
+    if not event:
+        await query.edit_message_text("Мероприятие не найдено.")
+        return ConversationHandler.END
+
+    # Открепляем сообщение, если оно закреплено
+    try:
+        await context.bot.unpin_chat_message(
+            chat_id=query.message.chat_id,
+            message_id=event["message_id"]
+        )
+        logger.info(f"Сообщение {event['message_id']} откреплено.")
+    except logging.error.BadRequest as e:
+        logger.error(f"Ошибка при откреплении сообщения: {e}")
+    except logging.error.Forbidden as e:
+        logger.error(f"Бот не имеет прав на открепление сообщений: {e}")
+    except Exception as e:
+        logger.error(f"Неизвестная ошибка при откреплении сообщения: {e}")
+
     # Создаем клавиатуру с кнопкой "Отмена"
-    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]
+    keyboard = [
+        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     if action == "edit_description":
         await query.edit_message_text(
             "Введите новое описание мероприятия:",
-            reply_markup=reply_markup,
+            reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_DESCRIPTION
     elif action == "edit_date":
         await query.edit_message_text(
             "Введите новую дату мероприятия в формате ДД.ММ.ГГГГ",
-            reply_markup=reply_markup,
+            reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_DATE
     elif action == "edit_time":
         await query.edit_message_text(
             "Введите новое время мероприятия в формате ЧЧ:ММ",
-            reply_markup=reply_markup,
+            reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_TIME
     elif action == "edit_limit":
         await query.edit_message_text(
             "Введите новый лимит участников (0 - неограниченное):",
-            reply_markup=reply_markup,
+            reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_LIMIT
     elif action == "delete":
+        # Проверяем, является ли пользователь создателем
+        if event["creator_id"] != query.from_user.id:
+            await query.answer("Вы не можете удалить это мероприятие.")
+            return
+
         # Удаляем мероприятие
-        db_path = context.bot_data["db_path"]
-        delete_event(db_path, event_id)
+        delete_event(db_path, event_id)  # функция для удаления
         await query.edit_message_text("Мероприятие удалено.")
         return ConversationHandler.END
     else:
+        # Если действие не распознано, возвращаемся к выбору
         await query.edit_message_text("Неизвестное действие.")
         return EDIT_EVENT
 
