@@ -98,4 +98,5 @@ conv_handler_create_mention = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler("cancel", cancel)],
+    per_message=True,
 )
