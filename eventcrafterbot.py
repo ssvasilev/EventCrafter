@@ -1,5 +1,7 @@
 import pytz
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
+
+from config import DB_PATH, tz
 from database.init_database import init_db
 from handlers.create_event_handler import conv_handler_create
 from handlers.mention_handler import conv_handler_create_mention
@@ -18,22 +20,14 @@ locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
 load_dotenv("data/.env")
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-# Получаем часовой пояс из переменной окружения
-TIMEZONE = os.getenv('TIMEZONE', 'UTC')  # По умолчанию используется UTC
+
 
 # Проверяем, что токен загружен
 if not BOT_TOKEN:
     raise ValueError("Токен бота не найден в .env файле.")
 
-# Устанавливаем часовой пояс
-try:
-    tz = pytz.timezone(TIMEZONE)
-except pytz.UnknownTimeZoneError:
-    logger.error(f"Неизвестный часовой пояс: {TIMEZONE}. Используется UTC.")
-    tz = pytz.UTC
 
 # Инициализация базы данных
-DB_PATH = "../data/events.db"
 init_db(DB_PATH)
 
 def main():
