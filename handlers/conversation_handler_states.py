@@ -1,0 +1,4 @@
+# Состояния для ConversationHandler
+SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT = range(4)
+EDIT_EVENT, DELETE_EVENT = range(5, 7)
+EDIT_DESCRIPTION, EDIT_DATE, EDIT_TIME, EDIT_LIMIT = range(10, 14)
