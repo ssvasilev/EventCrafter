@@ -1,15 +1,23 @@
+import os
 import sqlite3
 
-from config import DB_PATH
 from logger.logger import logger
 
-def get_db_connection(db_path: str = DB_PATH):
+def get_db_connection(db_path):
     """
-    Возвращает соединение с базой данных.
+    Устанавливает соединение с базой данных SQLite.
     :param db_path: Путь к файлу базы данных.
-    :return: Соединение с базой данных.
+    :return: Объект соединения с базой данных.
     """
-    return sqlite3.connect(db_path)
+    # Проверяем и создаём директорию, если её нет
+    directory = os.path.dirname(db_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # Устанавливаем соединение с базой данных
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id=None):
