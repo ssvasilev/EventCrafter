@@ -2,6 +2,9 @@ from datetime import datetime, timedelta
 
 import pytz
 from telegram.ext import ContextTypes, Application
+
+from config import tz
+from config import TIMEZONE
 from database.db_operations import (
     get_event, delete_event, get_scheduled_job_id, delete_scheduled_job, add_scheduled_job, get_db_connection
 )
@@ -210,8 +213,12 @@ def restore_scheduled_jobs(application: Application):
             chat_id = job["chat_id"]
             execute_at = datetime.fromisoformat(job["execute_at"])
 
+            # Преобразуем execute_at в offset-aware, если он offset-naive
+            if execute_at.tzinfo is None:
+                execute_at = tz.localize(execute_at)
+
             # Проверяем, не истекло ли время выполнения задачи
-            if execute_at > datetime.now():
+            if execute_at > datetime.now(TIMEZONE):
                 # Создаем задачу
                 application.job_queue.run_once(
                     unpin_and_delete_event if job["job_type"] == "unpin_delete" else send_notification,
