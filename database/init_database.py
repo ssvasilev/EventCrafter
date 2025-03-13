@@ -1,9 +1,5 @@
 import sqlite3
 
-
-# Путь к базе данных
-DB_PATH = "../data/events.db"
-
 def init_db(db_path):
     """Инициализирует базу данных и создает таблицы, если они не существуют."""
     conn = sqlite3.connect(db_path)

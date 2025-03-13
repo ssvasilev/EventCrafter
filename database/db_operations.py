@@ -1,6 +1,6 @@
 import sqlite3
 
-from eventcrafterbot import DB_PATH
+from config import DB_PATH
 from logger.logger import logger
 
 def get_db_connection(db_path: str = DB_PATH):
