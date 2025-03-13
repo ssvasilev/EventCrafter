@@ -42,6 +42,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text("Мероприятие не найдено.")
         return ConversationHandler.END
 
+    """
     # Открепляем сообщение, если оно закреплено
     try:
         await context.bot.unpin_chat_message(
@@ -55,6 +56,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         logger.error(f"Бот не имеет прав на открепление сообщений: {e}")
     except Exception as e:
         logger.error(f"Неизвестная ошибка при откреплении сообщения: {e}")
+    """
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [

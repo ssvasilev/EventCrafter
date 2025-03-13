@@ -103,7 +103,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             else:
                 logger.error(f"Ошибка при редактировании сообщения: {e}")
                 raise e  # Если ошибка другая, пробрасываем её дальше
-        await pin_message(context, chat_id, message_id)
+        #await pin_message(context, chat_id, message_id)
         return message_id
     else:
         # Отправляем новое сообщение
