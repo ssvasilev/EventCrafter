@@ -1,18 +1,12 @@
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, error
 from telegram.ext import (
-    Application,
-    CommandHandler,
-    CallbackQueryHandler,
     ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
-    JobQueue,
 )
 
+from config import DB_PATH
 from database.db_operations import get_event, get_participants, get_reserve, get_declined, update_message_id
-from eventcrafterbot import DB_PATH
+
 from handlers.utils import time_until_event
 
 from logger.logger import logger
