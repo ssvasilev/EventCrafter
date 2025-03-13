@@ -14,9 +14,8 @@ from telegram.ext import (
 from event.create.set_date import set_date
 from event.create.set_limit import set_limit
 from event.create.set_time import set_time
-from handlers.button_handlers import button_handler
 from handlers.cancel_handler import cancel_input, cancel
-from handlers.conversation_handler_states import SET_DATE, SET_LIMIT, SET_TIME, BUTTON_HANDLER
+from handlers.conversation_handler_states import SET_DATE, SET_LIMIT, SET_TIME
 
 
 # Обработка упоминания бота
@@ -74,8 +73,6 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.user_data["bot_message_id"] = sent_message.message_id
                 context.user_data["chat_id"] = update.message.chat_id
 
-                # Переходим к обработке нажатий кнопок
-                return BUTTON_HANDLER
 
 # ConversationHandler для создания мероприятия по упоминанию
 conv_handler_create_mention = ConversationHandler(
@@ -93,10 +90,7 @@ conv_handler_create_mention = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
         ],
-        BUTTON_HANDLER: [
-            CallbackQueryHandler(button_handler),  # Обработчик нажатий кнопок
-        ],
     },
     fallbacks=[CommandHandler("cancel", cancel)],
-    per_message=False,
+    per_message=True,
 )
