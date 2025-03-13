@@ -194,7 +194,7 @@ def remove_existing_notification_jobs(event_id: int, context: ContextTypes.DEFAU
     logger.info(f"Задачи напоминания для мероприятия {event_id} удалены из базы данных.")
 
 
-async def restore_scheduled_jobs(application: Application):
+def restore_scheduled_jobs(application: Application):
     """
     Восстанавливает запланированные задачи из базы данных при запуске бота.
     :param application: Приложение бота.
