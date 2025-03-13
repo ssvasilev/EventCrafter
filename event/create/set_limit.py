@@ -1,4 +1,4 @@
-from _pydatetime import datetime, timedelta
+from datetime import datetime
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
