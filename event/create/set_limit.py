@@ -1,10 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
 from data.database import add_event
-from eventcrafterbot import tz
 from jobs.notification_jobs import unpin_and_delete_event, send_notification
 from message.send_message import send_event_message
 
@@ -65,6 +64,9 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Удаляем сообщение пользователя
         await update.message.delete()
+
+        # Получаем часовой пояс из context.bot_data
+        tz = context.bot_data["tz"]
 
         # Планируем задачи для уведомлений и удаления мероприятия
         event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")

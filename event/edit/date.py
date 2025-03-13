@@ -4,7 +4,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
 from database.db_operations import update_event_field, get_event
-from eventcrafterbot import tz
 from handlers.conversation_handler_states import EDIT_DATE
 from jobs.notification_jobs import remove_existing_notification_jobs, schedule_notifications
 from message.send_message import send_event_message
@@ -60,6 +59,9 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not event:
             await update.message.reply_text("Мероприятие не найдено.")
             return ConversationHandler.END
+
+        # Получаем часовой пояс из context.bot_data
+        tz = context.bot_data["tz"]
 
         # Преобразуем дату и время мероприятия
         event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {event['time']}", "%d-%m-%Y %H:%M")

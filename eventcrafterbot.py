@@ -43,6 +43,9 @@ def main():
     # Сохраняем путь к базе данных в context.bot_data
     application.bot_data["db_path"] = DB_PATH
 
+    # Сохраняем часовой пояс в context.bot_data
+    application.bot_data["tz"] = tz
+
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
 
