@@ -71,7 +71,9 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Сохраняем ID сообщения бота
                 context.user_data["bot_message_id"] = sent_message.message_id
                 context.user_data["chat_id"] = update.message.chat_id
-                break
+
+                # Переходим к обработке нажатий кнопок
+                return BUTTON_HANDLER
 
 # ConversationHandler для создания мероприятия по упоминанию
 conv_handler_create_mention = ConversationHandler(
@@ -84,10 +86,13 @@ conv_handler_create_mention = ConversationHandler(
         SET_TIME: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_time),
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
-            ],
+        ],
         SET_LIMIT: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+        ],
+        BUTTON_HANDLER: [
+            CallbackQueryHandler(button_handler),  # Обработчик нажатий кнопок
         ],
     },
     fallbacks=[CommandHandler("cancel", cancel)],
