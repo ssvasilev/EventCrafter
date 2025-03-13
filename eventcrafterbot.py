@@ -54,7 +54,10 @@ def main():
     application.add_handler(CallbackQueryHandler(button_handler))
 
     # Восстанавливаем запланированные задачи
-    application.run_polling(post_init=restore_scheduled_jobs)
+    restore_scheduled_jobs(application)
+
+    # Восстанавливаем запланированные задачи
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
