@@ -35,12 +35,16 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE):
     # Получаем часовой пояс из context.bot_data
     tz = context.bot_data.get("tz")
 
+    # Форматируем дату с днём недели
+    date = datetime.strptime(event["date"], "%d-%m-%Y").date()
+    formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+
     # Формируем текст уведомления
     time_until = time_until_event(event["date"], event["time"], tz)
     message = (
         f"⏰ Напоминание о мероприятии:\n"
         f"📢 <b>{event['description']}</b>\n"
-        f"📅 <i>Дата: </i> {event['date']}\n"
+        f"📅 <i>Дата: </i> {formatted_date}\n"
         f"🕒 <i>Время: </i> {event['time']}\n"
         f"⏳ <i>До мероприятия: </i> {time_until}"
     )

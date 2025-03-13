@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import telegram
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -67,10 +69,14 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     # Вычисляем оставшееся время до мероприятия
     time_until = time_until_event(event['date'], event['time'], tz)
 
+    # Форматируем дату с днём недели
+    date = datetime.strptime(event["date"], "%d-%m-%Y").date()
+    formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+
     # Текст сообщения
     message_text = (
         f"📢 <b>{event['description']}</b>\n"
-        f"📅 <i>Дата: </i> {event['date']}\n"
+        f"📅 <i>Дата: </i> {formatted_date}\n"
         f"🕒 <i>Время: </i> {event['time']}\n"
         f"⏳ <i>До мероприятия: </i> {time_until}\n"
         f"👥 <i>Лимит участников: </i> {limit_text}\n\n"
