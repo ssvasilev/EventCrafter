@@ -132,5 +132,5 @@ conv_handler_edit_event = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler("cancel_input", cancel_input)],
-    per_message=True,
+    per_message=False,
 )
