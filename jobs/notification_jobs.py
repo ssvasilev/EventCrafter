@@ -218,7 +218,7 @@ def restore_scheduled_jobs(application: Application):
                 execute_at = tz.localize(execute_at)
 
             # Проверяем, не истекло ли время выполнения задачи
-            if execute_at > datetime.now(TIMEZONE):
+            if execute_at > datetime.now(tz):
                 # Создаем задачу
                 application.job_queue.run_once(
                     unpin_and_delete_event if job["job_type"] == "unpin_delete" else send_notification,
