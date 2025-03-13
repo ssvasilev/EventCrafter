@@ -10,6 +10,8 @@ from message.send_message import send_event_message
 
 
 # Обработка ввода нового времени
+from datetime import datetime
+
 async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем новое время
     time_text = update.message.text
@@ -18,25 +20,28 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Преобразуем введённое время
-        time = datetime.strptime(time_text, "%H:%M").time()
+        time_obj = datetime.strptime(time_text, "%H:%M").time()
 
-        # Обновляем время в базе данных
-        update_event_field(db_path, event_id, "time", time.strftime("%H:%M"))
-
-        # Удаляем старые задачи на уведомления
-        remove_existing_notification_jobs(event_id, context)
-
-        # Получаем обновлённые данные о мероприятии
+        # Получаем данные о мероприятии из базы данных
         event = get_event(db_path, event_id)
         if not event:
             await update.message.reply_text("Мероприятие не найдено.")
             return ConversationHandler.END
 
+        # Преобразуем дату из строки в объект datetime.date
+        date = datetime.strptime(event["date"], "%d-%m-%Y").date()
+
+        # Обновляем время в базе данных
+        update_event_field(db_path, event_id, "time", time_obj.strftime("%H:%M"))
+
+        # Удаляем старые задачи на уведомления
+        remove_existing_notification_jobs(event_id, context)
+
         # Получаем часовой пояс из context.bot_data
         tz = context.bot_data["tz"]
 
-        # Преобразуем дату и время мероприятия
-        event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
+        # Создаём объект datetime с учётом часового пояса
+        event_datetime = datetime.combine(date, time_obj)
         event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
 
         # Создаём новые задачи на уведомления
