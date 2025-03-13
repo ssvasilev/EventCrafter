@@ -1,6 +1,5 @@
 import pytz
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
-
 from database.init_database import init_db
 from handlers.create_event_handler import conv_handler_create
 from handlers.mention_handler import conv_handler_create_mention
