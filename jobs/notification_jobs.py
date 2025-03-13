@@ -32,8 +32,11 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Нет участников для мероприятия с ID {event_id}.")
         return
 
+    # Получаем часовой пояс из context.bot_data
+    tz = context.bot_data.get("tz")
+
     # Формируем текст уведомления
-    time_until = time_until_event(event["date"], event["time"])
+    time_until = time_until_event(event["date"], event["time"], tz)
     message = (
         f"⏰ Напоминание о мероприятии:\n"
         f"📢 <b>{event['description']}</b>\n"

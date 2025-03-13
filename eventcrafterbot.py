@@ -1,4 +1,3 @@
-import pytz
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
 
 from config import DB_PATH, tz

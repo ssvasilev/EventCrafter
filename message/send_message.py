@@ -61,8 +61,13 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Получаем часовой пояс из context.bot_data
+    tz = context.bot_data.get("tz")
+
+    # Вычисляем оставшееся время до мероприятия
+    time_until = time_until_event(event['date'], event['time'], tz)
+
     # Текст сообщения
-    time_until = time_until_event(event['date'], event['time'])
     message_text = (
         f"📢 <b>{event['description']}</b>\n"
         f"📅 <i>Дата: </i> {event['date']}\n"

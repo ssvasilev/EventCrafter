@@ -58,13 +58,14 @@ def format_date_with_weekday(date_str: str) -> str:
     return date_obj.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
 
 
-def format_event_message(event: dict) -> str:
+def format_event_message(event: dict, tz) -> str:
     """
     Форматирует информацию о мероприятии в строку для отправки в чат.
     :param event: Словарь с данными о мероприятии.
+    :param tz: Часовой пояс (ZoneInfo).
     :return: Отформатированная строка.
     """
-    time_until = time_until_event(event['date'], event['time'])
+    time_until = time_until_event(event['date'], event['time'], tz)
     limit_text = "∞ (бесконечный)" if event["participant_limit"] is None else str(event["participant_limit"])
 
     message_text = (
