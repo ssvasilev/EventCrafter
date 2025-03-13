@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, ConversationHandler
 
 from database.db_operations import get_events_by_participant
 from logger.logger import logger
@@ -60,3 +60,6 @@ async def my_events_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения: {e}")
         await query.edit_message_text("Произошла ошибка при отправке списка мероприятий.")
+
+    # Завершаем диалог
+    return ConversationHandler.END

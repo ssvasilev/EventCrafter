@@ -17,6 +17,7 @@ from event.create.set_time import set_time
 from handlers.cancel_handler import cancel_input, cancel
 from handlers.conversation_handler_states import SET_DATE, SET_LIMIT, SET_TIME
 
+
 # Обработка упоминания бота
 async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.entities:
@@ -71,7 +72,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Сохраняем ID сообщения бота
                 context.user_data["bot_message_id"] = sent_message.message_id
                 context.user_data["chat_id"] = update.message.chat_id
-                break
+
 
 # ConversationHandler для создания мероприятия по упоминанию
 conv_handler_create_mention = ConversationHandler(
@@ -84,11 +85,12 @@ conv_handler_create_mention = ConversationHandler(
         SET_TIME: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_time),
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
-            ],
+        ],
         SET_LIMIT: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
         ],
     },
     fallbacks=[CommandHandler("cancel", cancel)],
+    per_message=False,
 )

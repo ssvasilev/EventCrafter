@@ -1,5 +1,6 @@
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
 
+from buttons.my_events_button import my_events_button
 from config import DB_PATH, tz
 from database.init_database import init_db
 from handlers.create_event_handler import conv_handler_create
@@ -41,6 +42,9 @@ def main():
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
+
+    #Обработчик для кнопки Мои мероприятия
+    application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
 
     # ConversationHandler для создания мероприятия
     application.add_handler(conv_handler_create)
