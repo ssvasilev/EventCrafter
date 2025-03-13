@@ -1,4 +1,5 @@
 import os
+from zoneinfo import ZoneInfo
 
 import pytz
 from logger.logger import logger
@@ -8,10 +9,10 @@ TIMEZONE = os.getenv('TIMEZONE', 'UTC')  # По умолчанию исполь�
 
 # Устанавливаем часовой пояс
 try:
-    tz = pytz.timezone(TIMEZONE)
+    tz = ZoneInfo(TIMEZONE)
 except pytz.UnknownTimeZoneError:
     logger.error(f"Неизвестный часовой пояс: {TIMEZONE}. Используется UTC.")
-    tz = pytz.UTC
+    tz = ZoneInfo("UTC")
 
 # Путь к базе данных
 DB_PATH = "../data/events.db"
