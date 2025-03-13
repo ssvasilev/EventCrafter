@@ -42,6 +42,15 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Преобразуем введённую дату
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
 
+        # Получаем время из context.user_data или из базы данных
+        event = get_event(db_path, event_id)
+        if not event:
+            await update.message.reply_text("Мероприятие не найдено.")
+            return ConversationHandler.END
+
+        # Преобразуем время из строки в объект datetime.time
+        event_time = datetime.strptime(event["time"], "%H:%M").time()
+
         # Форматируем дату с днём недели
         formatted_date = date.strftime("%d.%m.%Y (%A)")
 
@@ -54,17 +63,11 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Удаляем старые задачи на уведомления
         remove_existing_notification_jobs(event_id, context)
 
-        # Получаем обновлённые данные о мероприятии
-        event = get_event(db_path, event_id)
-        if not event:
-            await update.message.reply_text("Мероприятие не найдено.")
-            return ConversationHandler.END
-
         # Получаем часовой пояс из context.bot_data
         tz = context.bot_data["tz"]
 
-        # Преобразуем дату и время мероприятия
-        event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
+        # Создаём объект datetime с учётом часового пояса
+        event_datetime = datetime.combine(date, event_time)
         event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
 
         # Создаём новые задачи на уведомления
