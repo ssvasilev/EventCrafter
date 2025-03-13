@@ -70,7 +70,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Планируем задачи для уведомлений и удаления мероприятия
         event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
-        event_datetime = tz.localize(event_datetime)  # Устанавливаем часовой пояс
+        event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
 
         # Уведомление за день до мероприятия
         context.job_queue.run_once(

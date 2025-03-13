@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 
 import pytz
 from telegram.ext import ContextTypes, Application
@@ -137,8 +137,8 @@ async def schedule_unpin_and_delete(event_id: int, context: ContextTypes.DEFAULT
         return
 
     # Преобразуем дату и время мероприятия
-    event_datetime = datetime.strptime(f"{event['date']} {event['time']}", "%d-%m-%Y %H:%M")
-    event_datetime = pytz.timezone('Europe/Moscow').localize(event_datetime)  # Устанавливаем часовой пояс
+    event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
+    event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
 
     # Создаём задачу
     job = context.job_queue.run_once(

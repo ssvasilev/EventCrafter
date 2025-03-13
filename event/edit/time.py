@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
@@ -36,8 +36,8 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tz = context.bot_data["tz"]
 
         # Преобразуем дату и время мероприятия
-        event_datetime = datetime.strptime(f"{event['date']} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
-        event_datetime = tz.localize(event_datetime)  # Устанавливаем часовой пояс
+        event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
+        event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
 
         # Создаём новые задачи на уведомления
         await schedule_notifications(event_id, context, event_datetime, update.message.chat_id)

@@ -1,6 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 import pytz
 import locale
+
+from config import tz
 
 # Устанавливаем локаль для корректного отображения дней недели
 locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
@@ -16,8 +18,8 @@ def time_until_event(event_date: str, event_time: str) -> str:
     :return: Строка с оставшимся временем в формате "X дней, Y часов, Z минут".
     """
     # Преобразуем дату и время мероприятия в объект datetime
-    event_datetime = datetime.strptime(f"{event_date} {event_time}", "%d-%m-%Y %H:%M")
-    event_datetime = TIMEZONE.localize(event_datetime)  # Устанавливаем часовой пояс
+    event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
+    event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
 
     # Получаем текущее время с учетом часового пояса
     now = datetime.now(TIMEZONE)
