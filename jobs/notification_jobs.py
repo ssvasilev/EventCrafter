@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes, Application
 from database.db_operations import (
     get_event, delete_event, get_scheduled_job_id, delete_scheduled_job, add_scheduled_job, get_db_connection
 )
-from handlers.utils import time_until_event
+from utils.utils import time_until_event
 import logging
 
 logger = logging.getLogger(__name__)

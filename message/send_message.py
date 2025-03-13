@@ -1,15 +1,16 @@
 import telegram
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, error
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
 )
 
 from config import DB_PATH
-from database.db_operations import get_event, get_participants, get_reserve, get_declined, update_message_id
+from database.db_operations import get_event, get_participants, get_reserve, get_declined
 
-from handlers.utils import time_until_event
+from utils.utils import time_until_event
 
 from logger.logger import logger
+from utils.pin_message import pin_message
 
 
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
@@ -91,6 +92,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             else:
                 logger.error(f"Ошибка при редактировании сообщения: {e}")
                 raise e  # Если ошибка другая, пробрасываем её дальше
+        await pin_message(context, chat_id, message_id)
         return message_id
     else:
         # Отправляем новое сообщение
@@ -101,22 +103,10 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
                 reply_markup=reply_markup,
                 parse_mode="HTML"
             )
-            # Сохраняем message_id в базе данных
-            update_message_id(db_path, event_id, message.message_id)
             logger.info(f"Новое сообщение отправлено с ID: {message.message_id}")
 
             # Закрепляем сообщение в чате
-            try:
-                await context.bot.pin_chat_message(
-                    chat_id=chat_id,
-                    message_id=message.message_id,
-                    disable_notification=True  # Отключаем уведомление о закреплении
-                )
-                logger.info(f"Сообщение {message.message_id} закреплено в чате {chat_id}.")
-            except telegram.error.BadRequest as e:
-                logger.error(f"Ошибка при закреплении сообщения: {e}")
-            except telegram.error.Forbidden as e:
-                logger.error(f"Бот не имеет прав на закрепление сообщений: {e}")
+            await pin_message(context, chat_id, message.message_id)
 
             return message.message_id
         except Exception as e:
