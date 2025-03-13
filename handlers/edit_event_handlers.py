@@ -129,5 +129,5 @@ conv_handler_edit_event = ConversationHandler(
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
         ],
     },
-    fallbacks=[CommandHandler("cancel", cancel)],
+    fallbacks=[CommandHandler("cancel_input", cancel_input)],
 )

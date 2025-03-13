@@ -8,8 +8,9 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Очищаем user_data перед началом редактирования
-    context.user_data.clear()
+    # Сохраняем исходное состояние сообщения
+    context.user_data["original_text"] = query.message.text
+    context.user_data["original_reply_markup"] = query.message.reply_markup
 
     # Сохраняем event_id и message_id в context.user_data
     event_id = query.data.split("|")[1]
