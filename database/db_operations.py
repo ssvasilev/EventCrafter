@@ -115,6 +115,21 @@ def get_user_draft(db_path, creator_id):
         cursor.execute("SELECT * FROM drafts WHERE creator_id = ? AND status != 'DONE'", (creator_id,))
         return cursor.fetchone()
 
+def delete_draft(db_path: str, draft_id: int):
+    """
+    Удаляет черновик мероприятия из базы данных по его ID.
+    :param db_path: Путь к базе данных.
+    :param draft_id: ID черновика.
+    """
+    try:
+        with get_db_connection(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM drafts WHERE id = ?", (draft_id,))
+            conn.commit()
+            logger.info(f"Черновик с ID {draft_id} удалён.")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при удалении черновика: {e}")
+
 
 
 def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id=None):
