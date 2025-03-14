@@ -1,7 +1,12 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters, CallbackQueryHandler, \
+    CommandHandler
 
-from handlers.conversation_handler_states import SET_DATE
+from event.create.set_date import set_date
+from event.create.set_limit import set_limit
+from event.create.set_time import set_time
+from handlers.cancel_handler import cancel_input, cancel
+from handlers.conversation_handler_states import SET_DATE, SET_TIME, SET_LIMIT
 from database.db_operations import add_draft
 
 async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -48,9 +53,9 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Удаляем сообщение пользователя
             await update.message.delete()
 
-                # Переходим к состоянию SET_DATE
-                return SET_DATE
-            else:
+            #Переходим к состоянию SET_DATE
+            return SET_DATE
+        else:
                 # Если текст после упоминания пустой, предлагаем создать мероприятие
                 keyboard = [
                     [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")],
