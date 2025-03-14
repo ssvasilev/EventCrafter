@@ -1,8 +1,10 @@
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram.error import BadRequest
 from handlers.conversation_handler_states import SET_TIME, SET_LIMIT
-from database.db_operations import set_user_state, get_user_state  # Импорт функций
+from database.db_operations import set_user_state, get_user_state
+from logger.logger import logger
 
 
 # Обработка ввода времени мероприятия
@@ -21,6 +23,11 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Ошибка: состояние пользователя не найдено.")
             return ConversationHandler.END
 
+        # Проверяем, что message_id существует
+        if "bot_message_id" not in user_state:
+            await update.message.reply_text("Ошибка: ID сообщения не найдено.")
+            return ConversationHandler.END
+
         # Обновляем состояние пользователя в базе данных
         set_user_state(
             db_path=context.bot_data["db_path"],
@@ -32,7 +39,7 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
             time=time.strftime("%H:%M"),  # Сохраняем время в формате строки
             participant_limit=user_state.get("participant_limit"),
             event_id=user_state.get("event_id"),
-            bot_message_id=user_state.get("bot_message_id"),
+            bot_message_id=user_state.get("bot_message_id"),  # Сохраняем message_id
             original_text=user_state.get("original_text"),
             original_reply_markup=user_state.get("original_reply_markup"),
         )
@@ -43,13 +50,18 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Редактируем сообщение бота
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=user_state["bot_message_id"],
-            text=f"📢 {user_state['description']}\n\n📅 Дата: {user_state['date']}\n\n🕒 Время: {time_text}\n\nВведите количество участников (0 - неограниченное):",
-            reply_markup=reply_markup,
-        )
+        try:
+            # Редактируем сообщение бота
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=user_state["bot_message_id"],
+                text=f"📢 {user_state['description']}\n\n📅 Дата: {user_state['date']}\n\n🕒 Время: {time_text}\n\nВведите количество участников (0 - неограниченное):",
+                reply_markup=reply_markup,
+            )
+        except BadRequest as e:
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
+            await update.message.reply_text("Не удалось обновить сообщение. Пожалуйста, начните заново.")
+            return ConversationHandler.END
 
         # Удаляем сообщение пользователя
         await update.message.delete()
@@ -59,12 +71,17 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except ValueError:
         # Если формат времени неверный, выводим ошибку
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=user_state["bot_message_id"],
-            text="Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
-        )
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=user_state["bot_message_id"],
+                text="Неверный формат времени. Попробуйте снова в формате ЧЧ:ММ",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
+            )
+        except BadRequest as e:
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
+            await update.message.reply_text("Не удалось обновить сообщение. Пожалуйста, начните заново.")
+            return ConversationHandler.END
 
         # Удаляем сообщение пользователя
         await update.message.delete()

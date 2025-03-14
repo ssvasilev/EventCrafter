@@ -102,8 +102,19 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
         )
 
-        # Редактируем существующее сообщение бота с ошибкой
+        # Получаем текущее состояние пользователя
+        user_state = get_user_state(context.bot_data["db_path"], user_id)
+        if not user_state:
+            await update.message.reply_text("Ошибка: состояние пользователя не найдено.")
+            return ConversationHandler.END
+
+        # Проверяем, что message_id существует
+        if "bot_message_id" not in user_state:
+            await update.message.reply_text("Ошибка: ID сообщения не найдено.")
+            return ConversationHandler.END
+
         try:
+            # Редактируем существующее сообщение бота с ошибкой
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=user_state["bot_message_id"],
