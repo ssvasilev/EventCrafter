@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
-from database.db_operations import update_draft, add_event
+from database.db_operations import update_draft, get_draft, add_event, delete_draft
 from jobs.notification_jobs import unpin_and_delete_event, send_notification
 from message.send_message import send_event_message
 
@@ -12,15 +12,16 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем текст лимита участников
     limit_text = update.message.text
     try:
-        # Преобразуем введённый текст в число
         limit = int(limit_text)
 
         # Проверяем, что лимит не отрицательный
         if limit < 0:
             raise ValueError("Лимит не может быть отрицательным.")
 
-        # Обновляем черновик
+        # Получаем ID черновика из user_data
         draft_id = context.user_data["draft_id"]
+
+        # Обновляем черновик
         update_draft(
             db_path=context.bot_data["db_path"],
             draft_id=draft_id,
@@ -28,7 +29,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             participant_limit=limit
         )
 
-        # Получаем данные черновика
+        # Получаем данные черновика из базы данных
         draft = get_draft(context.bot_data["db_path"], draft_id)
         if not draft:
             await update.message.reply_text("Ошибка: черновик мероприятия не найден.")
@@ -46,7 +47,6 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message_id=None
         )
 
-        # Проверяем, что мероприятие успешно создано
         if not event_id:
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END

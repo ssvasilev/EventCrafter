@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from handlers.conversation_handler_states import SET_LIMIT
-from database.db_operations import update_draft
+from database.db_operations import update_draft, get_draft
 
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем текст времени
@@ -11,14 +11,22 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         time = datetime.strptime(time_text, "%H:%M").time()
 
-        # Обновляем черновик
+        # Получаем ID черновика из user_data
         draft_id = context.user_data["draft_id"]
+
+        # Обновляем черновик
         update_draft(
             db_path=context.bot_data["db_path"],
             draft_id=draft_id,
             status="AWAIT_PATICIPANT_LIMIT",
             time=time.strftime("%H:%M")
         )
+
+        # Получаем данные черновика из базы данных
+        draft = get_draft(context.bot_data["db_path"], draft_id)
+        if not draft:
+            await update.message.reply_text("Ошибка: черновик мероприятия не найден.")
+            return ConversationHandler.END
 
         # Создаем клавиатуру с кнопкой "Отмена"
         keyboard = [
@@ -30,7 +38,7 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
-            text=f"📢 {context.user_data['description']}\n\n📅 Дата: {context.user_data['date'].strftime('%d.%m.%Y')}\n\n🕒 Время: {time_text}\n\nВведите количество участников (0 - неограниченное):",
+            text=f"📢 {draft['description']}\n\n📅 Дата: {draft['date']}\n\n🕒 Время: {time_text}\n\nВведите количество участников (0 - неограниченное):",
             reply_markup=reply_markup,
         )
 
