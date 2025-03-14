@@ -1,4 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
@@ -94,14 +95,30 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.answer("Вы не можете удалить это мероприятие.")
             return
 
-        # Удаляем мероприятие
-        delete_event(db_path, event_id)  # функция для удаления
+        # Получаем message_id мероприятия
+        message_id = event.get("message_id")
+
+        # Если сообщение закреплено, открепляем его
+        if message_id:
+            try:
+                await context.bot.unpin_chat_message(
+                    chat_id=query.message.chat_id,
+                    message_id=message_id
+                )
+                logger.info(f"Сообщение мероприятия {event_id} откреплено.")
+            except BadRequest as e:
+                logger.error(f"Ошибка при откреплении сообщения: {e}")
+                # Продолжаем удаление, даже если открепление не удалось
+
+        # Удаляем мероприятие из базы данных
+        delete_event(db_path, event_id)
+        logger.info(f"Мероприятие {event_id} удалено.")
+
+        # Редактируем сообщение с подтверждением удаления
         await query.edit_message_text("Мероприятие удалено.")
+
+        # Завершаем диалог
         return ConversationHandler.END
-    else:
-        # Если действие не распознано, возвращаемся к выбору
-        await query.edit_message_text("Неизвестное действие.")
-        return EDIT_EVENT
 
 
 
