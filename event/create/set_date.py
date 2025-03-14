@@ -1,8 +1,9 @@
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram.error import BadRequest  # Импорт для обработки ошибок
 from handlers.conversation_handler_states import SET_TIME, SET_DATE
-from database.db_operations import set_user_state, get_user_state  # Импорт функций
+from database.db_operations import set_user_state, get_user_state
 
 
 # Обработка ввода даты мероприятия
@@ -19,6 +20,11 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_state = get_user_state(context.bot_data["db_path"], user_id)
         if not user_state:
             await update.message.reply_text("Ошибка: состояние пользователя не найдено.")
+            return ConversationHandler.END
+
+        # Проверяем, что message_id существует
+        if "bot_message_id" not in user_state:
+            await update.message.reply_text("Ошибка: ID сообщения не найдено.")
             return ConversationHandler.END
 
         # Обновляем состояние пользователя в базе данных
@@ -43,13 +49,18 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Редактируем сообщение бота
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=user_state["bot_message_id"],
-            text=f"📢 {user_state['description']}\n\n📅 Дата: {date_text}\n\n🕒 Введите время мероприятия в формате ЧЧ:ММ",
-            reply_markup=reply_markup,
-        )
+        try:
+            # Редактируем сообщение бота
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=user_state["bot_message_id"],
+                text=f"📢 {user_state['description']}\n\n📅 Дата: {date_text}\n\n🕒 Введите время мероприятия в формате ЧЧ:ММ",
+                reply_markup=reply_markup,
+            )
+        except BadRequest as e:
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
+            await update.message.reply_text("Не удалось обновить сообщение. Пожалуйста, начните заново.")
+            return ConversationHandler.END
 
         # Удаляем сообщение пользователя
         await update.message.delete()
