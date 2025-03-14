@@ -43,11 +43,21 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка при обработке даты мероприятия: {e}")
         return
 
-    # Формируем текст уведомления
+    # Преобразуем chat_id для ссылки
+    chat_id = event["chat_id"]
+    if str(chat_id).startswith("-100"):  # Для супергрупп и каналов
+        chat_id_link = int(str(chat_id)[4:])  # Убираем "-100" в начале
+    else:
+        chat_id_link = chat_id  # Для обычных групп и личных чатов
+
+    # Формируем ссылку на мероприятие
+    event_link = f"https://t.me/c/{chat_id_link}/{event['message_id']}"
+
+    # Формируем текст уведомления с кликабельным названием мероприятия
     time_until = time_until_event(event["date"], event["time"], tz)
     message = (
         f"⏰ Напоминание о мероприятии:\n"
-        f"📢 <b>{event['description']}</b>\n"
+        f"📢 <a href='{event_link}'>{event['description']}</a>\n"
         f"📅 <i>Дата: </i> {formatted_date}\n"
         f"🕒 <i>Время: </i> {event['time']}\n"
         f"⏳ <i>До мероприятия: </i> {time_until}"
