@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
+from telegram.error import BadRequest
 
-from database.db_operations import update_draft, get_draft, add_event, delete_draft
+from database.db_operations import update_draft, get_draft, add_event, delete_draft, update_event_field
 from jobs.notification_jobs import unpin_and_delete_event, send_notification
 from message.send_message import send_event_message
 
@@ -44,10 +45,20 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             limit=limit if limit != 0 else None,
             creator_id=draft["creator_id"],
             chat_id=draft["chat_id"],
-            message_id=None
+            message_id=None  # message_id будет обновлён после отправки сообщения
         )
 
         if not event_id:
+            await update.message.reply_text("Ошибка при создании мероприятия.")
+            return ConversationHandler.END
+
+        # Отправляем сообщение о мероприятии и получаем его message_id
+        try:
+            message_id = await send_event_message(event_id, context, draft["chat_id"])
+            # Обновляем мероприятие с message_id
+            update_event_field(context.bot_data["db_path"], event_id, "message_id", message_id)
+        except Exception as e:
+            logger.error(f"Ошибка при отправке сообщения о мероприятии: {e}")
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END
 
@@ -55,16 +66,19 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         delete_draft(context.bot_data["db_path"], draft_id)
 
         # Удаляем последнее сообщение бота с параметрами мероприятия
-        await context.bot.delete_message(
-            chat_id=draft["chat_id"],
-            message_id=context.user_data["bot_message_id"]
-        )
-
-        # Отправляем новое сообщение с информацией о мероприятии
-        await send_event_message(event_id, context, draft["chat_id"])
+        try:
+            await context.bot.delete_message(
+                chat_id=draft["chat_id"],
+                message_id=context.user_data["bot_message_id"]
+            )
+        except BadRequest as e:
+            logger.warning(f"Сообщение для удаления не найдено: {e}")
 
         # Удаляем сообщение пользователя
-        await update.message.delete()
+        try:
+            await update.message.delete()
+        except BadRequest as e:
+            logger.warning(f"Сообщение пользователя не найдено: {e}")
 
         # Получаем часовой пояс из context.bot_data
         tz = context.bot_data["tz"]
@@ -105,16 +119,22 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Редактируем существующее сообщение бота с ошибкой
-        await context.bot.edit_message_text(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"],
-            text=error_message,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
-            parse_mode="HTML"
-        )
+        try:
+            await context.bot.edit_message_text(
+                chat_id=update.message.chat_id,
+                message_id=context.user_data["bot_message_id"],
+                text=error_message,
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
+                parse_mode="HTML"
+            )
+        except BadRequest as e:
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
 
         # Удаляем сообщение пользователя
-        await update.message.delete()
+        try:
+            await update.message.delete()
+        except BadRequest as e:
+            logger.warning(f"Сообщение пользователя не найдено: {e}")
 
         # Остаемся в состоянии SET_LIMIT
         return SET_LIMIT
