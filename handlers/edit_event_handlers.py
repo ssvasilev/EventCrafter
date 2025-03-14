@@ -119,15 +119,15 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 # Логируем любые другие ошибки
                 logger.error(f"Неизвестная ошибка при откреплении сообщения: {e}")
 
-        # Удаляем мероприятие из базы данных
-        delete_event(db_path, event_id)
-        logger.info(f"Мероприятие {event_id} удалено.")
+                # Удаляем мероприятие из базы данных
+                delete_event(db_path, event_id)
+                logger.info(f"Мероприятие {event_id} удалено.")
 
-        # Редактируем сообщение с подтверждением удаления
-        await query.edit_message_text("Мероприятие удалено.")
+                # Редактируем сообщение с подтверждением удаления
+                await query.edit_message_text("Мероприятие удалено.")
 
-        # Завершаем диалог
-        return ConversationHandler.END
+                # Завершаем диалог
+                return ConversationHandler.END
 
 
 
