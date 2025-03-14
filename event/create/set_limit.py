@@ -62,6 +62,19 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END
 
+        # Уведомляем создателя о успешном создании мероприятия
+        try:
+            await context.bot.send_message(
+                chat_id=draft["creator_id"],
+                text=f"✅ Мероприятие успешно создано!\n\n"
+                     f"📢 {draft['description']}\n"
+                     f"📅 Дата: {draft['date']}\n"
+                     f"🕒 Время: {draft['time']}\n"
+                     f"🔗 Ссылка: https://t.me/c/{draft['chat_id']}/{message_id}"
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при отправке уведомления создателю: {e}")
+
         # Удаляем черновик
         delete_draft(context.bot_data["db_path"], draft_id)
 
