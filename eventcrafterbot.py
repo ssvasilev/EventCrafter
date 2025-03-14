@@ -1,8 +1,9 @@
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
 
 from buttons.my_events_button import my_events_button
-from config import DB_PATH, tz
+from config import DB_PATH, tz, DB_DRAFT_PATH
 from database.init_database import init_db
+from database.init_draft_database import init_drafts_db
 from handlers.create_event_handler import conv_handler_create
 from handlers.mention_handler import conv_handler_create_mention
 from handlers.start_handler import start
@@ -20,15 +21,16 @@ locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
 load_dotenv("data/.env")
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-
-
 # Проверяем, что токен загружен
 if not BOT_TOKEN:
     raise ValueError("Токен бота не найден в .env файле.")
 
 
-# Инициализация базы данных
+# Инициализация основной базы данных
 init_db(DB_PATH)
+
+# Инициализация базы данных черновиков
+init_drafts_db(DB_DRAFT_PATH)
 
 def main():
     # Создаём приложение и передаём токен

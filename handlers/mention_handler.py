@@ -6,7 +6,7 @@ from event.create.set_limit import set_limit
 from event.create.set_time import set_time
 from handlers.cancel_handler import cancel_input, cancel
 from handlers.conversation_handler_states import SET_DATE, SET_TIME, SET_LIMIT
-from database.db_operations import add_draft
+from database.db_draft_operations import add_draft
 
 async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.entities:

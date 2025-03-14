@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
 from handlers.conversation_handler_states import SET_DESCRIPTION
-from database.db_operations import add_draft
+from database.db_draft_operations import add_draft
 
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

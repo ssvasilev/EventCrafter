@@ -3,7 +3,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
 
-from database.db_operations import update_draft, get_draft, add_event, delete_draft, update_event_field
+from database.db_operations import add_event, update_event_field
+from database.db_draft_operations import update_draft, get_draft, delete_draft
 from jobs.notification_jobs import unpin_and_delete_event, send_notification
 from logger.logger import logger
 from message.send_message import send_event_message

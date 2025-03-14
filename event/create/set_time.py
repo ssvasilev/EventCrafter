@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
 from handlers.conversation_handler_states import SET_LIMIT, SET_TIME
-from database.db_operations import update_draft, get_draft
+from database.db_draft_operations import update_draft, get_draft
 
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем текст времени

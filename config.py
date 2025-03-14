@@ -14,5 +14,8 @@ except pytz.UnknownTimeZoneError:
     logger.error(f"Неизвестный часовой пояс: {TIMEZONE}. Используется UTC.")
     tz = ZoneInfo("UTC")
 
-# Путь к базе данных
+# Путь к базе основных данных
 DB_PATH = "../data/events.db"
+
+# Путь к базе данных черновиков
+DB_DRAFT_PATH = "../data/draft.db"
