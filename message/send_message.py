@@ -1,5 +1,16 @@
 from datetime import datetime
 
+import telegram
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ContextTypes
+
+from config import DB_PATH
+from data.database import get_event, get_participants, get_reserve, get_declined
+from logger.logger import logger
+from utils.pin_message import pin_message
+from utils.utils import time_until_event
+
+
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
     """
     Отправляет или редактирует сообщение с информацией о мероприятии.
