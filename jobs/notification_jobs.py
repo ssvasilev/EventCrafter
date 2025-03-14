@@ -36,8 +36,12 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE):
     tz = context.bot_data.get("tz")
 
     # Форматируем дату с днём недели
-    date = datetime.strptime(event["date"], "%d-%m-%Y").date()
-    formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+    try:
+        date = datetime.strptime(event["date"], "%d.%m.%Y").date()  # Используем формат "%d.%m.%Y"
+        formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+    except ValueError as e:
+        logger.error(f"Ошибка при обработке даты мероприятия: {e}")
+        return
 
     # Формируем текст уведомления
     time_until = time_until_event(event["date"], event["time"], tz)
