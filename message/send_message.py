@@ -1,20 +1,5 @@
 from datetime import datetime
 
-import telegram
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ContextTypes,
-)
-
-from config import DB_PATH
-from database.db_operations import get_event, get_participants, get_reserve, get_declined
-
-from utils.utils import time_until_event
-
-from logger.logger import logger
-from utils.pin_message import pin_message
-
-
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
     """
     Отправляет или редактирует сообщение с информацией о мероприятии.
@@ -70,7 +55,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     time_until = time_until_event(event['date'], event['time'], tz)
 
     # Форматируем дату с днём недели
-    date = datetime.strptime(event["date"], "%d-%m-%Y").date()
+    date = datetime.strptime(event["date"], "%d.%m.%Y").date()  # Используем формат "дд.мм.гггг"
     formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
 
     # Текст сообщения
