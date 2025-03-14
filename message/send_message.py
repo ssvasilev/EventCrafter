@@ -1,34 +1,26 @@
 from datetime import datetime
-
-import telegram
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ContextTypes,
-)
-
-from config import DB_PATH
+from telegram.error import BadRequest
 from database.db_operations import get_event, get_participants, get_reserve, get_declined
-
 from utils.utils import time_until_event
-
 from logger.logger import logger
 from utils.pin_message import pin_message
 
-
-async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
+async def send_event_message(event_id: int, chat_id: int, db_path: str, tz: str, message_id: int = None):
     """
     Отправляет или редактирует сообщение с информацией о мероприятии.
     :param event_id: ID мероприятия.
-    :param context: Контекст бота.
     :param chat_id: ID чата, куда отправляется сообщение.
+    :param db_path: Путь к базе данных.
+    :param tz: Часовой пояс (строка, например, "Europe/Moscow").
     :param message_id: ID сообщения для редактирования (если None, отправляется новое сообщение).
     :return: ID отправленного или отредактированного сообщения.
     """
-    db_path = context.bot_data.get("db_path", DB_PATH)
+    # Получаем данные о мероприятии из базы данных
     event = get_event(db_path, event_id)
     if not event:
         logger.error(f"Мероприятие с ID {event_id} не найдено.")
-        return
+        return None
 
     # Получаем участников, резерв и отказавшихся
     participants = get_participants(db_path, event_id)
@@ -63,9 +55,6 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Получаем часовой пояс из context.bot_data
-    tz = context.bot_data.get("tz")
-
     # Вычисляем оставшееся время до мероприятия
     time_until = time_until_event(event['date'], event['time'], tz)
 
@@ -96,14 +85,13 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
                 parse_mode="HTML"
             )
             logger.info(f"Сообщение {message_id} отредактировано.")
-        except telegram.error.BadRequest as e:
+        except BadRequest as e:
             if "Message is not modified" in str(e):
                 # Если сообщение не изменилось, просто игнорируем ошибку
                 logger.info(f"Сообщение {message_id} не изменилось.")
             else:
                 logger.error(f"Ошибка при редактировании сообщения: {e}")
                 raise e  # Если ошибка другая, пробрасываем её дальше
-        #await pin_message(context, chat_id, message_id)
         return message_id
     else:
         # Отправляем новое сообщение

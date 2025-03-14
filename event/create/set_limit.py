@@ -59,7 +59,21 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Отправляем новое сообщение с информацией о мероприятии
-        await send_event_message(event_id, context, chat_id)
+        new_message = await send_event_message(
+            event_id=event_id,
+            chat_id=chat_id,
+            db_path=context.bot_data["db_path"],  # Путь к базе данных
+            tz=context.bot_data["tz"],           # Часовой пояс
+        )
+
+        # Обновляем message_id в базе данных
+        set_user_state(
+            db_path=context.bot_data["db_path"],
+            user_id=user_id,
+            chat_id=chat_id,
+            state="SET_LIMIT",
+            bot_message_id=new_message.message_id,  # Сохраняем новый message_id
+        )
 
         # Удаляем сообщение пользователя
         await update.message.delete()
