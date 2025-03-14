@@ -20,27 +20,26 @@ from handlers.conversation_handler_states import SET_DESCRIPTION, SET_DATE, SET_
 
 # ConversationHandler для создания мероприятия
 conv_handler_create = ConversationHandler(
-    entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],  # Кнопка "Создать
-    # мероприятие"
+    entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],  # Кнопка "Создать мероприятие"
     states={
         SET_DESCRIPTION: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, set_description),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, set_description),  # Обработчик ввода описания
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
         ],
         SET_DATE: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, set_date),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, set_date),  # Обработчик ввода даты
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
         ],
         SET_TIME: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, set_time),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, set_time),  # Обработчик ввода времени
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
         ],
         SET_LIMIT: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),  # Обработчик ввода лимита участников
             CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
         ],
     },
-    fallbacks=[CommandHandler("cancel", cancel)],
+    fallbacks=[CommandHandler("cancel", cancel)],  # Обработчик команды /cancel
     per_message=False,
 )
 

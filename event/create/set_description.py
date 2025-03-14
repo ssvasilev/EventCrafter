@@ -6,9 +6,12 @@ from handlers.conversation_handler_states import SET_DATE
 
 # Обработка ввода описания мероприятия
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Сохраняем описание мероприятия
+    user_id = update.message.from_user.id
+    chat_id = update.message.chat_id
     description = update.message.text
-    context.user_data["description"] = description
+
+    # Сохраняем описание и состояние в базу данных
+    set_user_state(context.bot_data["db_path"], user_id, chat_id, "SET_DESCRIPTION", description=description)
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
@@ -18,7 +21,7 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Редактируем существующее сообщение бота
     await context.bot.edit_message_text(
-        chat_id=update.message.chat_id,
+        chat_id=chat_id,
         message_id=context.user_data["bot_message_id"],
         text=f"📢 {description}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
         reply_markup=reply_markup,

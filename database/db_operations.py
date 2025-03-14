@@ -1,5 +1,7 @@
 import os
 import sqlite3
+import json
+from telegram import InlineKeyboardMarkup
 
 from logger.logger import logger
 
@@ -18,6 +20,51 @@ def get_db_connection(db_path):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
+
+def get_user_state(db_path, user_id):
+    """Возвращает текущее состояние пользователя из базы данных."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM user_states WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        if row:
+            return {
+                "user_id": row["user_id"],
+                "chat_id": row["chat_id"],
+                "state": row["state"],
+                "description": row["description"],
+                "date": row["date"],
+                "time": row["time"],
+                "participant_limit": row["participant_limit"],
+                "event_id": row["event_id"],
+                "bot_message_id": row["bot_message_id"],
+                "original_text": row["original_text"],
+                "original_reply_markup": InlineKeyboardMarkup.from_dict(json.loads(row["original_reply_markup"])) if row["original_reply_markup"] else None,
+            }
+        return None
+
+def set_user_state(db_path, user_id, chat_id, state, description=None, date=None, time=None, participant_limit=None, event_id=None, bot_message_id=None, original_text=None, original_reply_markup=None):
+    """Устанавливает состояние пользователя."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO user_states 
+            (user_id, chat_id, state, description, date, time, participant_limit, event_id, bot_message_id, original_text, original_reply_markup)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, chat_id, state, description, date, time, participant_limit, event_id, bot_message_id, original_text, json.dumps(original_reply_markup.to_dict()) if original_reply_markup else None),
+        )
+        conn.commit()
+
+def clear_user_state(db_path, user_id):
+    """Очищает состояние пользователя."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM user_states WHERE user_id = ?", (user_id,))
+        conn.commit()
+
+
 
 
 def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id=None):

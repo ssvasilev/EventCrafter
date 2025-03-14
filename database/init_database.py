@@ -1,9 +1,29 @@
 import sqlite3
 
+
 def init_db(db_path):
     """Инициализирует базу данных и создает таблицы, если они не существуют."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+
+    # Таблица для хранения состояний пользователей
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_states (
+            user_id INTEGER PRIMARY KEY,
+            chat_id INTEGER NOT NULL,
+            state TEXT,
+            description TEXT,
+            date TEXT,
+            time TEXT,
+            participant_limit INTEGER,
+            event_id INTEGER,
+            bot_message_id INTEGER, 
+            original_text TEXT,      
+            original_reply_markup TEXT 
+        )
+        """
+    )
 
     # Таблица мероприятий
     cursor.execute(
