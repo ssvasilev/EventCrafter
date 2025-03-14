@@ -17,6 +17,7 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=chat_id,
         state="SET_DESCRIPTION",
         description=description,
+        bot_message_id=context.user_data["bot_message_id"],  # Сохраняем message_id
     )
 
     # Создаем клавиатуру с кнопкой "Отмена"
@@ -25,13 +26,18 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Редактируем существующее сообщение бота
-    await context.bot.edit_message_text(
-        chat_id=chat_id,
-        message_id=context.user_data["bot_message_id"],
-        text=f"📢 {description}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
-        reply_markup=reply_markup,
-    )
+    try:
+        # Редактируем существующее сообщение бота
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=context.user_data["bot_message_id"],
+            text=f"📢 {description}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
+            reply_markup=reply_markup,
+        )
+    except BadRequest as e:
+        logger.error(f"Ошибка при редактировании сообщения: {e}")
+        await update.message.reply_text("Не удалось обновить сообщение. Пожалуйста, начните заново.")
+        return ConversationHandler.END
 
     # Удаляем сообщение пользователя
     await update.message.delete()

@@ -39,7 +39,7 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
             time=user_state.get("time"),
             participant_limit=user_state.get("participant_limit"),
             event_id=user_state.get("event_id"),
-            bot_message_id=user_state.get("bot_message_id"),
+            bot_message_id=user_state.get("bot_message_id"),  # Сохраняем message_id
             original_text=user_state.get("original_text"),
             original_reply_markup=user_state.get("original_reply_markup"),
         )
