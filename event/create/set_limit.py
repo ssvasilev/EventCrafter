@@ -52,11 +52,13 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END
 
+        """
         # Удаляем последнее сообщение бота с параметрами мероприятия
         await context.bot.delete_message(
             chat_id=chat_id,
             message_id=user_state["bot_message_id"]
         )
+        """
 
         # Отправляем новое сообщение с информацией о мероприятии
         new_message = await send_event_message(
