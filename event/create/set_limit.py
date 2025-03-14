@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from database.db_operations import set_user_state, get_user_state, add_event, clear_user_state  # Импорт функций
+from telegram.error import BadRequest
+from database.db_operations import set_user_state, get_user_state, add_event, clear_user_state
 from jobs.notification_jobs import unpin_and_delete_event, send_notification
 from message.send_message import send_event_message
 from handlers.conversation_handler_states import SET_LIMIT
+from logger.logger import logger
 
 # Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -24,6 +26,11 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_state = get_user_state(context.bot_data["db_path"], user_id)
         if not user_state:
             await update.message.reply_text("Ошибка: состояние пользователя не найдено.")
+            return ConversationHandler.END
+
+        # Проверяем, что message_id существует
+        if "bot_message_id" not in user_state:
+            await update.message.reply_text("Ошибка: ID сообщения не найдено.")
             return ConversationHandler.END
 
         # Создаём мероприятие в базе данных
@@ -96,13 +103,18 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Редактируем существующее сообщение бота с ошибкой
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=user_state["bot_message_id"],
-            text=error_message,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
-            parse_mode="HTML"
-        )
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=user_state["bot_message_id"],
+                text=error_message,
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
+                parse_mode="HTML"
+            )
+        except BadRequest as e:
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
+            await update.message.reply_text("Не удалось обновить сообщение. Пожалуйста, начните заново.")
+            return ConversationHandler.END
 
         # Удаляем сообщение пользователя
         await update.message.delete()

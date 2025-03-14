@@ -1,9 +1,4 @@
-from datetime import datetime, timedelta, date, time
-
 import locale
-
-from config import tz
-
 from datetime import datetime
 from zoneinfo import ZoneInfo  # Используем ZoneInfo для работы с часовыми поясами
 
@@ -11,41 +6,49 @@ from zoneinfo import ZoneInfo  # Используем ZoneInfo для работ
 locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
 
 
+
+
 def time_until_event(event_date: str, event_time: str, tz: ZoneInfo) -> str:
     """
     Вычисляет оставшееся время до мероприятия с учетом часового пояса.
-    :param event_date: Дата мероприятия в формате "дд-мм-гггг".
+    :param event_date: Дата мероприятия в формате "дд.мм.гггг".
     :param event_time: Время мероприятия в формате "чч:мм".
     :param tz: Часовой пояс (ZoneInfo).
     :return: Строка с оставшимся временем в формате "X дней, Y часов, Z минут".
     """
-    # Преобразуем дату и время мероприятия в объект datetime
-    event_datetime = datetime.strptime(f"{event_date} {event_time}", "%d-%m-%Y %H:%M")
-    event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+    try:
+        # Преобразуем дату и время мероприятия в объект datetime
+        event_datetime = datetime.strptime(f"{event_date} {event_time}", "%d.%m.%Y %H:%M")
+        event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
 
-    # Получаем текущее время с учетом часового пояса
-    now = datetime.now(tz)
+        # Получаем текущее время с учетом часового пояса
+        now = datetime.now(tz)
 
-    # Если мероприятие уже прошло, возвращаем соответствующее сообщение
-    if event_datetime <= now:
-        return "Мероприятие уже прошло."
+        # Если мероприятие уже прошло, возвращаем соответствующее сообщение
+        if event_datetime <= now:
+            return "Мероприятие уже прошло."
 
-    # Вычисляем разницу между текущим временем и временем мероприятия
-    delta = event_datetime - now
-    days = delta.days
-    hours, remainder = divmod(delta.seconds, 3600)
-    minutes, _ = divmod(remainder, 60)
+        # Вычисляем разницу между текущим временем и временем мероприятия
+        delta = event_datetime - now
+        days = delta.days
+        hours, remainder = divmod(delta.seconds, 3600)
+        minutes, _ = divmod(remainder, 60)
 
-    # Формируем строку с оставшимся временем
-    result = []
-    if days > 0:
-        result.append(f"{days} дней")
-    if hours > 0:
-        result.append(f"{hours} часов")
-    if minutes > 0:
-        result.append(f"{minutes} минут")
+        # Формируем строку с оставшимся временем
+        result = []
+        if days > 0:
+            result.append(f"{days} дней")
+        if hours > 0:
+            result.append(f"{hours} часов")
+        if minutes > 0:
+            result.append(f"{minutes} минут")
 
-    return ", ".join(result) if result else "Менее минуты"
+        return ", ".join(result) if result else "Менее минуты"
+
+    except ValueError as e:
+        # Логируем ошибку, если формат даты или времени неверный
+        logger.error(f"Ошибка при парсинге даты и времени: {e}")
+        return "Не удалось вычислить оставшееся время."
 
 
 def format_date_with_weekday(date_str: str) -> str:
