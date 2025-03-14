@@ -11,7 +11,10 @@ from logger.logger import logger
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     chat_id = update.message.chat_id
-    limit_text = update.message.text
+    limit_text = update.message.text.strip()  # Удаляем пробелы в начале и конце
+
+    # Логируем ввод пользователя
+    logger.info(f"Пользователь ввёл лимит: {limit_text}")
 
     try:
         # Преобразуем введённый текст в число
@@ -52,13 +55,11 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END
 
-        """
         # Удаляем последнее сообщение бота с параметрами мероприятия
         await context.bot.delete_message(
             chat_id=chat_id,
             message_id=user_state["bot_message_id"]
         )
-        """
 
         # Отправляем новое сообщение с информацией о мероприятии
         new_message = await send_event_message(
