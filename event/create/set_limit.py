@@ -5,6 +5,7 @@ from telegram.error import BadRequest
 
 from database.db_operations import update_draft, get_draft, add_event, delete_draft, update_event_field
 from jobs.notification_jobs import unpin_and_delete_event, send_notification
+from logger.logger import logger
 from message.send_message import send_event_message
 
 from handlers.conversation_handler_states import SET_LIMIT
@@ -62,7 +63,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END
 
-        # Уведомляем создателя о успешном создании мероприятия
+        # Уведомляем создателя об успешном создании мероприятия
         try:
             await context.bot.send_message(
                 chat_id=draft["creator_id"],
