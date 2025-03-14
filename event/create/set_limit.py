@@ -32,6 +32,9 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Ошибка: ID сообщения не найдено.")
             return ConversationHandler.END
 
+        # Логируем message_id перед редактированием
+        logger.info(f"Редактируем сообщение с ID: {user_state['bot_message_id']}")
+
         # Создаём мероприятие в базе данных
         event_id = add_event(
             db_path=context.bot_data["db_path"],

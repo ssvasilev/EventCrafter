@@ -6,8 +6,6 @@ from handlers.conversation_handler_states import SET_TIME, SET_LIMIT
 from database.db_operations import set_user_state, get_user_state
 from logger.logger import logger
 
-
-# Обработка ввода времени мероприятия
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     chat_id = update.message.chat_id
@@ -27,6 +25,9 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if "bot_message_id" not in user_state:
             await update.message.reply_text("Ошибка: ID сообщения не найдено.")
             return ConversationHandler.END
+
+        # Логируем message_id перед редактированием
+        logger.info(f"Редактируем сообщение с ID: {user_state['bot_message_id']}")
 
         # Обновляем состояние пользователя в базе данных
         set_user_state(

@@ -1,7 +1,9 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram.error import BadRequest
 from handlers.conversation_handler_states import SET_DATE
-from database.db_operations import set_user_state, get_user_state  # Импорт функций
+from database.db_operations import set_user_state, get_user_state
+from logger.logger import logger
 
 
 # Обработка ввода описания мероприятия
@@ -25,6 +27,9 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Логируем message_id перед редактированием
+    logger.info(f"Редактируем сообщение с ID: {context.user_data['bot_message_id']}")
 
     try:
         # Редактируем существующее сообщение бота
