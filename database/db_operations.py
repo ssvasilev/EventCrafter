@@ -19,6 +19,103 @@ def get_db_connection(db_path):
     conn.row_factory = sqlite3.Row
     return conn
 
+def add_draft(db_path, creator_id, chat_id, status, description=None, date=None, time=None, participant_limit=None):
+    """
+    Добавляет черновик мероприятия в базу данных.
+    :param db_path: Путь к базе данных.
+    :param creator_id: ID создателя черновика.
+    :param chat_id: ID чата.
+    :param status: Статус черновика.
+    :param description: Описание мероприятия.
+    :param date: Дата мероприятия.
+    :param time: Время мероприятия.
+    :param participant_limit: Лимит участников.
+    :return: ID добавленного черновика.
+    """
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO drafts (creator_id, chat_id, status, description, date, time, participant_limit)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (creator_id, chat_id, status, description, date, time, participant_limit),
+            )
+            draft_id = cursor.lastrowid
+            conn.commit()
+            logger.info(f"Черновик добавлен с ID: {draft_id}")
+            return draft_id
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при добавлении черновика в базу данных: {e}")
+        return None
+
+def update_draft(db_path, draft_id, status=None, description=None, date=None, time=None, participant_limit=None):
+    """
+    Обновляет черновик мероприятия в базе данных.
+    :param db_path: Путь к базе данных.
+    :param draft_id: ID черновика.
+    :param status: Статус черновика.
+    :param description: Описание мероприятия.
+    :param date: Дата мероприятия.
+    :param time: Время мероприятия.
+    :param participant_limit: Лимит участников.
+    """
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            updates = []
+            params = []
+            if status:
+                updates.append("status = ?")
+                params.append(status)
+            if description:
+                updates.append("description = ?")
+                params.append(description)
+            if date:
+                updates.append("date = ?")
+                params.append(date)
+            if time:
+                updates.append("time = ?")
+                params.append(time)
+            if participant_limit is not None:
+                updates.append("participant_limit = ?")
+                params.append(participant_limit)
+            params.append(draft_id)
+            cursor.execute(
+                f"UPDATE drafts SET {', '.join(updates)} WHERE id = ?",
+                params,
+            )
+            conn.commit()
+            logger.info(f"Черновик с ID {draft_id} обновлен.")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при обновлении черновика: {e}")
+
+def get_draft(db_path, draft_id):
+    """
+    Возвращает черновик мероприятия по его ID.
+    :param db_path: Путь к базе данных.
+    :param draft_id: ID черновика.
+    :return: Черновик мероприятия.
+    """
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
+        return cursor.fetchone()
+
+def get_user_draft(db_path, creator_id):
+    """
+    Возвращает активный черновик пользователя.
+    :param db_path: Путь к базе данных.
+    :param creator_id: ID создателя черновика.
+    :return: Черновик мероприятия.
+    """
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM drafts WHERE creator_id = ? AND status != 'DONE'", (creator_id,))
+        return cursor.fetchone()
+
+
 
 def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id=None):
     """

@@ -1,18 +1,24 @@
 from datetime import datetime
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from handlers.conversation_handler_states import SET_TIME, SET_LIMIT
+from handlers.conversation_handler_states import SET_LIMIT
+from database.db_operations import update_draft
 
-
-# Обработка ввода времени мероприятия
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Сохраняем время мероприятия
+    # Получаем текст времени
     time_text = update.message.text
     try:
         time = datetime.strptime(time_text, "%H:%M").time()
-        context.user_data["time"] = time
+
+        # Обновляем черновик
+        draft_id = context.user_data["draft_id"]
+        update_draft(
+            db_path=context.bot_data["db_path"],
+            draft_id=draft_id,
+            status="AWAIT_PATICIPANT_LIMIT",
+            time=time.strftime("%H:%M")
+        )
 
         # Создаем клавиатуру с кнопкой "Отмена"
         keyboard = [

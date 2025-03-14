@@ -1,18 +1,24 @@
 from datetime import datetime
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from handlers.conversation_handler_states import SET_TIME, SET_DATE
+from handlers.conversation_handler_states import SET_TIME
+from database.db_operations import update_draft
 
-
-# Обработка ввода даты мероприятия
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Сохраняем дату мероприятия
+    # Получаем текст даты
     date_text = update.message.text
     try:
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
-        context.user_data["date"] = date
+
+        # Обновляем черновик
+        draft_id = context.user_data["draft_id"]
+        update_draft(
+            db_path=context.bot_data["db_path"],
+            draft_id=draft_id,
+            status="AWAIT_TIME",
+            date=date.strftime("%d.%m.%Y")
+        )
 
         # Создаем клавиатуру с кнопкой "Отмена"
         keyboard = [

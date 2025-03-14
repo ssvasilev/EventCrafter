@@ -20,7 +20,23 @@ def init_db(db_path):
         )
         """
     )
-
+    # Таблица черновиков
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            creator_id INTEGER NOT NULL,
+            chat_id INTEGER NOT NULL,
+            message_id INTEGER,
+            bot_message_id INTEGER,
+            status TEXT NOT NULL,
+            description TEXT,
+            date TEXT,
+            time TEXT,
+            participant_limit INTEGER
+        )
+        """
+    )
     # Таблица участников
     cursor.execute(
         """

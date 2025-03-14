@@ -1,17 +1,15 @@
 from datetime import datetime, timedelta
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 
-from data.database import add_event
+from database.db_operations import update_draft, add_event
 from jobs.notification_jobs import unpin_and_delete_event, send_notification
 from message.send_message import send_event_message
 
 from handlers.conversation_handler_states import SET_LIMIT
 
-# Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Получаем текст сообщения с лимитом участников
+    # Получаем текст лимита участников
     limit_text = update.message.text
     try:
         # Преобразуем введённый текст в число
@@ -21,28 +19,31 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if limit < 0:
             raise ValueError("Лимит не может быть отрицательным.")
 
-        # Получаем данные мероприятия из context.user_data
-        description = context.user_data.get("description")
-        date = context.user_data.get("date")
-        time = context.user_data.get("time")
-        creator_id = update.message.from_user.id
-        chat_id = update.message.chat_id
+        # Обновляем черновик
+        draft_id = context.user_data["draft_id"]
+        update_draft(
+            db_path=context.bot_data["db_path"],
+            draft_id=draft_id,
+            status="DONE",
+            participant_limit=limit
+        )
 
-        # Проверяем, что все необходимые данные есть
-        if not all([description, date, time, creator_id, chat_id]):
-            await update.message.reply_text("Ошибка: недостаточно данных для создания мероприятия.")
+        # Получаем данные черновика
+        draft = get_draft(context.bot_data["db_path"], draft_id)
+        if not draft:
+            await update.message.reply_text("Ошибка: черновик мероприятия не найден.")
             return ConversationHandler.END
 
-        # Создаём мероприятие в базе данных
+        # Создаем мероприятие в основной базе данных
         event_id = add_event(
             db_path=context.bot_data["db_path"],
-            description=description,
-            date=date.strftime("%d-%m-%Y"),  # Преобразуем дату в строку
-            time=time.strftime("%H:%M"),     # Преобразуем время в строку
-            limit=limit if limit != 0 else None,  # Лимит участников (0 -> None)
-            creator_id=creator_id,
-            chat_id=chat_id,
-            message_id=None  # message_id будет обновлён после отправки сообщения
+            description=draft["description"],
+            date=draft["date"],
+            time=draft["time"],
+            limit=limit if limit != 0 else None,
+            creator_id=draft["creator_id"],
+            chat_id=draft["chat_id"],
+            message_id=None
         )
 
         # Проверяем, что мероприятие успешно создано
@@ -50,17 +51,17 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END
 
-        # Сохраняем event_id в context.user_data для дальнейшего использования
-        context.user_data["event_id"] = event_id
+        # Удаляем черновик
+        delete_draft(context.bot_data["db_path"], draft_id)
 
         # Удаляем последнее сообщение бота с параметрами мероприятия
         await context.bot.delete_message(
-            chat_id=chat_id,
+            chat_id=draft["chat_id"],
             message_id=context.user_data["bot_message_id"]
         )
 
         # Отправляем новое сообщение с информацией о мероприятии
-        await send_event_message(event_id, context, chat_id)
+        await send_event_message(event_id, context, draft["chat_id"])
 
         # Удаляем сообщение пользователя
         await update.message.delete()
@@ -69,8 +70,8 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tz = context.bot_data["tz"]
 
         # Планируем задачи для уведомлений и удаления мероприятия
-        event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
-        event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+        event_datetime = datetime.strptime(f"{draft['date']} {draft['time']}", "%d.%m.%Y %H:%M")
+        event_datetime = event_datetime.replace(tzinfo=tz)
 
         # Уведомление за день до мероприятия
         context.job_queue.run_once(
@@ -90,11 +91,11 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.job_queue.run_once(
             unpin_and_delete_event,
             when=event_datetime,
-            data={"event_id": event_id, "chat_id": chat_id},
+            data={"event_id": event_id, "chat_id": draft["chat_id"]},
         )
 
         # Завершаем диалог
-        context.user_data.clear()  # Очищаем user_data
+        context.user_data.clear()
         return ConversationHandler.END
 
     except ValueError as e:
