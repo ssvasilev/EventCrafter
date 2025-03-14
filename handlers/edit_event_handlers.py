@@ -98,17 +98,26 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Получаем message_id мероприятия
         message_id = event.get("message_id")
 
-        # Если сообщение закреплено, открепляем его
+        # Если message_id существует, пытаемся открепить сообщение
         if message_id:
             try:
+                # Открепляем сообщение
                 await context.bot.unpin_chat_message(
                     chat_id=query.message.chat_id,
                     message_id=message_id
                 )
                 logger.info(f"Сообщение мероприятия {event_id} откреплено.")
             except BadRequest as e:
+                # Логируем ошибку, если открепление не удалось
                 logger.error(f"Ошибка при откреплении сообщения: {e}")
-                # Продолжаем удаление, даже если открепление не удалось
+                # Проверяем, связано ли это с отсутствием прав или с тем, что сообщение не закреплено
+                if "not pinned" in str(e).lower():
+                    logger.info(f"Сообщение {message_id} не было закреплено.")
+                elif "not enough rights" in str(e).lower():
+                    logger.error(f"Бот не имеет прав на открепление сообщений в этом чате.")
+            except Exception as e:
+                # Логируем любые другие ошибки
+                logger.error(f"Неизвестная ошибка при откреплении сообщения: {e}")
 
         # Удаляем мероприятие из базы данных
         delete_event(db_path, event_id)
