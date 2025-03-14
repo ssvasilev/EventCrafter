@@ -9,6 +9,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     user_id = query.from_user.id
     chat_id = query.message.chat_id
+    message_id = query.message.message_id  # Получаем ID текущего сообщения
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
@@ -16,8 +17,10 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Отправляем новое сообщение и сохраняем его message_id
-    sent_message = await query.message.reply_text(
+    # Редактируем текущее сообщение
+    await context.bot.edit_message_text(
+        chat_id=chat_id,
+        message_id=message_id,  # Используем ID текущего сообщения
         text="Введите описание мероприятия:",
         reply_markup=reply_markup,
     )
@@ -28,7 +31,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_id=user_id,
         chat_id=chat_id,
         state="SET_DESCRIPTION",
-        bot_message_id=sent_message.message_id,  # Сохраняем message_id
+        bot_message_id=message_id,  # Сохраняем ID текущего сообщения
     )
 
     # Переходим к состоянию SET_DESCRIPTION

@@ -53,7 +53,7 @@ def set_user_state(db_path, user_id, chat_id, state, description=None, date=None
             (user_id, chat_id, state, description, date, time, participant_limit, event_id, bot_message_id, original_text, original_reply_markup)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (user_id, chat_id, state, description, date, time, participant_limit, event_id, bot_message_id, original_text, json.dumps(original_reply_markup.to_dict()) if original_reply_markup else None),
+            (user_id, chat_id, state, description, date, time, participant_limit, event_id, bot_message_id, original_text, original_reply_markup),
         )
         conn.commit()
 
