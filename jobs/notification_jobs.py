@@ -36,14 +36,28 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE):
     tz = context.bot_data.get("tz")
 
     # Форматируем дату с днём недели
-    date = datetime.strptime(event["date"], "%d-%m-%Y").date()
-    formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+    try:
+        date = datetime.strptime(event["date"], "%d.%m.%Y").date()  # Используем формат "%d.%m.%Y"
+        formatted_date = date.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
+    except ValueError as e:
+        logger.error(f"Ошибка при обработке даты мероприятия: {e}")
+        return
 
-    # Формируем текст уведомления
+    # Преобразуем chat_id для ссылки
+    chat_id = event["chat_id"]
+    if str(chat_id).startswith("-100"):  # Для супергрупп и каналов
+        chat_id_link = int(str(chat_id)[4:])  # Убираем "-100" в начале
+    else:
+        chat_id_link = chat_id  # Для обычных групп и личных чатов
+
+    # Формируем ссылку на мероприятие
+    event_link = f"https://t.me/c/{chat_id_link}/{event['message_id']}"
+
+    # Формируем текст уведомления с кликабельным названием мероприятия
     time_until = time_until_event(event["date"], event["time"], tz)
     message = (
         f"⏰ Напоминание о мероприятии:\n"
-        f"📢 <b>{event['description']}</b>\n"
+        f"📢 <a href='{event_link}'>{event['description']}</a>\n"
         f"📅 <i>Дата: </i> {formatted_date}\n"
         f"🕒 <i>Время: </i> {event['time']}\n"
         f"⏳ <i>До мероприятия: </i> {time_until}"
@@ -52,14 +66,17 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE):
     # Отправляем уведомление каждому участнику
     for participant in participants:
         try:
+            # Используем user_id, если user_name отсутствует
+            user_name = participant.get("user_name", f"пользователь с ID {participant['user_id']}")
             await context.bot.send_message(
                 chat_id=participant["user_id"],
                 text=message,
                 parse_mode="HTML"
             )
-            logger.info(f"Уведомление отправлено участнику {participant['user_name']}.")
+            logger.info(f"Уведомление отправлено участнику {user_name}.")
         except Exception as e:
-            logger.error(f"Ошибка при отправке уведомления участнику {participant['user_name']}: {e}")
+            user_name = participant.get("user_name", f"пользователь с ID {participant['user_id']}")
+            logger.error(f"Ошибка при отправке уведомления участнику {user_name}: {e}")
 
 
 async def unpin_and_delete_event(context: ContextTypes.DEFAULT_TYPE):
@@ -144,8 +161,12 @@ async def schedule_unpin_and_delete(event_id: int, context: ContextTypes.DEFAULT
         return
 
     # Преобразуем дату и время мероприятия
-    event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
-    event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+    try:
+        event_datetime = datetime.strptime(f"{event['date']} {event['time']}", "%d.%m.%Y %H:%M")
+        event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+    except ValueError as e:
+        logger.error(f"Ошибка при обработке даты и времени мероприятия: {e}")
+        return
 
     # Создаём задачу
     job = context.job_queue.run_once(

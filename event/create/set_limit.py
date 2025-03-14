@@ -1,76 +1,122 @@
 from datetime import datetime, timedelta
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
+from telegram.error import BadRequest
 
-from data.database import add_event
+from database.db_operations import add_event, update_event_field
+from database.db_draft_operations import update_draft, get_draft, delete_draft
 from jobs.notification_jobs import unpin_and_delete_event, send_notification
+from logger.logger import logger
 from message.send_message import send_event_message
 
 from handlers.conversation_handler_states import SET_LIMIT
 
-# Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Получаем текст сообщения с лимитом участников
+    # Получаем текст лимита участников
     limit_text = update.message.text
     try:
-        # Преобразуем введённый текст в число
         limit = int(limit_text)
 
         # Проверяем, что лимит не отрицательный
         if limit < 0:
             raise ValueError("Лимит не может быть отрицательным.")
 
-        # Получаем данные мероприятия из context.user_data
-        description = context.user_data.get("description")
-        date = context.user_data.get("date")
-        time = context.user_data.get("time")
-        creator_id = update.message.from_user.id
-        chat_id = update.message.chat_id
+        # Получаем ID черновика из user_data
+        draft_id = context.user_data["draft_id"]
 
-        # Проверяем, что все необходимые данные есть
-        if not all([description, date, time, creator_id, chat_id]):
-            await update.message.reply_text("Ошибка: недостаточно данных для создания мероприятия.")
+        # Обновляем черновик
+        update_draft(
+            db_path=context.bot_data["db_path"],
+            draft_id=draft_id,
+            status="DONE",
+            participant_limit=limit
+        )
+
+        # Получаем данные черновика из базы данных
+        draft = get_draft(context.bot_data["db_path"], draft_id)
+        if not draft:
+            await update.message.reply_text("Ошибка: черновик мероприятия не найден.")
             return ConversationHandler.END
 
-        # Создаём мероприятие в базе данных
+        # Создаем мероприятие в основной базе данных
         event_id = add_event(
             db_path=context.bot_data["db_path"],
-            description=description,
-            date=date.strftime("%d-%m-%Y"),  # Преобразуем дату в строку
-            time=time.strftime("%H:%M"),     # Преобразуем время в строку
-            limit=limit if limit != 0 else None,  # Лимит участников (0 -> None)
-            creator_id=creator_id,
-            chat_id=chat_id,
+            description=draft["description"],
+            date=draft["date"],
+            time=draft["time"],
+            limit=limit if limit != 0 else None,
+            creator_id=draft["creator_id"],
+            chat_id=draft["chat_id"],
             message_id=None  # message_id будет обновлён после отправки сообщения
         )
 
-        # Проверяем, что мероприятие успешно создано
         if not event_id:
             await update.message.reply_text("Ошибка при создании мероприятия.")
             return ConversationHandler.END
 
-        # Сохраняем event_id в context.user_data для дальнейшего использования
-        context.user_data["event_id"] = event_id
+        # Отправляем сообщение о мероприятии и получаем его message_id
+        try:
+            message_id = await send_event_message(event_id, context, draft["chat_id"])
+            # Обновляем мероприятие с message_id
+            update_event_field(context.bot_data["db_path"], event_id, "message_id", message_id)
+        except Exception as e:
+            logger.error(f"Ошибка при отправке сообщения о мероприятии: {e}")
+            await update.message.reply_text("Ошибка при создании мероприятия.")
+            return ConversationHandler.END
+
+        # Уведомляем создателя об успешном создании мероприятия
+        try:
+            # Преобразуем chat_id для ссылки
+            chat_id = draft["chat_id"]
+            if str(chat_id).startswith("-100"):  # Для супергрупп и каналов
+                chat_id_link = int(str(chat_id)[4:])  # Убираем "-100" в начале
+            else:
+                chat_id_link = chat_id  # Для обычных групп и личных чатов
+
+            # Формируем ссылку на мероприятие
+            event_link = f"https://t.me/c/{chat_id_link}/{message_id}"
+
+            # Формируем текст уведомления с кликабельным названием мероприятия
+            message = (
+                f"✅ Мероприятие успешно создано!\n\n"
+                f"📢 <a href='{event_link}'>{draft['description']}</a>\n"
+                f"📅 Дата: {draft['date']}\n"
+                f"🕒 Время: {draft['time']}"
+            )
+
+            # Отправляем уведомление создателю
+            await context.bot.send_message(
+                chat_id=draft["creator_id"],
+                text=message,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при отправке уведомления создателю: {e}")
+
+        # Удаляем черновик
+        delete_draft(context.bot_data["db_path"], draft_id)
 
         # Удаляем последнее сообщение бота с параметрами мероприятия
-        await context.bot.delete_message(
-            chat_id=chat_id,
-            message_id=context.user_data["bot_message_id"]
-        )
-
-        # Отправляем новое сообщение с информацией о мероприятии
-        await send_event_message(event_id, context, chat_id)
+        try:
+            await context.bot.delete_message(
+                chat_id=draft["chat_id"],
+                message_id=context.user_data["bot_message_id"]
+            )
+        except BadRequest as e:
+            logger.warning(f"Сообщение для удаления не найдено: {e}")
 
         # Удаляем сообщение пользователя
-        await update.message.delete()
+        try:
+            await update.message.delete()
+        except BadRequest as e:
+            logger.warning(f"Сообщение пользователя не найдено: {e}")
 
         # Получаем часовой пояс из context.bot_data
         tz = context.bot_data["tz"]
 
         # Планируем задачи для уведомлений и удаления мероприятия
-        event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
-        event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+        event_datetime = datetime.strptime(f"{draft['date']} {draft['time']}", "%d.%m.%Y %H:%M")
+        event_datetime = event_datetime.replace(tzinfo=tz)
 
         # Уведомление за день до мероприятия
         context.job_queue.run_once(
@@ -86,15 +132,21 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             data={"event_id": event_id, "time_until": "15 минут"},
         )
 
-        # Задача для открепления и удаления мероприятия после его завершения
-        context.job_queue.run_once(
-            unpin_and_delete_event,
-            when=event_datetime,
-            data={"event_id": event_id, "chat_id": chat_id},
-        )
+        # Планируем задачу для открепления и удаления мероприятия после его завершения
+        try:
+            event_datetime = datetime.strptime(f"{draft['date']} {draft['time']}", "%d.%m.%Y %H:%M")
+            event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+            context.job_queue.run_once(
+                unpin_and_delete_event,
+                when=event_datetime,
+                data={"event_id": event_id, "chat_id": draft["chat_id"]},
+            )
+            logger.info(f"Задача для открепления и удаления мероприятия {event_id} создана.")
+        except ValueError as e:
+            logger.error(f"Ошибка при планировании задачи для открепления и удаления мероприятия: {e}")
 
         # Завершаем диалог
-        context.user_data.clear()  # Очищаем user_data
+        context.user_data.clear()
         return ConversationHandler.END
 
     except ValueError as e:
@@ -104,16 +156,22 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Редактируем существующее сообщение бота с ошибкой
-        await context.bot.edit_message_text(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"],
-            text=error_message,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
-            parse_mode="HTML"
-        )
+        try:
+            await context.bot.edit_message_text(
+                chat_id=update.message.chat_id,
+                message_id=context.user_data["bot_message_id"],
+                text=error_message,
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
+                parse_mode="HTML"
+            )
+        except BadRequest as e:
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
 
         # Удаляем сообщение пользователя
-        await update.message.delete()
+        try:
+            await update.message.delete()
+        except BadRequest as e:
+            logger.warning(f"Сообщение пользователя не найдено: {e}")
 
         # Остаемся в состоянии SET_LIMIT
         return SET_LIMIT

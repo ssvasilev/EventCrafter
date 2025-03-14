@@ -14,13 +14,13 @@ locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
 def time_until_event(event_date: str, event_time: str, tz: ZoneInfo) -> str:
     """
     Вычисляет оставшееся время до мероприятия с учетом часового пояса.
-    :param event_date: Дата мероприятия в формате "дд-мм-гггг".
+    :param event_date: Дата мероприятия в формате "дд.мм.гггг".
     :param event_time: Время мероприятия в формате "чч:мм".
     :param tz: Часовой пояс (ZoneInfo).
     :return: Строка с оставшимся временем в формате "X дней, Y часов, Z минут".
     """
     # Преобразуем дату и время мероприятия в объект datetime
-    event_datetime = datetime.strptime(f"{event_date} {event_time}", "%d-%m-%Y %H:%M")
+    event_datetime = datetime.strptime(f"{event_date} {event_time}", "%d.%m.%Y %H:%M")
     event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
 
     # Получаем текущее время с учетом часового пояса

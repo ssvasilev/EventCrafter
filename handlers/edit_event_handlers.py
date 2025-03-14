@@ -1,4 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
@@ -94,14 +95,39 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.answer("Вы не можете удалить это мероприятие.")
             return
 
-        # Удаляем мероприятие
-        delete_event(db_path, event_id)  # функция для удаления
-        await query.edit_message_text("Мероприятие удалено.")
-        return ConversationHandler.END
-    else:
-        # Если действие не распознано, возвращаемся к выбору
-        await query.edit_message_text("Неизвестное действие.")
-        return EDIT_EVENT
+        # Получаем message_id мероприятия
+        message_id = event.get("message_id")
+
+        # Если message_id существует, пытаемся открепить сообщение
+        if message_id:
+            try:
+                # Открепляем сообщение
+                await context.bot.unpin_chat_message(
+                    chat_id=query.message.chat_id,
+                    message_id=message_id
+                )
+                logger.info(f"Сообщение мероприятия {event_id} откреплено.")
+            except BadRequest as e:
+                # Логируем ошибку, если открепление не удалось
+                logger.error(f"Ошибка при откреплении сообщения: {e}")
+                # Проверяем, связано ли это с отсутствием прав или с тем, что сообщение не закреплено
+                if "not pinned" in str(e).lower():
+                    logger.info(f"Сообщение {message_id} не было закреплено.")
+                elif "not enough rights" in str(e).lower():
+                    logger.error(f"Бот не имеет прав на открепление сообщений в этом чате.")
+            except Exception as e:
+                # Логируем любые другие ошибки
+                logger.error(f"Неизвестная ошибка при откреплении сообщения: {e}")
+
+                # Удаляем мероприятие из базы данных
+                delete_event(db_path, event_id)
+                logger.info(f"Мероприятие {event_id} удалено.")
+
+                # Редактируем сообщение с подтверждением удаления
+                await query.edit_message_text("Мероприятие удалено.")
+
+                # Завершаем диалог
+                return ConversationHandler.END
 
 
 
