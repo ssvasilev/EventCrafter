@@ -132,12 +132,18 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             data={"event_id": event_id, "time_until": "15 минут"},
         )
 
-        # Задача для открепления и удаления мероприятия после его завершения
-        context.job_queue.run_once(
-            unpin_and_delete_event,
-            when=event_datetime,
-            data={"event_id": event_id, "chat_id": draft["chat_id"]},
-        )
+        # Планируем задачу для открепления и удаления мероприятия после его завершения
+        try:
+            event_datetime = datetime.strptime(f"{draft['date']} {draft['time']}", "%d.%m.%Y %H:%M")
+            event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+            context.job_queue.run_once(
+                unpin_and_delete_event,
+                when=event_datetime,
+                data={"event_id": event_id, "chat_id": draft["chat_id"]},
+            )
+            logger.info(f"Задача для открепления и удаления мероприятия {event_id} создана.")
+        except ValueError as e:
+            logger.error(f"Ошибка при планировании задачи для открепления и удаления мероприятия: {e}")
 
         # Завершаем диалог
         context.user_data.clear()

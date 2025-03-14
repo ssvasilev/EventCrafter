@@ -66,14 +66,17 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE):
     # Отправляем уведомление каждому участнику
     for participant in participants:
         try:
+            # Используем user_id, если user_name отсутствует
+            user_name = participant.get("user_name", f"пользователь с ID {participant['user_id']}")
             await context.bot.send_message(
                 chat_id=participant["user_id"],
                 text=message,
                 parse_mode="HTML"
             )
-            logger.info(f"Уведомление отправлено участнику {participant['user_name']}.")
+            logger.info(f"Уведомление отправлено участнику {user_name}.")
         except Exception as e:
-            logger.error(f"Ошибка при отправке уведомления участнику {participant['user_name']}: {e}")
+            user_name = participant.get("user_name", f"пользователь с ID {participant['user_id']}")
+            logger.error(f"Ошибка при отправке уведомления участнику {user_name}: {e}")
 
 
 async def unpin_and_delete_event(context: ContextTypes.DEFAULT_TYPE):
@@ -158,8 +161,12 @@ async def schedule_unpin_and_delete(event_id: int, context: ContextTypes.DEFAULT
         return
 
     # Преобразуем дату и время мероприятия
-    event_datetime = datetime.strptime(f"{date.strftime('%d-%m-%Y')} {time.strftime('%H:%M')}", "%d-%m-%Y %H:%M")
-    event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+    try:
+        event_datetime = datetime.strptime(f"{event['date']} {event['time']}", "%d.%m.%Y %H:%M")
+        event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+    except ValueError as e:
+        logger.error(f"Ошибка при обработке даты и времени мероприятия: {e}")
+        return
 
     # Создаём задачу
     job = context.job_queue.run_once(
