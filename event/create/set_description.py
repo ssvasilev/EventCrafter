@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-
 from handlers.conversation_handler_states import SET_DATE
+from database.db_operations import set_user_state, get_user_state  # Импорт функций
 
 
 # Обработка ввода описания мероприятия
@@ -11,7 +11,13 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     description = update.message.text
 
     # Сохраняем описание и состояние в базу данных
-    set_user_state(context.bot_data["db_path"], user_id, chat_id, "SET_DESCRIPTION", description=description)
+    set_user_state(
+        db_path=context.bot_data["db_path"],
+        user_id=user_id,
+        chat_id=chat_id,
+        state="SET_DESCRIPTION",
+        description=description,
+    )
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [

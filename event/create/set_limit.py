@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from database.db_operations import set_user_state, get_user_state, add_event, clear_user_state
+from database.db_operations import set_user_state, get_user_state, add_event, clear_user_state  # Импорт функций
 from jobs.notification_jobs import unpin_and_delete_event, send_notification
 from message.send_message import send_event_message
 from handlers.conversation_handler_states import SET_LIMIT
