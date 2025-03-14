@@ -65,13 +65,24 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Уведомляем создателя об успешном создании мероприятия
         try:
+            # Преобразуем chat_id для ссылки
+            chat_id = draft["chat_id"]
+            if str(chat_id).startswith("-100"):  # Для супергрупп и каналов
+                chat_id_link = int(str(chat_id)[4:])  # Убираем "-100" в начале
+            else:
+                chat_id_link = chat_id  # Для обычных групп и личных чатов
+
+            # Формируем ссылку
+            link = f"https://t.me/c/{chat_id_link}/{message_id}"
+
+            # Отправляем уведомление создателю
             await context.bot.send_message(
                 chat_id=draft["creator_id"],
                 text=f"✅ Мероприятие успешно создано!\n\n"
                      f"📢 {draft['description']}\n"
                      f"📅 Дата: {draft['date']}\n"
                      f"🕒 Время: {draft['time']}\n"
-                     f"🔗 Ссылка: https://t.me/c/{draft['chat_id']}/{message_id}"
+                     f"🔗 Ссылка: {link}"
             )
         except Exception as e:
             logger.error(f"Ошибка при отправке уведомления создателю: {e}")
