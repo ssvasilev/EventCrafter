@@ -1,8 +1,8 @@
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, ConversationHandler
 
-from handlers.conversation_handler_states import SET_LIMIT
+from handlers.conversation_handler_states import SET_LIMIT, SET_TIME
 from database.db_operations import update_draft, get_draft
 
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -18,7 +18,7 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update_draft(
             db_path=context.bot_data["db_path"],
             draft_id=draft_id,
-            status="AWAIT_PATICIPANT_LIMIT",
+            status="AWAIT_PARTICIPANT_LIMIT",
             time=time.strftime("%H:%M")
         )
 
