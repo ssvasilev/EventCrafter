@@ -8,7 +8,6 @@ from message.send_message import send_event_message
 from handlers.conversation_handler_states import SET_LIMIT
 from logger.logger import logger
 
-# Обработка ввода лимита участников
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     chat_id = update.message.chat_id
@@ -42,7 +41,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             limit=limit if limit != 0 else None,  # Лимит участников (0 -> None)
             creator_id=user_id,
             chat_id=chat_id,
-            message_id=None  # message_id будет обновлён после отправки сообщения
+            message_id=user_state.get("bot_message_id")  # Используем message_id из user_state
         )
 
         # Проверяем, что мероприятие успешно создано
