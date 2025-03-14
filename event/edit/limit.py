@@ -1,10 +1,10 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
+from telegram.error import BadRequest
 
 from database.db_operations import update_event_field
 from handlers.conversation_handler_states import EDIT_LIMIT
 from message.send_message import send_event_message
-
 
 # Обработка редактирования лимита участников
 async def edit_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -27,7 +27,6 @@ async def edit_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Переходим к состоянию EDIT_LIMIT
     return EDIT_LIMIT
-
 
 # Обработка ввода нового лимита
 async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -61,7 +60,6 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Завершаем диалог
         return ConversationHandler.END
-
     except ValueError:
         # Если введённый текст не является числом или лимит отрицательный
         error_message = (
@@ -81,3 +79,7 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Остаемся в состоянии EDIT_LIMIT
         return EDIT_LIMIT
+    except BadRequest as e:
+        logger.error(f"Ошибка при редактировании сообщения: {e}")
+        await update.message.reply_text("Произошла ошибка при обновлении лимита.")
+        return ConversationHandler.END

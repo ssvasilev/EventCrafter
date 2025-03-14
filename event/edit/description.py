@@ -1,10 +1,10 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
+from telegram.error import BadRequest
 
 from database.db_operations import update_event_field
 from handlers.conversation_handler_states import EDIT_DESCRIPTION
 from message.send_message import send_event_message
-
 
 # Обработка редактирования описания
 async def edit_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -40,14 +40,19 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     event_id = context.user_data["event_id"]
     db_path = context.bot_data["db_path"]
 
-    # Обновляем описание в базе данных
-    update_event_field(db_path, event_id, "description", new_description)
+    try:
+        # Обновляем описание в базе данных
+        update_event_field(db_path, event_id, "description", new_description)
 
-    # Редактируем сообщение с новым описанием
-    await send_event_message(event_id, context, update.message.chat_id, context.user_data["bot_message_id"])
+        # Редактируем сообщение с новым описанием
+        await send_event_message(event_id, context, update.message.chat_id, context.user_data["bot_message_id"])
 
-    # Удаляем сообщение пользователя
-    await update.message.delete()
+        # Удаляем сообщение пользователя
+        await update.message.delete()
 
-    # Завершаем диалог
-    return ConversationHandler.END
+        # Завершаем диалог
+        return ConversationHandler.END
+    except BadRequest as e:
+        logger.error(f"Ошибка при редактировании сообщения: {e}")
+        await update.message.reply_text("Произошла ошибка при обновлении описания.")
+        return ConversationHandler.END

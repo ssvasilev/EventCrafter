@@ -1,17 +1,14 @@
-from datetime import datetime, date
-
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
+from telegram.error import BadRequest
 
 from database.db_operations import update_event_field, get_event
 from handlers.conversation_handler_states import EDIT_TIME
 from jobs.notification_jobs import remove_existing_notification_jobs, schedule_notifications
 from message.send_message import send_event_message
 
-
 # Обработка ввода нового времени
-from datetime import datetime
-
 async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем новое время
     time_text = update.message.text
@@ -29,7 +26,7 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return ConversationHandler.END
 
         # Преобразуем дату из строки в объект datetime.date
-        date = datetime.strptime(event["date"], "%d-%m-%Y").date()
+        date = datetime.strptime(event["date"], "%d.%m.%Y").date()
 
         # Обновляем время в базе данных
         update_event_field(db_path, event_id, "time", time_obj.strftime("%H:%M"))
@@ -42,7 +39,7 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Создаём объект datetime с учётом часового пояса
         event_datetime = datetime.combine(date, time_obj)
-        event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
+        event_datetime = event_datetime.replace(tzinfo=tz)
 
         # Создаём новые задачи на уведомления
         await schedule_notifications(event_id, context, event_datetime, update.message.chat_id)
@@ -55,7 +52,6 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Завершаем диалог
         return ConversationHandler.END
-
     except ValueError:
         # Если формат времени неверный, редактируем сообщение бота с ошибкой
         await context.bot.edit_message_text(
@@ -70,3 +66,7 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Остаемся в состоянии EDIT_TIME
         return EDIT_TIME
+    except BadRequest as e:
+        logger.error(f"Ошибка при редактировании сообщения: {e}")
+        await update.message.reply_text("Произошла ошибка при обновлении времени.")
+        return ConversationHandler.END
