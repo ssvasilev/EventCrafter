@@ -1,7 +1,8 @@
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
 
-from src.buttons import my_events_button
+
 from config import DB_PATH, tz, DB_DRAFT_PATH
+from src.buttons.my_events_button import my_events_button
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
 from src.handlers.button_handlers import button_handler
