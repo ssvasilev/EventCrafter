@@ -22,7 +22,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError("Лимит не может быть отрицательным.")
 
         # Получаем ID черновика из user_data
-        draft_id = context.user_data["drafts_db_path"]
+        draft_id = context.user_data["draft_id"]
 
         # Обновляем черновик
         update_draft(
