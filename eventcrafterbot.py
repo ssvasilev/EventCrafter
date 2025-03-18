@@ -1,16 +1,17 @@
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler
 
-from buttons.my_events_button import my_events_button
-from config import DB_PATH, tz, DB_DRAFT_PATH
-from database.init_database import init_db
-from database.init_draft_database import init_drafts_db
-from handlers.create_event_handler import conv_handler_create
-from handlers.mention_handler import conv_handler_create_mention
-from handlers.start_handler import start
-from handlers.edit_event_handlers import conv_handler_edit_event
-from handlers.button_handlers import button_handler
 
-from jobs.notification_jobs import restore_scheduled_jobs
+from config import DB_PATH, tz, DB_DRAFT_PATH
+from src.buttons.my_events_button import my_events_button
+from src.database.init_database import init_db
+from src.database.init_draft_database import init_drafts_db
+from src.handlers.button_handlers import button_handler
+from src.handlers.create_event_handler import conv_handler_create
+from src.handlers.edit_event_handlers import conv_handler_edit_event
+from src.handlers.mention_handler import conv_handler_create_mention
+from src.handlers.start_handler import start
+
+from src.jobs.notification_jobs import restore_scheduled_jobs
 import os
 from dotenv import load_dotenv
 import locale
