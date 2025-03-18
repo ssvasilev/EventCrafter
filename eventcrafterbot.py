@@ -36,8 +36,11 @@ def main():
     # Создаём приложение и передаём токен
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # Сохраняем путь к базе данных в context.bot_data
+    # Сохраняем путь к основной базе данных в context.bot_data
     application.bot_data["db_path"] = DB_PATH
+
+    # Сохраняем путь к основной базе данных в context.bot_data
+    application.bot_data["drafts_db_path"] = DB_DRAFT_PATH
 
     # Сохраняем часовой пояс в context.bot_data
     application.bot_data["tz"] = tz

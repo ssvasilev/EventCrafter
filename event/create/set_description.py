@@ -11,7 +11,7 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обновляем черновик
     draft_id = context.user_data["draft_id"]
     update_draft(
-        db_path=context.bot_data["db_path"],
+        db_path=context.bot_data["drafts_db_path"],
         draft_id=draft_id,
         status="AWAIT_DATE",
         description=description

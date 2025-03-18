@@ -22,18 +22,18 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError("Лимит не может быть отрицательным.")
 
         # Получаем ID черновика из user_data
-        draft_id = context.user_data["draft_id"]
+        draft_id = context.user_data["drafts_db_path"]
 
         # Обновляем черновик
         update_draft(
-            db_path=context.bot_data["db_path"],
+            db_path=context.bot_data["drafts_db_path"],
             draft_id=draft_id,
             status="DONE",
             participant_limit=limit
         )
 
         # Получаем данные черновика из базы данных
-        draft = get_draft(context.bot_data["db_path"], draft_id)
+        draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
         if not draft:
             await update.message.reply_text("Ошибка: черновик мероприятия не найден.")
             return ConversationHandler.END
@@ -94,7 +94,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Ошибка при отправке уведомления создателю: {e}")
 
         # Удаляем черновик
-        delete_draft(context.bot_data["db_path"], draft_id)
+        delete_draft(context.bot_data["drafts_db_path"], draft_id)
 
         # Удаляем последнее сообщение бота с параметрами мероприятия
         try:

@@ -12,7 +12,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     creator_id = query.from_user.id
     chat_id = query.message.chat_id
     draft_id = add_draft(
-        db_path=context.bot_data["db_path"],
+        db_path=context.bot_data["drafts_db_path"],
         creator_id=creator_id,
         chat_id=chat_id,
         status="AWAIT_DESCRIPTION"
