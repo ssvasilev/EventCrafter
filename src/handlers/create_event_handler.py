@@ -6,9 +6,9 @@ from telegram.ext import (
     filters,
 )
 
-from src.buttons import create_event_button
-from src.event.create import set_date
-from src.event.create import set_description
+from src.buttons.create_event_button import create_event_button
+from src.event.create.set_date import set_date
+from src.event.create.set_description import set_description
 from src.event.create.set_limit import set_limit
 from src.event.create.set_time import set_time
 from src.handlers.cancel_handler import cancel_input, cancel
