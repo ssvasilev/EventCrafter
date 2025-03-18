@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import ContextTypes, CallbackQueryHandler, ConversationHandler
+from telegram.ext import ContextTypes, ConversationHandler
 
 from database.db_operations import get_events_by_participant
 from logger.logger import logger

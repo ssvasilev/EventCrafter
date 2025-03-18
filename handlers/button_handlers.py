@@ -1,7 +1,5 @@
 from telegram import Update
-from telegram.ext import ContextTypes, CallbackQueryHandler
-
-from data.database import is_user_in_declined
+from telegram.ext import ContextTypes
 from database.db_operations import (
     add_participant,
     remove_participant,
@@ -13,7 +11,7 @@ from database.db_operations import (
     is_user_in_reserve,
     get_participants_count,
     add_to_reserve,
-    get_reserve,
+    get_reserve, is_user_in_declined,
 )
 from message.send_message import send_event_message
 

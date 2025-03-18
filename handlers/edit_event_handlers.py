@@ -17,7 +17,7 @@ from event.edit.date import save_date
 from event.edit.description import save_description
 from event.edit.limit import save_limit
 from event.edit.time import save_time
-from handlers.cancel_handler import cancel_input, cancel
+from handlers.cancel_handler import cancel_input
 from handlers.conversation_handler_states import EDIT_EVENT, EDIT_DESCRIPTION, EDIT_DATE, EDIT_TIME, EDIT_LIMIT
 
 logger = logging.getLogger(__name__)

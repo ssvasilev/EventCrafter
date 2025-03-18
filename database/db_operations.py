@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import datetime
 
 from logger.logger import logger
 
@@ -33,17 +34,18 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
     :param message_id: ID сообщения в Telegram (опционально).
     :return: ID добавленного мероприятия.
     """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO events (description, date, time, participant_limit, creator_id, chat_id, message_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO events (description, date, time, participant_limit, creator_id, chat_id, message_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (description, date, time, limit, creator_id, chat_id, message_id),
+                (description, date, time, limit, creator_id, chat_id, message_id, now, now),
             )
-            event_id = cursor.lastrowid  # Получаем ID добавленного мероприятия
+            event_id = cursor.lastrowid
             conn.commit()
             logger.info(f"Мероприятие добавлено с ID: {event_id}")
             return event_id
@@ -159,57 +161,110 @@ def is_user_in_declined(db_path, event_id, user_id):
         return cursor.fetchone() is not None
 
 #Добавление в один из трёх списков
+
+
 def add_participant(db_path, event_id, user_id, user_name):
-    """Добавляет участника в таблицу participants."""
+    """
+    Добавляет участника в таблицу participants.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param user_id: ID пользователя.
+    :param user_name: Имя пользователя.
+    """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO participants (event_id, user_id, user_name) VALUES (?, ?, ?)",
-            (event_id, user_id, user_name),
+            """
+            INSERT INTO participants (event_id, user_id, user_name, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_id, user_id, user_name, now, now),
         )
         conn.commit()
+        logger.info(f"Участник {user_name} добавлен в мероприятие {event_id}.")
 
 def add_to_reserve(db_path, event_id, user_id, user_name):
-    """Добавляет пользователя в резерв."""
+    """
+    Добавляет пользователя в резерв.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param user_id: ID пользователя.
+    :param user_name: Имя пользователя.
+    """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO reserve (event_id, user_id, user_name) VALUES (?, ?, ?)",
-            (event_id, user_id, user_name),
+            """
+            INSERT INTO reserve (event_id, user_id, user_name, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_id, user_id, user_name, now, now),
         )
         conn.commit()
+        logger.info(f"Пользователь {user_name} добавлен в резерв мероприятия {event_id}.")
 
 def add_to_declined(db_path, event_id, user_id, user_name):
-    """Добавляет пользователя в список отказавшихся."""
+    """
+    Добавляет пользователя в список отказавшихся.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param user_id: ID пользователя.
+    :param user_name: Имя пользователя.
+    """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO declined (event_id, user_id, user_name) VALUES (?, ?, ?)",
-            (event_id, user_id, user_name),
+            """
+            INSERT INTO declined (event_id, user_id, user_name, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_id, user_id, user_name, now, now),
         )
         conn.commit()
+        logger.info(f"Пользователь {user_name} добавлен в список отказавшихся мероприятия {event_id}.")
 
 #Удаление из списков
 def remove_participant(db_path, event_id, user_id):
-    """Удаляет участника из таблицы participants."""
+    """
+    Удаляет участника из таблицы participants.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param user_id: ID пользователя.
+    """
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM participants WHERE event_id = ? AND user_id = ?", (event_id, user_id))
         conn.commit()
+        logger.info(f"Участник с ID={user_id} удалён из мероприятия {event_id}.")
 
 def remove_from_reserve(db_path, event_id, user_id):
-    """Удаляет пользователя из резерва."""
+    """
+    Удаляет пользователя из резерва.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param user_id: ID пользователя.
+    """
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM reserve WHERE event_id = ? AND user_id = ?", (event_id, user_id))
         conn.commit()
+        logger.info(f"Пользователь с ID={user_id} удалён из резерва мероприятия {event_id}.")
 
 def remove_from_declined(db_path, event_id, user_id):
-    """Удаляет пользователя из списка отказавшихся."""
+    """
+    Удаляет пользователя из списка отказавшихся.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param user_id: ID пользователя.
+    """
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM declined WHERE event_id = ? AND user_id = ?", (event_id, user_id))
         conn.commit()
+        logger.info(f"Пользователь с ID={user_id} удалён из списка отказавшихся мероприятия {event_id}.")
 
 #Подсчёт количества участников
 def get_participants_count(db_path, event_id):
@@ -229,17 +284,34 @@ def update_event_field(db_path: str, event_id: int, field: str, value: str | int
     :param field: Название поля (например, "description", "date", "time", "participant_limit").
     :param value: Новое значение поля.
     """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для updated_at
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute(f"UPDATE events SET {field} = ? WHERE id = ?", (value, event_id))
+        cursor.execute(
+            f"UPDATE events SET {field} = ?, updated_at = ? WHERE id = ?",
+            (value, now, event_id),
+        )
         conn.commit()
+        logger.info(f"Поле {field} обновлено для мероприятия с ID={event_id}.")
 
 def update_event(db_path, event_id, participants, reserve, declined):
     """
     Обновляет списки участников, резерва и отказавшихся.
+    :param db_path: Путь к базе данных.
+    :param event_id: ID мероприятия.
+    :param participants: Список участников (список словарей с ключами "user_id" и "name").
+    :param reserve: Список резерва (список словарей с ключами "user_id" и "name").
+    :param declined: Список отказавшихся (список словарей с ключами "user_id" и "name").
     """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для updated_at
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
+
+        # Обновляем updated_at в таблице events
+        cursor.execute(
+            "UPDATE events SET updated_at = ? WHERE id = ?",
+            (now, event_id),
+        )
 
         # Удаляем старые записи
         cursor.execute("DELETE FROM participants WHERE event_id = ?", (event_id,))
@@ -249,25 +321,36 @@ def update_event(db_path, event_id, participants, reserve, declined):
         # Добавляем новых участников
         for participant in participants:
             cursor.execute(
-                "INSERT INTO participants (event_id, user_id, user_name) VALUES (?, ?, ?)",
-                (event_id, participant["user_id"], participant["name"]),
+                """
+                INSERT INTO participants (event_id, user_id, user_name, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (event_id, participant["user_id"], participant["name"], now, now),
             )
 
         # Добавляем новый резерв
         for user in reserve:
             cursor.execute(
-                "INSERT INTO reserve (event_id, user_id, user_name) VALUES (?, ?, ?)",
-                (event_id, user["user_id"], user["name"]),
+                """
+                INSERT INTO reserve (event_id, user_id, user_name, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (event_id, user["user_id"], user["name"], now, now),
             )
 
         # Добавляем новых отказавшихся
         for user in declined:
             cursor.execute(
-                "INSERT INTO declined (event_id, user_id, user_name) VALUES (?, ?, ?)",
-                (event_id, user["user_id"], user["name"]),
+                """
+                INSERT INTO declined (event_id, user_id, user_name, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (event_id, user["user_id"], user["name"], now, now),
             )
 
         conn.commit()
+        logger.info(f"Мероприятие с ID={event_id} обновлено.")
+
 
 def update_message_id(db_path, event_id, message_id):
     """
@@ -276,19 +359,24 @@ def update_message_id(db_path, event_id, message_id):
     :param event_id: ID мероприятия.
     :param message_id: ID сообщения в Telegram.
     """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для updated_at
     try:
         conn = get_db_connection(db_path)
-        conn.execute("""
+        cursor = conn.cursor()
+        cursor.execute(
+            """
             UPDATE events
-            SET message_id = ?
+            SET message_id = ?, updated_at = ?
             WHERE id = ?
-        """, (message_id, event_id))
+            """,
+            (message_id, now, event_id),
+        )
         conn.commit()
         logger.info(f"message_id={message_id} обновлен для мероприятия с ID={event_id}")
     except sqlite3.Error as e:
         logger.error(f"Ошибка при обновлении message_id: {e}")
-    finally:
-        conn.close()
+#    finally:
+#        conn.close()
 
 def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at, job_type=None):
     """
@@ -300,16 +388,18 @@ def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at, job_type=N
     :param execute_at: Время выполнения задачи (в формате ISO).
     :param job_type: Тип задачи (например, "notification_day", "notification_minutes", "unpin_delete").
     """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для created_at и updated_at
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO scheduled_jobs (event_id, job_id, chat_id, execute_at, job_type)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO scheduled_jobs (event_id, job_id, chat_id, execute_at, job_type, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (event_id, job_id, chat_id, execute_at, job_type),
+            (event_id, job_id, chat_id, execute_at, job_type, now, now),
         )
         conn.commit()
+        logger.info(f"Запланированная задача {job_id} добавлена для мероприятия {event_id}.")
 def get_scheduled_job_id(db_path: str, event_id: int) -> str:
     """Возвращает job_id запланированной задачи для указанного мероприятия."""
     with get_db_connection(db_path) as conn:

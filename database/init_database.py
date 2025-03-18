@@ -16,27 +16,13 @@ def init_db(db_path):
             participant_limit INTEGER,
             creator_id INTEGER NOT NULL,
             chat_id INTEGER,
-            message_id INTEGER
-        )
-        """
-    )
-    # Таблица черновиков
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS drafts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            creator_id INTEGER NOT NULL,
-            chat_id INTEGER NOT NULL,
             message_id INTEGER,
-            bot_message_id INTEGER,
-            status TEXT NOT NULL,
-            description TEXT,
-            date TEXT,
-            time TEXT,
-            participant_limit INTEGER
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
         )
         """
     )
+
     # Таблица участников
     cursor.execute(
         """
@@ -45,6 +31,8 @@ def init_db(db_path):
             event_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
             user_name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
             FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
         )
         """
@@ -58,6 +46,8 @@ def init_db(db_path):
             event_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
             user_name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
             FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
         )
         """
@@ -71,6 +61,8 @@ def init_db(db_path):
             event_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
             user_name TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
             FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
         )
         """
@@ -86,6 +78,8 @@ def init_db(db_path):
             job_type TEXT,
             chat_id INTEGER NOT NULL,
             execute_at TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
             FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
         )
         """

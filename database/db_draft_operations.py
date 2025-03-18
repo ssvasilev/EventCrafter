@@ -1,7 +1,8 @@
 import os
 import sqlite3
-
+from datetime import datetime
 from logger.logger import logger
+
 
 def get_db_connection(db_path):
     """
@@ -32,15 +33,16 @@ def add_draft(db_path, creator_id, chat_id, status, description=None, date=None,
     :param participant_limit: Лимит участников.
     :return: ID добавленного черновика.
     """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для created_at и updated_at
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO drafts (creator_id, chat_id, status, description, date, time, participant_limit)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO drafts (creator_id, chat_id, status, description, date, time, participant_limit, created_at , updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (creator_id, chat_id, status, description, date, time, participant_limit),
+                (creator_id, chat_id, status, description, date, time, participant_limit, now, now),
             )
             draft_id = cursor.lastrowid
             conn.commit()
@@ -61,6 +63,7 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None, ti
     :param time: Время мероприятия.
     :param participant_limit: Лимит участников.
     """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для updated_at
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
@@ -81,6 +84,9 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None, ti
             if participant_limit is not None:
                 updates.append("participant_limit = ?")
                 params.append(participant_limit)
+            # Добавляем обновление поля updated_at
+            updates.append("updated_at = ?")
+            params.append(now)
             params.append(draft_id)
             cursor.execute(
                 f"UPDATE drafts SET {', '.join(updates)} WHERE id = ?",

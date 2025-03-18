@@ -23,7 +23,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 creator_id = update.message.from_user.id
                 chat_id = update.message.chat_id
                 draft_id = add_draft(
-                    db_path=context.bot_data["db_path"],
+                    db_path=context.bot_data["drafts_db_path"],
                     creator_id=creator_id,
                     chat_id=chat_id,
                     status="AWAIT_DATE",

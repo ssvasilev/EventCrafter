@@ -7,7 +7,7 @@ from database.init_draft_database import init_drafts_db
 from handlers.create_event_handler import conv_handler_create
 from handlers.mention_handler import conv_handler_create_mention
 from handlers.start_handler import start
-from handlers.edit_event_handlers import conv_handler_edit_event, logger
+from handlers.edit_event_handlers import conv_handler_edit_event
 from handlers.button_handlers import button_handler
 
 from jobs.notification_jobs import restore_scheduled_jobs
@@ -36,8 +36,11 @@ def main():
     # Создаём приложение и передаём токен
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # Сохраняем путь к базе данных в context.bot_data
+    # Сохраняем путь к основной базе данных в context.bot_data
     application.bot_data["db_path"] = DB_PATH
+
+    # Сохраняем путь к основной базе данных в context.bot_data
+    application.bot_data["drafts_db_path"] = DB_DRAFT_PATH
 
     # Сохраняем часовой пояс в context.bot_data
     application.bot_data["tz"] = tz

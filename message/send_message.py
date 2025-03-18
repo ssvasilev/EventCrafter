@@ -5,7 +5,7 @@ from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
 from config import DB_PATH
-from data.database import get_event, get_participants, get_reserve, get_declined
+from database.db_operations import get_event, get_participants, get_reserve, get_declined
 from logger.logger import logger
 from utils.pin_message import pin_message
 from utils.utils import time_until_event

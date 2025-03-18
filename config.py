@@ -1,7 +1,7 @@
 import os
 from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfoNotFoundError
 
-import pytz
 from logger.logger import logger
 
 # Получаем часовой пояс из переменной окружения
@@ -10,7 +10,7 @@ TIMEZONE = os.getenv('TIMEZONE', 'UTC')  # По умолчанию исполь�
 # Устанавливаем часовой пояс
 try:
     tz = ZoneInfo(TIMEZONE)
-except pytz.UnknownTimeZoneError:
+except ZoneInfoNotFoundError:
     logger.error(f"Неизвестный часовой пояс: {TIMEZONE}. Используется UTC.")
     tz = ZoneInfo("UTC")
 

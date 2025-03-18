@@ -16,14 +16,14 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Обновляем черновик
         update_draft(
-            db_path=context.bot_data["db_path"],
+            db_path=context.bot_data["drafts_db_path"],
             draft_id=draft_id,
             status="AWAIT_PARTICIPANT_LIMIT",
             time=time.strftime("%H:%M")
         )
 
         # Получаем данные черновика из базы данных
-        draft = get_draft(context.bot_data["db_path"], draft_id)
+        draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
         if not draft:
             await update.message.reply_text("Ошибка: черновик мероприятия не найден.")
             return ConversationHandler.END
