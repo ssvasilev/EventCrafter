@@ -2,7 +2,7 @@ import os
 from zoneinfo import ZoneInfo
 from zoneinfo import ZoneInfoNotFoundError
 
-from logger.logger import logger
+from src.logger import logger
 
 # Получаем часовой пояс из переменной окружения
 TIMEZONE = os.getenv('TIMEZONE', 'UTC')  # По умолчанию используется UTC
