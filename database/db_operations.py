@@ -375,8 +375,8 @@ def update_message_id(db_path, event_id, message_id):
         logger.info(f"message_id={message_id} обновлен для мероприятия с ID={event_id}")
     except sqlite3.Error as e:
         logger.error(f"Ошибка при обновлении message_id: {e}")
-    finally:
-        conn.close()
+#    finally:
+#        conn.close()
 
 def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at, job_type=None):
     """

@@ -4,6 +4,7 @@ from telegram.error import BadRequest
 
 from database.db_operations import update_event_field
 from handlers.conversation_handler_states import EDIT_DESCRIPTION
+from logger.logger import logger
 from message.send_message import send_event_message
 
 # Обработка редактирования описания

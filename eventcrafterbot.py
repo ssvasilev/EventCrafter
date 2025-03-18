@@ -7,7 +7,7 @@ from database.init_draft_database import init_drafts_db
 from handlers.create_event_handler import conv_handler_create
 from handlers.mention_handler import conv_handler_create_mention
 from handlers.start_handler import start
-from handlers.edit_event_handlers import conv_handler_edit_event, logger
+from handlers.edit_event_handlers import conv_handler_edit_event
 from handlers.button_handlers import button_handler
 
 from jobs.notification_jobs import restore_scheduled_jobs

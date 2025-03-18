@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta, date, time
+from datetime import datetime, timedelta
 
 from telegram.ext import ContextTypes, Application
 
 from config import tz
-from config import TIMEZONE
 from database.db_operations import (
     get_event, delete_event, get_scheduled_job_id, delete_scheduled_job, add_scheduled_job, get_db_connection
 )

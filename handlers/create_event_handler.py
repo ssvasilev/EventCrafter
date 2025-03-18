@@ -1,13 +1,9 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, error
 from telegram.ext import (
-    Application,
     CommandHandler,
     CallbackQueryHandler,
-    ContextTypes,
     ConversationHandler,
     MessageHandler,
     filters,
-    JobQueue,
 )
 
 from buttons.create_event_button import create_event_button

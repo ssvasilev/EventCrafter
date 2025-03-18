@@ -39,7 +39,7 @@ def add_draft(db_path, creator_id, chat_id, status, description=None, date=None,
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO drafts (creator_id, chat_id, status, description, date, time, participant_limit, created_at, updated_at)
+                INSERT INTO drafts (creator_id, chat_id, status, description, date, time, participant_limit, created_at , updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (creator_id, chat_id, status, description, date, time, participant_limit, now, now),

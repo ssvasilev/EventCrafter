@@ -1,5 +1,4 @@
 import sqlite3
-from datetime import datetime
 
 def init_db(db_path):
     """Инициализирует базу данных и создает таблицы, если они не существуют."""

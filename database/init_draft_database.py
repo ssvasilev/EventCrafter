@@ -1,5 +1,4 @@
 import sqlite3
-from datetime import datetime
 
 def init_drafts_db(db_path):
     """Инициализирует базу данных для черновиков."""

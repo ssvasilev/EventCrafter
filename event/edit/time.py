@@ -6,6 +6,7 @@ from telegram.error import BadRequest
 from database.db_operations import update_event_field, get_event
 from handlers.conversation_handler_states import EDIT_TIME
 from jobs.notification_jobs import remove_existing_notification_jobs, schedule_notifications
+from logger.logger import logger
 from message.send_message import send_event_message
 
 # Обработка ввода нового времени
