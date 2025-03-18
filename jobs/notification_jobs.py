@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, date, time
 
-import pytz
 from telegram.ext import ContextTypes, Application
 
 from config import tz
