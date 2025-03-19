@@ -33,8 +33,16 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await cancel_input(update, context)
         return ConversationHandler.END
 
-    action, event_id = data.split("|")
-    context.user_data["event_id"] = event_id
+    try:
+        # Разделяем данные и преобразуем event_id в int
+        action, event_id_str = data.split("|")
+        event_id = int(event_id_str)  # Преобразуем строку в int
+        context.user_data["event_id"] = event_id  # Сохраняем event_id в context.user_data
+    except (ValueError, IndexError) as e:
+        # Обрабатываем ошибки, если данные некорректны
+        logger.error(f"Ошибка при обработке callback_data: {e}")
+        await query.edit_message_text("Ошибка: неверные данные.")
+        return ConversationHandler.END
 
     # Получаем данные о мероприятии
     db_path = context.bot_data["db_path"]
@@ -83,6 +91,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_TIME
+    #Кнопка удаления мероприятия
     elif action == "edit_limit":
         await query.edit_message_text(
             "Введите новый лимит участников (0 - неограниченное):",
@@ -108,7 +117,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 )
                 logger.info(f"Сообщение мероприятия {event_id} откреплено.")
             except BadRequest as e:
-                # Логируем ошибку, если открепление не удалось
+                # Выводим ошибку, если открепление не удалось
                 logger.error(f"Ошибка при откреплении сообщения: {e}")
                 # Проверяем, связано ли это с отсутствием прав или с тем, что сообщение не закреплено
                 if "not pinned" in str(e).lower():
@@ -116,18 +125,18 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 elif "not enough rights" in str(e).lower():
                     logger.error(f"Бот не имеет прав на открепление сообщений в этом чате.")
             except Exception as e:
-                # Логируем любые другие ошибки
+                # Выводим любые другие ошибки
                 logger.error(f"Неизвестная ошибка при откреплении сообщения: {e}")
 
-                # Удаляем мероприятие из базы данных
-                delete_event(db_path, event_id)
-                logger.info(f"Мероприятие {event_id} удалено.")
+        # Удаляем мероприятие из базы данных
+        delete_event(db_path, event_id)
+        logger.info(f"Мероприятие {event_id} удалено.")
 
-                # Редактируем сообщение с подтверждением удаления
-                await query.edit_message_text("Мероприятие удалено.")
+        # Редактируем сообщение с подтверждением удаления
+        await query.edit_message_text("Мероприятие удалено.")
 
-                # Завершаем диалог
-                return ConversationHandler.END
+        # Завершаем диалог
+        return ConversationHandler.END
 
 
 
