@@ -7,7 +7,7 @@ from src.database.db_operations import get_event  # Импортируем фу�
 # Обработчик нажатия на кнопку "Редактировать"
 async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     # Получаем event_id из callback_data
     event_id = query.data.split("|")[1]
