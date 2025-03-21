@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Обработка выбора параметра для редактирования
 async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    #await query.answer()  # Подтверждаем получение callback-запроса
 
     # Определяем, какое действие выбрал пользователь
     data = query.data
@@ -51,22 +51,6 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text("Мероприятие не найдено.")
         return ConversationHandler.END
 
-    """
-    # Открепляем сообщение, если оно закреплено
-    try:
-        await context.bot.unpin_chat_message(
-            chat_id=query.message.chat_id,
-            message_id=event["message_id"]
-        )
-        logger.info(f"Сообщение {event['message_id']} откреплено.")
-    except logging.error.BadRequest as e:
-        logger.error(f"Ошибка при откреплении сообщения: {e}")
-    except logging.error.Forbidden as e:
-        logger.error(f"Бот не имеет прав на открепление сообщений: {e}")
-    except Exception as e:
-        logger.error(f"Неизвестная ошибка при откреплении сообщения: {e}")
-    """
-
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
@@ -91,7 +75,6 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_TIME
-    #Кнопка удаления мероприятия
     elif action == "edit_limit":
         await query.edit_message_text(
             "Введите новый лимит участников (0 - неограниченное):",
@@ -101,7 +84,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif action == "delete":
         # Проверяем, является ли пользователь создателем
         if event["creator_id"] != query.from_user.id:
-            await query.answer("Вы не можете удалить это мероприятие.")
+            await query.answer("Вы не можете удалить это мероприятие.", show_alert=True)
             return
 
         # Получаем message_id мероприятия
