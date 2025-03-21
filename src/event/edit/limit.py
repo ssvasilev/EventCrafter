@@ -54,7 +54,8 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Отправляем новое сообщение с информацией о мероприятии
-        await send_event_message(event_id, context, update.message.chat_id)
+        user_id = update.effective_user.id  # Получаем ID текущего пользователя
+        await send_event_message(event_id, context, update.message.chat_id, user_id)
 
         # Удаляем сообщение пользователя
         await update.message.delete()

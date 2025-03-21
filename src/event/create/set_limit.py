@@ -56,7 +56,8 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Отправляем сообщение о мероприятии и получаем его message_id
         try:
-            message_id = await send_event_message(event_id, context, draft["chat_id"])
+            user_id = update.effective_user.id  # Получаем ID текущего пользователя
+            message_id = await send_event_message(event_id, context, draft["chat_id"], user_id)
             # Обновляем мероприятие с message_id
             update_event_field(context.bot_data["db_path"], event_id, "message_id", message_id)
         except Exception as e:

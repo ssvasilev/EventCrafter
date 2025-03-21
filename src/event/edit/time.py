@@ -46,7 +46,8 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await schedule_notifications(event_id, context, event_datetime, update.message.chat_id)
 
         # Редактируем существующее сообщение с информацией о мероприятии
-        await send_event_message(event_id, context, update.message.chat_id, context.user_data["bot_message_id"])
+        user_id = update.effective_user.id  # Получаем ID текущего пользователя
+        await send_event_message(event_id, context, update.message.chat_id, user_id, context.user_data["bot_message_id"])
 
         # Удаляем сообщение пользователя
         await update.message.delete()

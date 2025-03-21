@@ -46,7 +46,8 @@ async def save_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update_event_field(db_path, event_id, "description", new_description)
 
         # Редактируем сообщение с новым описанием
-        await send_event_message(event_id, context, update.message.chat_id, context.user_data["bot_message_id"])
+        user_id = update.effective_user.id  # Получаем ID текущего пользователя
+        await send_event_message(event_id, context, update.message.chat_id, user_id, context.user_data["bot_message_id"])
 
         # Удаляем сообщение пользователя
         await update.message.delete()

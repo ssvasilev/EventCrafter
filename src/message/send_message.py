@@ -11,12 +11,13 @@ from src.utils.pin_message import pin_message
 from src.utils.utils import time_until_event
 
 
-async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
+async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int, message_id: int = None):
     """
     Отправляет или редактирует сообщение с информацией о мероприятии.
     :param event_id: ID мероприятия.
     :param context: Контекст бота.
     :param chat_id: ID чата, куда отправляется сообщение.
+    :param user_id: ID текущего пользователя.
     :param message_id: ID сообщения для редактирования (если None, отправляется новое сообщение).
     :return: ID отправленного или отредактированного сообщения.
     """
@@ -57,6 +58,11 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
         [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")],
     ]
+
+    # Добавляем кнопку "Редактировать" только для автора мероприятия
+    if event["creator_id"] == user_id:
+        keyboard.append([InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")])
+
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Получаем часовой пояс из context.bot_data

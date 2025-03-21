@@ -16,7 +16,7 @@ from src.database.db_operations import (
 from src.message.send_message import send_event_message
 
 
-#Обработка нажатий на кнопки "Участвовать" и "Не участвовать"
+# Обработка нажатий на кнопки "Участвовать" и "Не участвовать"
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
@@ -111,4 +111,4 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Редактируем сообщение только если данные изменились
     chat_id = query.message.chat_id
     message_id = query.message.message_id
-    await send_event_message(event_id, context, chat_id, message_id)
+    await send_event_message(event_id, context, chat_id, user_id, message_id)
