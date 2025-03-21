@@ -51,12 +51,6 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text("Мероприятие не найдено.")
         return ConversationHandler.END
 
-    # Проверяем, является ли пользователь автором мероприятия
-    if event["creator_id"] != query.from_user.id:
-        await query.answer("Только автор мероприятия может редактировать его.", show_alert=True)  # Показываем уведомление
-        return ConversationHandler.END  # Завершаем функцию
-
-    # Если пользователь является автором, продолжаем обработку
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
