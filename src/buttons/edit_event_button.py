@@ -21,7 +21,7 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Проверяем, является ли пользователь автором мероприятия
     if event["creator_id"] != query.from_user.id:
-        await query.answer("Только автор мероприятия может редактировать его.", show_alert=True)
+        await query.answer("Только автор мероприятия может редактировать его.", show_alert=False)
         return ConversationHandler.END
 
     # Сохраняем исходное состояние сообщения
