@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Обработка выбора параметра для редактирования
 async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    await query.answer()  # Подтверждаем получение callback-запроса
 
     # Определяем, какое действие выбрал пользователь
     data = query.data
@@ -56,6 +56,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer("Только автор мероприятия может редактировать его.", show_alert=True)  # Показываем уведомление
         return ConversationHandler.END  # Завершаем функцию
 
+    # Если пользователь является автором, продолжаем обработку
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
         [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
@@ -80,7 +81,6 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=reply_markup,  # Добавляем кнопку "Отмена"
         )
         return EDIT_TIME
-    #Кнопка удаления мероприятия
     elif action == "edit_limit":
         await query.edit_message_text(
             "Введите новый лимит участников (0 - неограниченное):",
