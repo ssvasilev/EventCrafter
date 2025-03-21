@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Обработка выбора параметра для редактирования
 async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()  # Подтверждаем получение callback-запроса
+    #await query.answer()  # Подтверждаем получение callback-запроса
 
     # Определяем, какое действие выбрал пользователь
     data = query.data
