@@ -53,8 +53,8 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Проверяем, является ли пользователь автором мероприятия
     if event["creator_id"] != query.from_user.id:
-        await query.answer("Только автор мероприятия может редактировать его.")
-        return ConversationHandler.END
+        await query.answer("Только автор мероприятия может редактировать его.", show_alert=True)  # Показываем уведомление
+        return ConversationHandler.END  # Завершаем функцию
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
@@ -90,7 +90,7 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif action == "delete":
         # Проверяем, является ли пользователь создателем
         if event["creator_id"] != query.from_user.id:
-            await query.answer("Вы не можете удалить это мероприятие.")
+            await query.answer("Вы не можете удалить это мероприятие.", show_alert=True)
             return
 
         # Получаем message_id мероприятия
