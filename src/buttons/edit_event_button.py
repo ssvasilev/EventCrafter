@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, ConversationHandler
 
 from src.handlers.conversation_handler_states import EDIT_EVENT
 from src.database.db_operations import get_event  # Импортируем функцию для получения данных о мероприятии
