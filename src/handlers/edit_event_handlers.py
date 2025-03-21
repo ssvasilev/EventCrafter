@@ -41,19 +41,20 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except (ValueError, IndexError) as e:
         # Обрабатываем ошибки, если данные некорректны
         logger.error(f"Ошибка при обработке callback_data: {e}")
-        await query.edit_message_text("Ошибка: неверные данные.")
+        await query.answer("Ошибка: неверные данные.")
         return ConversationHandler.END
 
     # Получаем данные о мероприятии
     db_path = context.bot_data["db_path"]
     event = get_event(db_path, event_id)
     if not event:
-        await query.edit_message_text("Мероприятие не найдено.")
+        await query.answer("Мероприятие не найдено.")
         return ConversationHandler.END
 
     # Проверяем, является ли пользователь создателем мероприятия
     if event["creator_id"] != query.from_user.id:
-        await query.edit_message_text("Вы не являетесь автором мероприятия и не можете редактировать его.")
+        user_name = query.from_user.first_name  # Имя пользователя
+        await query.answer(f"{user_name}, Вы не являетесь автором мероприятия и не можете редактировать его!")
         return ConversationHandler.END
 
     # Создаем клавиатуру с кнопкой "Отмена"
