@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
 
-from src.database.db_operations import add_event, update_event_field
+from src.database.db_operations import add_event, update_event_field, add_scheduled_job
 from src.database.db_draft_operations import update_draft, get_draft, delete_draft
 from src.jobs.notification_jobs import unpin_and_delete_event, send_notification
 from src.logger.logger import logger
@@ -119,31 +119,33 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         event_datetime = event_datetime.replace(tzinfo=tz)
 
         # Уведомление за день до мероприятия
-        context.job_queue.run_once(
+        job_day = context.job_queue.run_once(
             send_notification,
             when=event_datetime - timedelta(days=1),
             data={"event_id": event_id, "time_until": "1 день"},
+            name=f"notification_{event_id}_day"
         )
 
         # Уведомление за 15 минут до мероприятия
-        context.job_queue.run_once(
+        job_minutes = context.job_queue.run_once(
             send_notification,
             when=event_datetime - timedelta(minutes=15),
             data={"event_id": event_id, "time_until": "15 минут"},
+            name=f"notification_{event_id}_minutes"
         )
 
         # Планируем задачу для открепления и удаления мероприятия после его завершения
-        try:
-            event_datetime = datetime.strptime(f"{draft['date']} {draft['time']}", "%d.%m.%Y %H:%M")
-            event_datetime = event_datetime.replace(tzinfo=tz)  # Устанавливаем часовой пояс
-            context.job_queue.run_once(
-                unpin_and_delete_event,
-                when=event_datetime,
-                data={"event_id": event_id, "chat_id": draft["chat_id"]},
-            )
-            logger.info(f"Задача для открепления и удаления мероприятия {event_id} создана.")
-        except ValueError as e:
-            logger.error(f"Ошибка при планировании задачи для открепления и удаления мероприятия: {e}")
+        job_unpin = context.job_queue.run_once(
+            unpin_and_delete_event,
+            when=event_datetime,
+            data={"event_id": event_id, "chat_id": draft["chat_id"]},
+            name=f"unpin_delete_{event_id}"
+        )
+
+        # Сохраняем задачи в базу данных
+        add_scheduled_job(context.bot_data["db_path"], event_id, job_day.id, draft["chat_id"], (event_datetime - timedelta(days=1)).isoformat(), job_type="notification_day")
+        add_scheduled_job(context.bot_data["db_path"], event_id, job_minutes.id, draft["chat_id"], (event_datetime - timedelta(minutes=15)).isoformat(), job_type="notification_minutes")
+        add_scheduled_job(context.bot_data["db_path"], event_id, job_unpin.id, draft["chat_id"], event_datetime.isoformat(), job_type="unpin_delete")
 
         # Завершаем диалог
         context.user_data.clear()

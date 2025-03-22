@@ -104,10 +104,8 @@ async def unpin_and_delete_event(context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Мероприятие с ID {event_id} удалено из базы данных.")
 
     # Удаляем задачу из базы данных
-    job_id = get_scheduled_job_id(db_path, event_id)
-    if job_id:
-        delete_scheduled_job(db_path, job_id)
-        logger.info(f"Задача для мероприятия с ID {event_id} удалена из базы данных.")
+    delete_scheduled_job(db_path, event_id, job_type="unpin_delete")
+    logger.info(f"Задача unpin_delete для мероприятия {event_id} удалена из базы данных.")
 
 
 async def schedule_notifications(event_id: int, context: ContextTypes.DEFAULT_TYPE, event_datetime: datetime, chat_id: int):
@@ -137,8 +135,8 @@ async def schedule_notifications(event_id: int, context: ContextTypes.DEFAULT_TY
     )
 
     # Сохраняем задачи в базу данных
-    add_scheduled_job(db_path, event_id, job_day.id, chat_id, event_datetime.isoformat(), job_type="notification_day")
-    add_scheduled_job(db_path, event_id, job_minutes.id, chat_id, event_datetime.isoformat(), job_type="notification_minutes")
+    add_scheduled_job(db_path, event_id, job_day.id, chat_id, (event_datetime - timedelta(days=1)).isoformat(), job_type="notification_day")
+    add_scheduled_job(db_path, event_id, job_minutes.id, chat_id, (event_datetime - timedelta(minutes=15)).isoformat(), job_type="notification_minutes")
 
     logger.info(f"Созданы новые задачи напоминания для мероприятия {event_id}.")
 
@@ -219,7 +217,8 @@ def remove_existing_notification_jobs(event_id: int, context: ContextTypes.DEFAU
         logger.info(f"Удалена задача напоминания {job.id} для мероприятия {event_id}")
 
     # Удаляем задачи из базы данных
-    delete_scheduled_job(db_path, event_id, job_type="notification")
+    delete_scheduled_job(db_path, event_id, job_type="notification_day")
+    delete_scheduled_job(db_path, event_id, job_type="notification_minutes")
     logger.info(f"Задачи напоминания для мероприятия {event_id} удалены из базы данных.")
 
 
@@ -245,12 +244,28 @@ def restore_scheduled_jobs(application: Application):
 
             # Проверяем, не истекло ли время выполнения задачи
             if execute_at > datetime.now(tz):
-                # Создаем задачу
-                application.job_queue.run_once(
-                    unpin_and_delete_event if job["job_type"] == "unpin_delete" else send_notification,
-                    when=execute_at,
-                    data={"event_id": event_id, "chat_id": chat_id},
-                )
+                # Создаем задачу в зависимости от её типа
+                if job["job_type"] == "unpin_delete":
+                    application.job_queue.run_once(
+                        unpin_and_delete_event,
+                        when=execute_at,
+                        data={"event_id": event_id, "chat_id": chat_id},
+                        name=f"unpin_delete_{event_id}"
+                    )
+                elif job["job_type"] == "notification_day":
+                    application.job_queue.run_once(
+                        send_notification,
+                        when=execute_at,
+                        data={"event_id": event_id, "time_until": "1 день"},
+                        name=f"notification_{event_id}_day"
+                    )
+                elif job["job_type"] == "notification_minutes":
+                    application.job_queue.run_once(
+                        send_notification,
+                        when=execute_at,
+                        data={"event_id": event_id, "time_until": "15 минут"},
+                        name=f"notification_{event_id}_minutes"
+                    )
                 logger.info(f"Восстановлена задача для мероприятия с ID: {event_id}")
             else:
                 # Если время выполнения задачи истекло, удаляем её из базы данных

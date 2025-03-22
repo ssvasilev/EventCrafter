@@ -3,9 +3,10 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
 
-from src.database.db_operations import update_event_field, get_event
+from src.database.db_operations import update_event_field, get_event, delete_scheduled_job
 from src.handlers.conversation_handler_states import EDIT_DATE
-from src.jobs.notification_jobs import remove_existing_notification_jobs, schedule_notifications
+from src.jobs.notification_jobs import remove_existing_notification_jobs, schedule_notifications, \
+    schedule_unpin_and_delete
 from src.logger.logger import logger
 from src.message.send_message import send_event_message
 
@@ -54,8 +55,9 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Обновляем дату в базе данных
         update_event_field(db_path, event_id, "date", date.strftime("%d.%m.%Y"))  # Используем новый формат
 
-        # Удаляем старые задачи на уведомления
+        # Удаляем старые задачи на уведомления и открепление
         remove_existing_notification_jobs(event_id, context)
+        delete_scheduled_job(context.bot_data["db_path"], event_id, job_type="unpin_delete")
 
         # Получаем часовой пояс из context.bot_data
         tz = context.bot_data["tz"]
@@ -66,6 +68,9 @@ async def save_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Создаём новые задачи на уведомления
         await schedule_notifications(event_id, context, event_datetime, update.message.chat_id)
+
+        # Создаём новую задачу для открепления и удаления
+        await schedule_unpin_and_delete(event_id, context, update.message.chat_id)
 
         # Редактируем существующее сообщение с информацией о мероприятии
         await send_event_message(event_id, context, update.message.chat_id, context.user_data["bot_message_id"])
