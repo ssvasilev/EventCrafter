@@ -104,10 +104,8 @@ async def unpin_and_delete_event(context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Мероприятие с ID {event_id} удалено из базы данных.")
 
     # Удаляем задачу из базы данных
-    job_id = get_scheduled_job_id(db_path, event_id)
-    if job_id:
-        delete_scheduled_job(db_path, job_id)
-        logger.info(f"Задача для мероприятия с ID {event_id} удалена из базы данных.")
+    delete_scheduled_job(db_path, event_id, job_type="unpin_delete")
+    logger.info(f"Задача unpin_delete для мероприятия {event_id} удалена из базы данных.")
 
 
 async def schedule_notifications(event_id: int, context: ContextTypes.DEFAULT_TYPE, event_datetime: datetime, chat_id: int):
