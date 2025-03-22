@@ -219,7 +219,8 @@ def remove_existing_notification_jobs(event_id: int, context: ContextTypes.DEFAU
         logger.info(f"Удалена задача напоминания {job.id} для мероприятия {event_id}")
 
     # Удаляем задачи из базы данных
-    delete_scheduled_job(db_path, event_id, job_type="notification")
+    delete_scheduled_job(db_path, event_id, job_type="notification_day")
+    delete_scheduled_job(db_path, event_id, job_type="notification_minutes")
     logger.info(f"Задачи напоминания для мероприятия {event_id} удалены из базы данных.")
 
 
