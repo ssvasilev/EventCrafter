@@ -1,6 +1,7 @@
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
+from telegram.error import BadRequest
 
 from src.handlers.conversation_handler_states import SET_TIME, SET_DATE
 from src.database.db_draft_operations import update_draft, get_draft
@@ -42,8 +43,11 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup,
         )
 
-        # Удаляем сообщение пользователя
-        await update.message.delete()
+        # Пытаемся удалить сообщение пользователя
+        try:
+            await update.message.delete()
+        except BadRequest:
+            pass
 
         # Переходим к состоянию SET_TIME
         return SET_TIME
@@ -56,8 +60,11 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]])
         )
 
-        # Удаляем сообщение пользователя
-        await update.message.delete()
+        # Пытаемся удалить сообщение пользователя
+        try:
+            await update.message.delete()
+        except BadRequest:
+            pass
 
         # Остаемся в состоянии SET_DATE
         return SET_DATE

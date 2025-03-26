@@ -96,7 +96,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Удаляем черновик
         delete_draft(context.bot_data["drafts_db_path"], draft_id)
 
-        # Удаляем последнее сообщение бота с параметрами мероприятия
+        # Пытаемся удалить последнее сообщение бота с параметрами мероприятия
         try:
             await context.bot.delete_message(
                 chat_id=draft["chat_id"],
@@ -105,7 +105,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except BadRequest as e:
             logger.warning(f"Сообщение для удаления не найдено: {e}")
 
-        # Удаляем сообщение пользователя
+        # Пытаемся удалить сообщение пользователя
         try:
             await update.message.delete()
         except BadRequest as e:
@@ -169,7 +169,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except BadRequest as e:
             logger.error(f"Ошибка при редактировании сообщения: {e}")
 
-        # Удаляем сообщение пользователя
+        # Пытаемся удалить сообщение пользователя
         try:
             await update.message.delete()
         except BadRequest as e:
