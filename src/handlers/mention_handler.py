@@ -43,7 +43,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     ]
                     reply_markup = InlineKeyboardMarkup(keyboard)
 
-                    # Отправляем сообщение с запросом даты
+                    # Отправляем новое сообщение с запросом даты
                     sent_message = await update.message.reply_text(
                         f"📢 {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
                         reply_markup=reply_markup,
@@ -53,26 +53,24 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     context.user_data.update({
                         "draft_id": draft_id,
                         "bot_message_id": sent_message.message_id,
-                        "description": mention_text  # Сохраняем описание на случай ошибки удаления
+                        "description": mention_text
                     })
 
-                    # Пытаемся удалить сообщение пользователя
+                    # Пытаемся удалить сообщение пользователя (не критично, если не получится)
                     try:
                         await update.message.delete()
                     except BadRequest as e:
-                        logger.warning(f"Не удалось удалить сообщение: {e}")
-                        # Если не удалось удалить, редактируем его вместо создания нового
-                        await update.message.edit_text(
-                            f"📢 {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
-                            reply_markup=reply_markup,
-                        )
-                        context.user_data["bot_message_id"] = update.message.message_id
+                        logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
+                        # Просто продолжаем работу, не пытаемся редактировать сообщение пользователя
 
                     return SET_DATE
 
                 except Exception as e:
                     logger.error(f"Ошибка при обработке упоминания: {e}")
-                    await update.message.reply_text("Произошла ошибка при создании мероприятия. Пожалуйста, попробуйте снова.")
+                    await context.bot.send_message(
+                        chat_id=update.message.chat_id,
+                        text="Произошла ошибка при создании мероприятия. Пожалуйста, попробуйте снова."
+                    )
                     return ConversationHandler.END
 
             else:
@@ -90,11 +88,11 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
                     context.user_data["bot_message_id"] = sent_message.message_id
 
-                    # Пытаемся удалить оригинальное сообщение
+                    # Пытаемся удалить оригинальное сообщение (не критично)
                     try:
                         await update.message.delete()
                     except BadRequest as e:
-                        logger.warning(f"Не удалось удалить сообщение: {e}")
+                        logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
 
                 except Exception as e:
                     logger.error(f"Ошибка при обработке пустого упоминания: {e}")
