@@ -1,5 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram.error import BadRequest
 
 from src.handlers.conversation_handler_states import SET_DATE
 from src.database.db_draft_operations import update_draft
@@ -31,8 +32,11 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
     )
 
-    # Удаляем сообщение пользователя
-    await update.message.delete()
+    # Пытаемся удалить сообщение пользователя, но продолжаем в случае ошибки
+    try:
+        await update.message.delete()
+    except BadRequest:
+        pass  # Продолжаем выполнение, даже если не удалось удалить сообщение
 
     # Переходим к состоянию SET_DATE
     return SET_DATE
