@@ -1,21 +1,31 @@
 version: "3.8"
 
 services:
-  bot:
+  eventcrafter:
     build:
-      dockerfile: ./Dockerfile
-    container_name: EventCrafter
+      context: .
+      target: production
+    container_name: eventcrafter
     restart: unless-stopped
     environment:
-      - BOT_TOKEN={Токен бота из пункта 1}
+      - BOT_TOKEN={{Токен бота из пункта 1}}
       - TIMEZONE=Europe/Moscow
+      - DATABASE_URL=sqlite+aiosqlite:////data/eventcrafter.db
     volumes:
       - ./data:/data
-  tester:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  tests:
     build:
       context: .
       target: tester
-    volumes:
-      - ./test_results.log:/app/test_results.log
+    container_name: eventcrafter_tests
     environment:
-      - PYTHONPATH=/app
+      - DATABASE_URL=sqlite+aiosqlite:////tmp/test.db
+    volumes:
+      - ./test_results:/app/test_results
+    restart: "no"
