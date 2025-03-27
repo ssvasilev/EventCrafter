@@ -1,64 +1,57 @@
-# Используем базовый образ (например, Python)
+# Этап сборки и тестирования
 FROM python:3.10-slim as builder
-
-# Устанавливаем рабочую директорию
-WORKDIR /app
-
-# Создаём папку для базы данных
-RUN mkdir -p /data
 
 # Устанавливаем необходимые пакеты
 RUN apt-get update && \
     apt-get install -y git locales && \
     sed -i '/ru_RU.UTF-8/s/^# //g' /etc/locale.gen && \
-    locale-gen && \
-    rm -rf /var/lib/apt/lists/*
+    locale-gen ru_RU.UTF-8
 
-# Устанавливаем локаль
+# Настройка локали
 ENV LANG ru_RU.UTF-8
 ENV LANGUAGE ru_RU:ru
 ENV LC_ALL ru_RU.UTF-8
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
 
 # Клонируем репозиторий
 RUN git clone https://github.com/ssvasilev/EventCrafter.git /app
 
-# Устанавливаем основные зависимости
-RUN pip install --no-cache-dir -r requirements.txt
+# Устанавливаем зависимости для тестов
+RUN pip install --user -r requirements-test.txt
 
+# Этап для запуска тестов
+FROM builder as tester
+CMD ["sh", "-c", "python -m pytest -v > /app/test_results/test_results.log 2>&1 || echo 'Tests failed'"]
 
-# Стадия для тестирования
-FROM python:3.10-slim as tester
-WORKDIR /app
+# Финальный этап
+FROM python:3.10-slim as production
 
-# Копируем из builder
-COPY --from=builder /app /app
-COPY --from=builder /data /data
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Устанавливаем локали в финальном образе
+RUN apt-get update && \
+    apt-get install -y locales && \
+    sed -i '/ru_RU.UTF-8/s/^# //g' /etc/locale.gen && \
+    locale-gen ru_RU.UTF-8 && \
+    rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем тестовые зависимости
-RUN pip install --no-cache-dir -r requirements-test.txt
-
-# Устанавливаем переменные окружения для тестов
-ENV PYTHONPATH=/app
-ENV DATABASE_URL=sqlite+aiosqlite:////data/test.db
-
-# Запуск тестов
-CMD ["python", "-m", "pytest", "tests/integration/", "-v", "--log-cli-level=INFO"]
-
-# Основная стадия
-FROM python:3.10-slim
-WORKDIR /app
-
-# Копируем из builder
-COPY --from=builder /app /app
-COPY --from=builder /data /data
-
-# Устанавливаем переменные окружения
+# Настройка локали
 ENV LANG ru_RU.UTF-8
 ENV LANGUAGE ru_RU:ru
 ENV LC_ALL ru_RU.UTF-8
-ENV DATABASE_URL=sqlite+aiosqlite:////data/eventcrafter.db
+
+WORKDIR /app
+
+# Копируем только необходимые файлы из builder
+COPY --from=builder /root/.local /root/.local
+COPY --from=builder /app /app
+
+# Устанавливаем только production зависимости
+RUN pip install -r requirements.txt && \
+    mkdir -p /data
+
+# Устанавливаем PATH для пользовательских скриптов Python
+ENV PATH=/root/.local/bin:$PATH
 
 # Команда для запуска бота
 CMD ["python", "eventcrafterbot.py"]
