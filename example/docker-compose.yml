@@ -3,7 +3,7 @@ version: "3.8"
 services:
   bot:
     build:
-      dockerfile: Dockerfile
+      dockerfile: ./Dockerfile
     container_name: EventCrafter
     restart: unless-stopped
     environment:
@@ -16,6 +16,6 @@ services:
       context: .
       target: tester
     volumes:
-      - ./test_results.log:/app/test_results.log  # Для доступа к логам с хоста
+      - ./test_results.log:/app/test_results.log
     environment:
-      - PYTHONPATH=/app  # Важно для правильных импортов
+      - PYTHONPATH=/app
