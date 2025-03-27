@@ -1,6 +1,6 @@
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from typing import AsyncGenerator
+from typing import AsyncIterator
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, AsyncMock
@@ -10,22 +10,22 @@ from telegram import Update, Message, Chat
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+
 @pytest.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
+async def db_session() -> AsyncIterator[AsyncSession]:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+        # Создаем таблицы, если нужно
+        # await conn.run_sync(Base.metadata.create_all)
 
-    async with session_factory() as session:
-        try:
-            yield session  # Теперь возвращаем именно сессию
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
-
-    await engine.dispose()
+        session_factory = async_sessionmaker(conn, expire_on_commit=False)
+        async with session_factory() as session:
+            try:
+                yield session  # Возвращаем готовую сессию
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
 @pytest.fixture
 def mock_update():

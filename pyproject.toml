@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests/integration"]
+python_files = "test_*.py"
+addopts = "-v --tb=native"
+
+[tool.ruff]
+line-length = 120
