@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from typing import AsyncIterator
+from typing import AsyncGenerator
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, AsyncMock
@@ -12,20 +13,33 @@ sys.path.insert(0, str(project_root))
 
 
 @pytest.fixture
-async def db_session() -> AsyncIterator[AsyncSession]:
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with engine.begin() as conn:
-        # Создаем таблицы, если нужно
-        # await conn.run_sync(Base.metadata.create_all)
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        echo=True  # Для отладки SQL-запросов
+    )
 
-        session_factory = async_sessionmaker(conn, expire_on_commit=False)
-        async with session_factory() as session:
-            try:
-                yield session  # Возвращаем готовую сессию
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
+    # Создаем таблицы (если нужно)
+    # async with engine.begin() as conn:
+    #     await conn.run_sync(Base.metadata.create_all)
+
+    async_session = async_sessionmaker(
+        engine,
+        expire_on_commit=False,
+        class_=AsyncSession
+    )
+
+    async with async_session() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+    await engine.dispose()
 
 @pytest.fixture
 def mock_update():

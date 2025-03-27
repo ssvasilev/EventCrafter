@@ -7,6 +7,7 @@ asyncio_mode = "auto"
 testpaths = ["tests/integration"]
 python_files = "test_*.py"
 addopts = "-v --tb=native"
+log_cli_level = "INFO"
 
 [tool.ruff]
 line-length = 120
