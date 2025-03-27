@@ -6,3 +6,4 @@ telegram~=0.0.1
 aiogram~=3.19.0
 dotenv~=0.9.9
 pytest-mock
+sqlalchemy
