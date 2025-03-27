@@ -3,7 +3,6 @@ sqlalchemy[asyncio]~=2.0.39
 aiosqlite
 pytest~=8.3.5
 pytest-asyncio
-telegram~=0.0.1
 aiogram~=3.19.0
 dotenv~=0.9.9
 pytest-mock
