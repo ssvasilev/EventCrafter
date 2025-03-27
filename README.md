@@ -160,26 +160,31 @@ services:
 ```
 ## Автотесты:
 
-Система автотестов реализована путём альтернативной сборки контейнера.
+Система автотестов реализована путём альтернативной сборки одноразового контейнера.
 
-_Команда для сборки тестового контейнера:_
+_Команда для сборки тестового контейнера и запуска тестов:_
 ```
-docker build --no-cache --target tester -t eventcrafter-tester .
+docker compose build tests && docker compose run --rm -v $(pwd)/test_results:/app/test_results tests
+```
+для упрощения можно выполнить скрипт:
+
+```
+./run_tests.sh
+```
+_Запуск тестов без логов_
+```
+docker compose run --rm tests
 ```
 
-_Команда для запуска тестов:_
-```
-docker run --rm eventcrafter-tester
-```
 ## Запуск
 _Команда для сборки рабочего контейнера:_
 ```
-docker build -t eventcrafter-bot .
+docker compose build eventcrafter
 ```
 
 _Команда для запуска бота:_
 ```
-docker compose up -d
+docker compose up -d eventcrafter
 ```
 
 Бот готов к работе.
