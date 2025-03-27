@@ -12,21 +12,12 @@ sys.path.insert(0, str(project_root))
 
 @pytest.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        echo=True,
-        future=True
-    )
-
-    session_factory = async_sessionmaker(
-        engine,
-        expire_on_commit=False,
-        class_=AsyncSession,
-    )
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async with session_factory() as session:
         try:
-            yield session
+            yield session  # Теперь возвращаем именно сессию
             await session.commit()
         except Exception:
             await session.rollback()
