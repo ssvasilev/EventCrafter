@@ -1,4 +1,4 @@
 python-telegram-bot==20.3
-python-dotenv==1.0.0
+python-dotenv~=1.0.1
 python-telegram-bot[job-queue]
-datetime
+datetime~=5.5

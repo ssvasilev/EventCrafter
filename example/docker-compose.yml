@@ -3,7 +3,7 @@ version: "3.8"
 services:
   bot:
     build:
-      dockerfile: Dockerfile
+      dockerfile: ./Dockerfile
     container_name: EventCrafter
     restart: unless-stopped
     environment:
@@ -11,3 +11,11 @@ services:
       - TIMEZONE=Europe/Moscow
     volumes:
       - ./data:/data
+  tester:
+    build:
+      context: .
+      target: tester
+    volumes:
+      - ./test_results.log:/app/test_results.log
+    environment:
+      - PYTHONPATH=/app
