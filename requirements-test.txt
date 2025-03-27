@@ -1,3 +1,4 @@
+python-telegram-bot==20.3
 sqlalchemy[asyncio]~=2.0.39
 aiosqlite
 pytest~=8.3.5
@@ -7,3 +8,6 @@ aiogram~=3.19.0
 dotenv~=0.9.9
 pytest-mock
 sqlalchemy
+DateTime~=5.5
+python-telegram-bot~=20.3
+python-dotenv~=1.0.1

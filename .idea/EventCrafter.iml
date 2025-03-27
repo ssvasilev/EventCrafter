@@ -8,4 +8,7 @@
     <orderEntry type="jdk" jdkName="Python 3.12 (EventCrafter)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
+  <component name="PackageRequirementsSettings">
+    <option name="requirementsPath" value="D:\github\EventCrafter\requirements-test.txt" />
+  </component>
 </module>
