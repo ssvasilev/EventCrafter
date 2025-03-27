@@ -24,8 +24,15 @@ ENV LC_ALL ru_RU.UTF-8
 # Клонируем репозиторий
 RUN git clone https://github.com/ssvasilev/EventCrafter.git /app
 
-# Устанавливаем зависимости (если у вас есть requirements.txt)
+# Устанавливаем зависимости (если есть requirements.txt и requirements-test.txt)
 RUN pip install -r requirements.txt
+RUN pip install -r requirements-test.txt
+
+FROM builder as tester
+COPY --from=builder /app /app
+WORKDIR /app
+
+RUN pytest tests/integration/ -v --log-cli-level=INFO
 
 # Команда для запуска бота
 CMD ["python", "eventcrafterbot.py"]

@@ -11,3 +11,11 @@ services:
       - TIMEZONE=Europe/Moscow
     volumes:
       - ./data:/data
+  tester:
+    build:
+      context: .
+      target: tester
+    volumes:
+      - ./test_results.log:/app/test_results.log  # Для доступа к логам с хоста
+    environment:
+      - PYTHONPATH=/app  # Важно для правильных импортов
