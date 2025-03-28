@@ -74,8 +74,10 @@ ENV LANG ru_RU.UTF-8
 ENV LANGUAGE ru_RU:ru
 ENV LC_ALL ru_RU.UTF-8
 
-# Устанавливаем рабочую директорию
 WORKDIR /app
+
+# Клонируем ветку
+#RUN git clone -b autotest https://github.com/ssvasilev/EventCrafter.git /app
 
 # Клонируем репозиторий
 RUN git clone https://github.com/ssvasilev/EventCrafter.git /app
@@ -85,7 +87,14 @@ RUN pip install --user -r requirements-test.txt
 
 # Этап для запуска тестов
 FROM builder as tester
-CMD ["sh", "-c", "python -m pytest -v > /app/test_results/test_results.log 2>&1 || echo 'Tests failed'"]
+
+WORKDIR /app
+
+# Создаем директорию для результатов
+RUN mkdir -p /app/test_results
+
+# Команда для запуска тестов
+CMD ["sh", "-c", "cd /app && python -m pytest tests/ -v > test_results/test_results.log 2>&1 || echo 'Tests failed'"]
 
 # Финальный этап
 FROM python:3.10-slim as production
@@ -115,7 +124,6 @@ RUN pip install -r requirements.txt && \
 # Устанавливаем PATH для пользовательских скриптов Python
 ENV PATH=/root/.local/bin:$PATH
 
-# Команда для запуска бота
 CMD ["python", "eventcrafterbot.py"]
 ```
 docker-compose.yml
@@ -151,6 +159,7 @@ services:
       - DATABASE_URL=sqlite+aiosqlite:////tmp/test.db
     volumes:
       - ./test_results:/app/test_results
+    working_dir: /app
     restart: "no"
 
 
