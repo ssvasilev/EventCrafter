@@ -55,11 +55,9 @@ async def my_events_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             disable_web_page_preview=True
         )
         await query.edit_message_text("Список мероприятий отправлен вам в личные сообщения.")
-    except logger.error:
-        await query.edit_message_text("Не удалось отправить сообщение. Пожалуйста, начните чат с ботом.")
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения: {e}")
-        await query.edit_message_text("Произошла ошибка при отправке списка мероприятий.")
+        await query.edit_message_text("Не удалось отправить сообщение. Пожалуйста, начните чат с ботом.")
 
     # Завершаем диалог
     return ConversationHandler.END
