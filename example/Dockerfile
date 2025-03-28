@@ -23,7 +23,14 @@ RUN pip install --user -r requirements-test.txt
 
 # Этап для запуска тестов
 FROM builder as tester
-CMD ["sh", "-c", "python -m pytest -v > /app/test_results/test_results.log 2>&1 || echo 'Tests failed'"]
+
+WORKDIR /app
+
+# Создаем директорию для результатов
+RUN mkdir -p /app/test_results
+
+# Команда для запуска тестов
+CMD ["sh", "-c", "cd /app && python -m pytest tests/ -v > test_results/test_results.log 2>&1 || echo 'Tests failed'"]
 
 # Финальный этап
 FROM python:3.10-slim as production
