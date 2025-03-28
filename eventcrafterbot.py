@@ -10,6 +10,7 @@ from src.handlers.create_event_handler import conv_handler_create
 from src.handlers.edit_event_handlers import conv_handler_edit_event
 from src.handlers.mention_handler import conv_handler_create_mention
 from src.handlers.start_handler import start
+from src.handlers.version_handler import version
 
 from src.jobs.notification_jobs import restore_scheduled_jobs
 import os
@@ -48,6 +49,7 @@ def main():
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("version", version))
 
     #Обработчик для кнопки Мои мероприятия
     application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
