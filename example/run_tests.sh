@@ -1,17 +1,25 @@
 #!/bin/bash
 
-# Создаем директорию для логов
+# Создаем директории
 mkdir -p test_results
 
+# Очищаем предыдущие результаты
+rm -f test_results/test_results.log
+
 # Собираем и запускаем тесты
-docker compose build tests
-docker compose run --rm --name eventcrafter_tests -v $(pwd)/test_results:/app/test_results tests
+docker compose build tests && \
+docker compose run --rm --name eventcrafter_tests \
+  -v $(pwd)/test_results:/app/test_results \
+  tests
+
+# Проверяем наличие файла результатов
+if [ ! -f "test_results/test_results.log" ]; then
+  echo "ERROR: Test results file not generated!"
+  exit 1
+fi
 
 # Сохраняем код возврата
 TEST_EXIT_CODE=$?
-
-# Удаляем контейнер (хотя --rm должен это делать)
-docker rm -f eventcrafter_tests 2>/dev/null || true
 
 # Проверяем наличие файла с результатами
 if [ -f "test_results/test_results.log" ]; then
