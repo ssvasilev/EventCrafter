@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"  # Убираем предупреждение
-testpaths = ["tests/integration"]
+testpaths = ["tests/integration", "tests/unit"]
 python_files = "test_*.py"
 log_cli_level = "INFO"
 filterwarnings = [
