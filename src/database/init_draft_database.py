@@ -12,7 +12,8 @@ def init_drafts_db(db_path):
             chat_id INTEGER NOT NULL,
             message_id INTEGER,
             bot_message_id INTEGER,
-            status TEXT NOT NULL,
+            status TEXT NOT NULL,  -- "DRAFT", "AWAIT_DATE", "AWAIT_TIME", "AWAIT_LIMIT", "DONE"
+            current_state TEXT,     -- "SET_DESCRIPTION", "SET_DATE", "SET_TIME", "SET_LIMIT"
             description TEXT,
             date TEXT,
             time TEXT,

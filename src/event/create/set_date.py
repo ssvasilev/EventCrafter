@@ -20,6 +20,7 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db_path=context.bot_data["drafts_db_path"],
             draft_id=draft_id,
             status="AWAIT_TIME",
+            current_state="SET_TIME",
             date=date.strftime("%d.%m.%Y")
         )
 

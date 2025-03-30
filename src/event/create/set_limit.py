@@ -29,6 +29,7 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db_path=context.bot_data["drafts_db_path"],
             draft_id=draft_id,
             status="DONE",
+            current_state="COMPLETED",
             participant_limit=limit
         )
 

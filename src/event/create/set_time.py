@@ -20,6 +20,7 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db_path=context.bot_data["drafts_db_path"],
             draft_id=draft_id,
             status="AWAIT_PARTICIPANT_LIMIT",
+            current_state="SET_LIMIT",
             time=time.strftime("%H:%M")
         )
 

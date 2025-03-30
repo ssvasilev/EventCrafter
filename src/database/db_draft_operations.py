@@ -52,7 +52,8 @@ def add_draft(db_path, creator_id, chat_id, status, description=None, date=None,
         logger.error(f"Ошибка при добавлении черновика в базу данных: {e}")
         return None
 
-def update_draft(db_path, draft_id, status=None, description=None, date=None, time=None, participant_limit=None):
+def update_draft(db_path, draft_id, status=None, current_state=None, description=None,
+                date=None, time=None, participant_limit=None, bot_message_id=None):
     """
     Обновляет черновик мероприятия в базе данных.
     :param db_path: Путь к базе данных.
@@ -69,9 +70,13 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None, ti
             cursor = conn.cursor()
             updates = []
             params = []
+
             if status:
                 updates.append("status = ?")
                 params.append(status)
+            if current_state:
+                updates.append("current_state = ?")
+                params.append(current_state)
             if description:
                 updates.append("description = ?")
                 params.append(description)
@@ -84,18 +89,23 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None, ti
             if participant_limit is not None:
                 updates.append("participant_limit = ?")
                 params.append(participant_limit)
-            # Добавляем обновление поля updated_at
+            if bot_message_id:
+                updates.append("bot_message_id = ?")
+                params.append(bot_message_id)
+
             updates.append("updated_at = ?")
             params.append(now)
             params.append(draft_id)
+
             cursor.execute(
                 f"UPDATE drafts SET {', '.join(updates)} WHERE id = ?",
                 params,
             )
             conn.commit()
-            logger.info(f"Черновик с ID {draft_id} обновлен.")
+            logger.info(f"Черновик {draft_id} обновлен. Изменения: {', '.join(updates)}")
     except sqlite3.Error as e:
-        logger.error(f"Ошибка при обновлении черновика: {e}")
+        logger.error(f"Ошибка при обновлении черновика {draft_id}: {e}")
+        raise
 
 def get_draft(db_path, draft_id):
     """
