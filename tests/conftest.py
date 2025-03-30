@@ -1,27 +1,23 @@
+from zoneinfo import ZoneInfo
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from typing import AsyncIterator
 from typing import AsyncGenerator
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock, patch
 from telegram import Update, Message, Chat
+from datetime import timezone, timedelta
 
 # Добавляем корень проекта в PYTHONPATH
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-
 @pytest.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
-        echo=True  # Для отладки SQL-запросов
+        echo=True
     )
-
-    # Создаем таблицы (если нужно)
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(Base.metadata.create_all)
 
     async_session = async_sessionmaker(
         engine,
@@ -55,9 +51,32 @@ def mock_update():
 
     return mock_update
 
-
 @pytest.fixture
 def mock_context():
     mock_context = MagicMock()
     mock_context.user_data = {}
     return mock_context
+
+@pytest.fixture(autouse=True)
+def mock_config():
+    """Фикстура для мокирования конфигурации"""
+    with patch('config.tz', new=timezone(timedelta(hours=3))):  # Фиксированное смещение UTC+3
+        yield
+
+@pytest.fixture
+def mock_logger():
+    """Фикстура для мокирования логгера"""
+    logger = MagicMock()
+    with patch('src.logger.logger', new=logger, create=True):
+        yield logger
+
+@pytest.fixture(autouse=True)
+def mock_timezone(mock_logger):
+    """Фикстура для мокирования часового пояса"""
+    try:
+        tz = ZoneInfo("Europe/Moscow")
+    except Exception:
+        tz = timezone(timedelta(hours=3))  # Fallback
+
+    with patch('config.tz', new=tz):
+        yield
