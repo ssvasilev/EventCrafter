@@ -1,5 +1,4 @@
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler
-
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.buttons.my_events_button import my_events_button
@@ -9,7 +8,7 @@ from src.handlers.button_handlers import button_handler
 from src.handlers.create_event_handler import conv_handler_create
 from src.handlers.edit_event_handlers import conv_handler_edit_event
 from src.handlers.mention_handler import conv_handler_create_mention
-from src.handlers.restore_handler import get_restore_handler
+from src.handlers.restore_handler import get_restore_handler, restore_handler
 from src.handlers.start_handler import start
 from src.handlers.version_handler import version
 
@@ -48,24 +47,23 @@ def main():
     # Сохраняем часовой пояс в context.bot_data
     application.bot_data["tz"] = tz
 
-    # Добавляем обработчик восстановления состояния (должен быть первым)
-    application.add_handler(get_restore_handler(), group=0)
+    # 1. Обработчик восстановления (самый первый, для текстовых сообщений)
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, restore_handler),
+        group=0
+    )
 
-    # Регистрируем обработчики команд
+    # 2. Обработчик упоминаний (раньше обычного создания)
+    application.add_handler(conv_handler_create_mention, group=1)
+
+    # 3. Обычный обработчик создания через кнопку
+    application.add_handler(conv_handler_create, group=1)
+
+    # 4. Остальные обработчики (команды, кнопки и т.д.)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
-
-    #Обработчик для кнопки Мои мероприятия
     application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
-
-    # ConversationHandler для создания мероприятия
-    application.add_handler(conv_handler_create)
-    application.add_handler(conv_handler_create_mention)
-
-    # ConversationHandler для редактирования мероприятия
     application.add_handler(conv_handler_edit_event)
-
-    # Регистрируем обработчик нажатий на кнопки
     application.add_handler(CallbackQueryHandler(button_handler))
 
     # Восстанавливаем запланированные задачи
