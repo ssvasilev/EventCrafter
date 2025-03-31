@@ -13,30 +13,32 @@ from src.event.create.set_limit import set_limit
 from src.event.create.set_time import set_time
 from src.handlers.cancel_handler import cancel_input, cancel
 from src.handlers.conversation_handler_states import SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT
+from src.handlers.mention_handler import mention_handler
 
-# ConversationHandler для создания мероприятия
-conv_handler_create = ConversationHandler(
-    entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],  # Кнопка "Создать
-    # мероприятие"
+# Общий ConversationHandler для всех способов создания мероприятия
+conv_handler_create_event = ConversationHandler(
+    entry_points=[
+        CallbackQueryHandler(create_event_button, pattern="^create_event$"),
+        MessageHandler(filters.Entity("mention") & filters.TEXT, mention_handler)
+    ],
     states={
         SET_DESCRIPTION: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_description),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
         ],
         SET_DATE: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_date),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
         ],
         SET_TIME: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_time),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
         ],
         SET_LIMIT: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
+            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
         ],
     },
     fallbacks=[CommandHandler("cancel", cancel)],
     per_message=False,
 )
-

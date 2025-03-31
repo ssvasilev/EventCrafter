@@ -6,7 +6,7 @@ from src.buttons.my_events_button import my_events_button
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
 from src.handlers.button_handlers import button_handler
-from src.handlers.create_event_handler import conv_handler_create
+from src.handlers.create_event_handler import conv_handler_create_event
 from src.handlers.edit_event_handlers import conv_handler_edit_event
 from src.handlers.mention_handler import conv_handler_create_mention
 from src.handlers.start_handler import start
@@ -55,8 +55,9 @@ def main():
     application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
 
     # ConversationHandler для создания мероприятия
-    application.add_handler(conv_handler_create)
-    application.add_handler(conv_handler_create_mention)
+    application.add_handler(conv_handler_create_event)
+    #application.add_handler(conv_handler_create)
+    #application.add_handler(conv_handler_create_mention)
 
     # ConversationHandler для редактирования мероприятия
     application.add_handler(conv_handler_edit_event)
