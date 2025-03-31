@@ -1,4 +1,4 @@
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.buttons.my_events_button import my_events_button
 from src.database.db_draft_operations import get_all_active_drafts
@@ -11,11 +11,20 @@ from src.handlers.edit_event_handlers import conv_handler_edit_event
 from src.handlers.mention_handler import conv_handler_create_mention
 from src.handlers.start_handler import start
 from src.handlers.version_handler import version
+from src.handlers.cancel_handler import cancel_input  # Добавляем импорт обработчика отмены
 
 from src.jobs.notification_jobs import restore_scheduled_jobs
 import os
 from dotenv import load_dotenv
 import locale
+import logging
+
+# Настройка логирования
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
 
@@ -45,8 +54,12 @@ def main():
     })
 
     # Загружаем активные черновики при старте
-    active_drafts = get_all_active_drafts(DB_DRAFT_PATH)
-    application.bot_data["active_drafts"] = {draft["creator_id"]: draft for draft in active_drafts}
+    try:
+        active_drafts = get_all_active_drafts(DB_DRAFT_PATH)
+        application.bot_data["active_drafts"] = {draft["creator_id"]: draft for draft in active_drafts}
+    except Exception as e:
+        logger.error(f"Ошибка при загрузке активных черновиков: {e}")
+        application.bot_data["active_drafts"] = {}
 
     # Создаем обработчик продолжения
     continue_handler = MessageHandler(
@@ -55,31 +68,45 @@ def main():
     )
 
     # Добавляем обработчики в правильном порядке:
-    # 1. Сначала обработчик продолжения
+    # 1. Обработчик кнопки "Отмена" (должен быть первым, чтобы перехватывать cancel_input)
+    application.add_handler(CallbackQueryHandler(cancel_input, pattern="^cancel_input$"))
+
+    # 2. Обработчик продолжения
     application.add_handler(continue_handler)
 
-    # 2. Обработчики команд
+    # 3. Обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
 
-    # 3. Обработчик кнопки "Мои мероприятия"
+    # 4. Обработчик кнопки "Мои мероприятия"
     application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
 
-    # 4. ConversationHandler для создания мероприятия
+    # 5. ConversationHandler для создания мероприятия
     application.add_handler(conv_handler_create)
     application.add_handler(conv_handler_create_mention)
 
-    # 5. ConversationHandler для редактирования мероприятия
+    # 6. ConversationHandler для редактирования мероприятия
     application.add_handler(conv_handler_edit_event)
 
-    # 6. Общий обработчик кнопок
+    # 7. Общий обработчик кнопок (должен быть последним)
     application.add_handler(CallbackQueryHandler(button_handler))
 
     # Восстанавливаем запланированные задачи
     restore_scheduled_jobs(application)
 
+    # Обработчик ошибок
+    application.add_error_handler(error_handler)
+
     # Запускаем бота
     application.run_polling()
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Логируем ошибки и уведомляем пользователя."""
+    logger.error(msg="Исключение при обработке обновления:", exc_info=context.error)
+
+    if update and hasattr(update, 'effective_message'):
+        text = "⚠️ Произошла ошибка. Пожалуйста, попробуйте еще раз."
+        await update.effective_message.reply_text(text)
 
 if __name__ == "__main__":
     main()
