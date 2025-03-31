@@ -156,6 +156,24 @@ def set_user_state(db_path, user_id, handler_name, state, draft_id=None):
         logger.error(f"Ошибка при сохранении состояния: {e}")
 
 
+def get_active_user_state(db_path, user_id):
+    """Получает активное состояние пользователя из базы"""
+    try:
+        with get_db_connection(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT us.current_handler, us.current_state, us.draft_id
+                FROM user_states us
+                JOIN drafts d ON us.draft_id = d.id
+                WHERE us.user_id = ? AND d.status NOT IN ('DONE', 'CANCELED')
+                LIMIT 1
+            """, (user_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Ошибка получения состояния: {e}")
+        return None
+
 def get_user_state(db_path, user_id):
     """Возвращает состояние только с существующими черновиками"""
     with get_db_connection(db_path) as conn:
