@@ -2,7 +2,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 from src.handlers.conversation_handler_states import SET_DATE
-from src.database.db_draft_operations import update_draft, set_user_state
+from src.database.db_draft_operations import update_draft, set_user_state, add_draft
+
 
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Инициализация черновика если его нет
