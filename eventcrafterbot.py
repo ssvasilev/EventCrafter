@@ -68,27 +68,29 @@ def main():
     )
 
     # Добавляем обработчики в правильном порядке:
-    # 1. Обработчик кнопки "Отмена" (должен быть первым, чтобы перехватывать cancel_input)
-    application.add_handler(CallbackQueryHandler(cancel_input, pattern="^cancel_input$"))
-
-    # 3. Обработчики команд
+    # 1. Обработчики команд (высший приоритет)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
 
-    # 4. Обработчик кнопки "Мои мероприятия"
-    application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
+    # 2. Обработчик кнопки "Отмена" (высокий приоритет)
+    application.add_handler(CallbackQueryHandler(cancel_input, pattern="^cancel_input$"))
 
-    # 5. ConversationHandler для создания мероприятия
+    # 3. ConversationHandler для упоминаний (должен быть ПЕРЕД общим обработчиком кнопок)
     application.add_handler(conv_handler_create_mention)
+
+    # 4. ConversationHandler для обычного создания
     application.add_handler(conv_handler_create)
-    # 2. Обработчик продолжения
+
+    # 5. Обработчик продолжения незавершенных мероприятий
     application.add_handler(continue_handler)
 
-
-    # 6. ConversationHandler для редактирования мероприятия
+    # 6. ConversationHandler для редактирования
     application.add_handler(conv_handler_edit_event)
 
-    # 7. Общий обработчик кнопок (должен быть последним)
+    # 7. Обработчик кнопки "Мои мероприятия"
+    application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
+
+    # 8. Общий обработчик кнопок (НИЗШИЙ приоритет - добавляется ПОСЛЕДНИМ)
     application.add_handler(CallbackQueryHandler(button_handler))
 
     # Восстанавливаем запланированные задачи
