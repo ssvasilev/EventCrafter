@@ -167,14 +167,11 @@ def get_user_state(db_path, user_id):
         return dict(row) if row else None
 
 def clear_user_state(db_path: str, user_id: int):
-    """Полностью очищает состояние пользователя"""
+    """Атомарная очистка состояния пользователя"""
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM user_states WHERE user_id = ?", (user_id,))
-        conn.commit()
-        logger.info(f"Состояние пользователя {user_id} очищено")
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("DELETE FROM user_states WHERE user_id = ?", (user_id,))
+            conn.commit()
     except Exception as e:
-        logger.error(f"Ошибка очистки состояния пользователя {user_id}: {e}")
-    finally:
-        conn.close()
+        logger.error(f"Ошибка очистки состояния: {e}")
+        raise
