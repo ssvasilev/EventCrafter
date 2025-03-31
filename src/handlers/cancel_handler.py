@@ -4,43 +4,52 @@ from src.logger.logger import logger
 from src.database.db_draft_operations import clear_user_state
 
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+    try:
+        query = update.callback_query
+        await query.answer()
 
-    # Получаем user_id из callback_query, а не из message
-    user_id = query.from_user.id
+        user_id = query.from_user.id
+        chat_id = query.message.chat_id
+        message_id = query.message.message_id
 
-    # Восстанавливаем исходное сообщение
-    original_message_id = context.user_data.get("bot_message_id")
-    original_text = context.user_data.get("original_text")
-    original_reply_markup = context.user_data.get("original_reply_markup")
+        logger.info(f"Обработка отмены для user_id={user_id}")
 
-    if original_message_id and original_text:
+        # Очищаем состояние
+        clear_user_state(context.bot_data["drafts_db_path"], user_id)
+        context.user_data.clear()
+
+        # Удаляем сообщение с кнопками
         try:
-            await context.bot.edit_message_text(
-                chat_id=query.message.chat_id,
-                message_id=original_message_id,
-                text=original_text,
-                reply_markup=original_reply_markup,
-                parse_mode="HTML"
-            )
+            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
         except Exception as e:
-            logger.error(f"Ошибка при восстановлении сообщения: {e}")
-            await query.edit_message_text("Операция отменена.")
-    else:
-        await query.edit_message_text("Операция отменена.")
+            logger.warning(f"Не удалось удалить сообщение: {e}")
 
-    # Очищаем состояние пользователя
-    clear_user_state(context.bot_data["drafts_db_path"], user_id)
-    context.user_data.clear()
-    return ConversationHandler.END
+        # Отправляем подтверждение отмены
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="Операция отменена. Вы можете начать заново."
+        )
+
+        return ConversationHandler.END
+
+    except Exception as e:
+        logger.error(f"Ошибка в cancel_input: {e}")
+        if update.callback_query:
+            await update.callback_query.answer("⚠ Ошибка при отмене")
+        return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Для команды /cancel используем update.message
-    user_id = update.message.from_user.id
-    await update.message.reply_text("Создание мероприятия отменено.")
+    try:
+        user_id = update.message.from_user.id
+        logger.info(f"Обработка команды отмены для user_id={user_id}")
 
-    # Очищаем состояние пользователя
-    clear_user_state(context.bot_data["drafts_db_path"], user_id)
-    context.user_data.clear()
-    return ConversationHandler.END
+        clear_user_state(context.bot_data["drafts_db_path"], user_id)
+        context.user_data.clear()
+
+        await update.message.reply_text("Создание мероприятия отменено.")
+        return ConversationHandler.END
+
+    except Exception as e:
+        logger.error(f"Ошибка в cancel: {e}")
+        await update.message.reply_text("⚠ Ошибка при отмене")
+        return ConversationHandler.END

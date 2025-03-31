@@ -5,6 +5,7 @@ from src.buttons.my_events_button import my_events_button
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
 from src.handlers.button_handlers import button_handler
+from src.handlers.cancel_handler import cancel_input, cancel
 from src.handlers.create_event_handler import conv_handler_create
 from src.handlers.edit_event_handlers import conv_handler_edit_event
 from src.handlers.mention_handler import conv_handler_create_mention
@@ -52,6 +53,12 @@ def main():
         MessageHandler(filters.TEXT & ~filters.COMMAND, restore_handler),
         group=0
     )
+
+    # 2. Обработчик команды /cancel
+    application.add_handler(CommandHandler("cancel", cancel))
+
+    # 3. Обработчик кнопки отмены (должен быть перед общим обработчиком кнопок)
+    application.add_handler(CallbackQueryHandler(cancel_input, pattern="^cancel_input$"))
 
     # 2. Обработчик упоминаний (раньше обычного создания)
     application.add_handler(conv_handler_create_mention, group=1)
