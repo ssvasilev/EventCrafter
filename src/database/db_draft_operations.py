@@ -96,6 +96,10 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None, ti
             logger.info(f"Черновик с ID {draft_id} обновлен.")
     except sqlite3.Error as e:
         logger.error(f"Ошибка при обновлении черновика: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in update_draft: {e}")
+        raise
 
 def get_draft(db_path, draft_id):
     """
@@ -118,7 +122,12 @@ def get_user_draft(db_path, creator_id):
     """
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM drafts WHERE creator_id = ? AND status != 'DONE'", (creator_id,))
+        cursor.execute("""
+            SELECT * FROM drafts 
+            WHERE creator_id = ? AND status != 'DONE'
+            ORDER BY created_at DESC
+            LIMIT 1
+        """, (creator_id,))
         return cursor.fetchone()
 
 def delete_draft(db_path: str, draft_id: int):

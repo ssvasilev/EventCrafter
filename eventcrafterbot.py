@@ -71,9 +71,6 @@ def main():
     # 1. Обработчик кнопки "Отмена" (должен быть первым, чтобы перехватывать cancel_input)
     application.add_handler(CallbackQueryHandler(cancel_input, pattern="^cancel_input$"))
 
-    # 2. Обработчик продолжения
-    application.add_handler(continue_handler)
-
     # 3. Обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
@@ -82,8 +79,11 @@ def main():
     application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
 
     # 5. ConversationHandler для создания мероприятия
-    application.add_handler(conv_handler_create)
     application.add_handler(conv_handler_create_mention)
+    application.add_handler(conv_handler_create)
+    # 2. Обработчик продолжения
+    application.add_handler(continue_handler)
+
 
     # 6. ConversationHandler для редактирования мероприятия
     application.add_handler(conv_handler_edit_event)

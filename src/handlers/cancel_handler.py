@@ -4,6 +4,12 @@ from src.database.db_draft_operations import delete_draft
 from src.logger.logger import logger
 
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        # Полная очистка user_data
+        context.user_data.clear()
+    except Exception as e:
+        logger.error(f"Error in cancel handler: {e}")
+        await update.callback_query.answer("⚠️ Ошибка при отмене")
     query = update.callback_query
     await query.answer()
 
