@@ -8,7 +8,7 @@ from src.handlers.button_handlers import button_handler
 from src.handlers.continue_handler import continue_creation
 from src.handlers.create_event_handler import conv_handler_create
 from src.handlers.edit_event_handlers import conv_handler_edit_event
-from src.handlers.mention_handler import conv_handler_create_mention
+from src.handlers.mention_handler import conv_handler_create_mention, handle_mention_create
 from src.handlers.start_handler import start
 from src.handlers.version_handler import version
 from src.handlers.cancel_handler import cancel_input  # Добавляем импорт обработчика отмены
@@ -86,6 +86,9 @@ def main():
 
     # 6. ConversationHandler для редактирования
     application.add_handler(conv_handler_edit_event)
+
+    # Перед общим обработчиком кнопок
+    application.add_handler(CallbackQueryHandler(handle_mention_create, pattern="^mention_create_event$"))
 
     # 7. Обработчик кнопки "Мои мероприятия"
     application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))

@@ -7,6 +7,11 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    # Полная очистка
+    keys = list(context.user_data.keys())
+    for key in keys:
+        del context.user_data[key]
+
     try:
         if "draft_id" in context.user_data:
             delete_draft(context.bot_data["drafts_db_path"], context.user_data["draft_id"])

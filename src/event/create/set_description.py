@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
-from src.handlers.conversation_handler_states import SET_DATE
+from src.handlers.conversation_handler_states import SET_DATE, SET_DESCRIPTION
 from src.database.db_draft_operations import update_draft, get_draft
 from src.logger.logger import logger
 

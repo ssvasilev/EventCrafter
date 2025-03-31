@@ -28,9 +28,9 @@ async def handle_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mention_text = update.message.text.split('@' + context.bot.username)[1].strip()
 
         if not mention_text:
-            # Если текст пустой - показываем меню
+            # Создаем уникальный callback_data с префиксом
             keyboard = [
-                [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")],
+                [InlineKeyboardButton("📅 Создать мероприятие", callback_data="mention_create_event")],
                 [InlineKeyboardButton("📋 Мои мероприятия", callback_data="my_events")]
             ]
             await update.message.reply_text(
@@ -71,6 +71,41 @@ async def handle_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in mention handler: {e}")
         await update.message.reply_text("Произошла ошибка. Пожалуйста, попробуйте еще раз.")
+        return ConversationHandler.END
+
+
+async def handle_mention_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    # Очищаем предыдущее состояние
+    context.user_data.clear()
+
+    try:
+        # Создаем новый черновик
+        draft_id = add_draft(
+            db_path=context.bot_data["drafts_db_path"],
+            creator_id=query.from_user.id,
+            chat_id=query.message.chat_id,
+            status="AWAIT_DESCRIPTION"
+        )
+
+        context.user_data.update({
+            "draft_id": draft_id,
+            "chat_id": query.message.chat_id,
+            "bot_message_id": query.message.message_id
+        })
+
+        await query.edit_message_text(
+            text="Введите описание мероприятия:",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]])
+        )
+
+        return SET_DESCRIPTION
+
+    except Exception as e:
+        logger.error(f"Error in mention create: {e}")
+        await query.edit_message_text("⚠️ Ошибка при создании. Попробуйте снова.")
         return ConversationHandler.END
 
 
