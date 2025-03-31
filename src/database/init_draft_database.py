@@ -22,5 +22,16 @@ def init_drafts_db(db_path):
         )
         """
     )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_states (
+            user_id INTEGER PRIMARY KEY,
+            current_handler TEXT NOT NULL,
+            current_state INTEGER NOT NULL,
+            draft_id INTEGER,
+            FOREIGN KEY(draft_id) REFERENCES drafts(id) ON DELETE CASCADE
+        )
+        """
+    )
     conn.commit()
     conn.close()

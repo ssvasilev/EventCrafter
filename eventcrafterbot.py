@@ -9,6 +9,7 @@ from src.handlers.button_handlers import button_handler
 from src.handlers.create_event_handler import conv_handler_create
 from src.handlers.edit_event_handlers import conv_handler_edit_event
 from src.handlers.mention_handler import conv_handler_create_mention
+from src.handlers.restore_handler import get_restore_handler
 from src.handlers.start_handler import start
 from src.handlers.version_handler import version
 
@@ -46,6 +47,9 @@ def main():
 
     # Сохраняем часовой пояс в context.bot_data
     application.bot_data["tz"] = tz
+
+    # Добавляем обработчик восстановления состояния (должен быть первым)
+    application.add_handler(get_restore_handler(), group=0)
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))

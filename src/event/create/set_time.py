@@ -4,7 +4,8 @@ from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
 
 from src.handlers.conversation_handler_states import SET_LIMIT, SET_TIME
-from src.database.db_draft_operations import update_draft, get_draft
+from src.database.db_draft_operations import update_draft, get_draft, set_user_state
+
 
 async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем текст времени
@@ -48,6 +49,16 @@ async def set_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.delete()
         except BadRequest:
             pass
+
+        # Сохраняем состояние перед переходом к следующему шагу
+        handler = "mention_handler" if "description" in context.user_data else "create_event_handler"
+        set_user_state(
+            context.bot_data["drafts_db_path"],
+            update.message.from_user.id,
+            handler,
+            SET_LIMIT,
+            draft_id
+        )
 
         # Переходим к состоянию SET_LIMIT
         return SET_LIMIT

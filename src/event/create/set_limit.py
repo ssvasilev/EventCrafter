@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
 
 from src.database.db_operations import add_event, update_event_field, add_scheduled_job
-from src.database.db_draft_operations import update_draft, get_draft, delete_draft
+from src.database.db_draft_operations import update_draft, get_draft, delete_draft, clear_user_state, set_user_state
 from src.jobs.notification_jobs import unpin_and_delete_event, send_notification
 from src.logger.logger import logger
 from src.message.send_message import send_event_message
@@ -147,6 +147,9 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         add_scheduled_job(context.bot_data["db_path"], event_id, job_minutes.id, draft["chat_id"], (event_datetime - timedelta(minutes=15)).isoformat(), job_type="notification_minutes")
         add_scheduled_job(context.bot_data["db_path"], event_id, job_unpin.id, draft["chat_id"], event_datetime.isoformat(), job_type="unpin_delete")
 
+        # Очищаем состояние пользователя после успешного завершения
+        clear_user_state(context.bot_data["drafts_db_path"], update.message.from_user.id)
+
         # Завершаем диалог
         context.user_data.clear()
         return ConversationHandler.END
@@ -155,6 +158,17 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Если введённый текст не является числом или лимит отрицательный
         error_message = (
             "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
+        )
+
+        # При ошибке остаемся в том же состоянии, но обновляем его в базе
+        handler = "mention_handler" if "description" in context.user_data else "create_event_handler"
+
+        set_user_state(
+            context.bot_data["drafts_db_path"],
+            update.message.from_user.id,
+            handler,
+            SET_LIMIT,
+            context.user_data["draft_id"]
         )
 
         # Редактируем существующее сообщение бота с ошибкой

@@ -135,3 +135,56 @@ def delete_draft(db_path: str, draft_id: int):
             logger.info(f"Черновик с ID {draft_id} удалён.")
     except sqlite3.Error as e:
         logger.error(f"Ошибка при удалении черновика: {e}")
+
+def set_user_state(db_path, user_id, handler_name, state, draft_id=None):
+    """Сохраняет текущее состояние пользователя."""
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO user_states 
+                (user_id, current_handler, current_state, draft_id) 
+                VALUES (?, ?, ?, ?)
+                """,
+                (user_id, handler_name, state, draft_id),
+            )
+            conn.commit()
+            logger.info(f"Состояние сохранено для пользователя {user_id}")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при сохранении состояния: {e}")
+
+def get_user_state(db_path, user_id):
+    """Возвращает текущее состояние пользователя."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT current_handler, current_state, draft_id 
+            FROM user_states 
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        )
+        result = cursor.fetchone()
+        if result:
+            return {
+                "handler": result[0],
+                "state": result[1],
+                "draft_id": result[2]
+            }
+        return None
+
+def clear_user_state(db_path, user_id):
+    """Очищает состояние пользователя."""
+    try:
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM user_states WHERE user_id = ?",
+                (user_id,),
+            )
+            conn.commit()
+            logger.info(f"Состояние очищено для пользователя {user_id}")
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при очистке состояния: {e}")

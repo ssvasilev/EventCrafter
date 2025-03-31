@@ -3,7 +3,8 @@ from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 
 from src.handlers.conversation_handler_states import SET_DATE
-from src.database.db_draft_operations import update_draft
+from src.database.db_draft_operations import update_draft, set_user_state
+
 
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем текст описания
@@ -37,6 +38,15 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.delete()
     except BadRequest:
         pass  # Продолжаем выполнение, даже если не удалось удалить сообщение
+
+    # Сохраняем состояние
+    set_user_state(
+        context.bot_data["drafts_db_path"],
+        update.message.from_user.id,
+        "create_event_handler",
+        SET_DATE,
+        draft_id
+    )
 
     # Переходим к состоянию SET_DATE
     return SET_DATE
