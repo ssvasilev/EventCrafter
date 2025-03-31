@@ -1,16 +1,14 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
-
-from src.database.db_draft_operations import clear_user_state
 from src.logger.logger import logger
-
+from src.database.db_draft_operations import clear_user_state
 
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Очищаем состояние пользователя
-    clear_user_state(context.bot_data["drafts_db_path"], update.message.from_user.id)
+    # Получаем user_id из callback_query, а не из message
+    user_id = query.from_user.id
 
     # Восстанавливаем исходное сообщение
     original_message_id = context.user_data.get("bot_message_id")
@@ -32,15 +30,17 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.edit_message_text("Операция отменена.")
 
-    context.user_data.clear()  # Очищаем user_data
+    # Очищаем состояние пользователя
+    clear_user_state(context.bot_data["drafts_db_path"], user_id)
+    context.user_data.clear()
     return ConversationHandler.END
 
-
-# Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Для команды /cancel используем update.message
+    user_id = update.message.from_user.id
     await update.message.reply_text("Создание мероприятия отменено.")
+
     # Очищаем состояние пользователя
-    clear_user_state(context.bot_data["drafts_db_path"], update.message.from_user.id)
-    await update.message.reply_text("Создание мероприятия отменено.")
+    clear_user_state(context.bot_data["drafts_db_path"], user_id)
     context.user_data.clear()
     return ConversationHandler.END

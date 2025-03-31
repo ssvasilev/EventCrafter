@@ -176,6 +176,9 @@ def get_user_state(db_path, user_id):
         return None
 
 def clear_user_state(db_path, user_id):
+    if not user_id:
+        logger.warning("Попытка очистки состояния для None user_id")
+        return
     """Очищает состояние пользователя."""
     try:
         with sqlite3.connect(db_path) as conn:
