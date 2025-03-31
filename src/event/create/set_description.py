@@ -2,11 +2,27 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 
-from src.handlers.conversation_handler_states import SET_DATE
-from src.database.db_draft_operations import update_draft, set_user_state
+from src.handlers.conversation_handler_states import SET_DATE, SET_DESCRIPTION
+from src.database.db_draft_operations import update_draft, set_user_state, add_draft
 
 
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if 'draft_id' not in context.user_data:
+        draft_id = add_draft(
+            context.bot_data["drafts_db_path"],
+            update.message.from_user.id,
+            update.message.chat_id,
+            "AWAIT_DESCRIPTION"
+        )
+        context.user_data["draft_id"] = draft_id
+        set_user_state(
+            context.bot_data["drafts_db_path"],
+            update.message.from_user.id,
+            "create_event_handler",
+            SET_DESCRIPTION,
+            draft_id
+        )
+
     # Получаем текст описания
     description = update.message.text
 

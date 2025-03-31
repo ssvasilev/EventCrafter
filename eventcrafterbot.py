@@ -3,6 +3,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 
 from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.buttons.my_events_button import my_events_button
+from src.database.db_draft_operations import get_db_connection
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
 from src.handlers.button_handlers import button_handler
@@ -48,6 +49,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
         elif update.message:
             await update.message.reply_text("⚠ Произошла ошибка")
 
+
 def main():
     # Создаём приложение и передаём токен
     application = Application.builder().token(BOT_TOKEN).build()
@@ -89,6 +91,14 @@ def main():
 
     # Восстанавливаем запланированные задачи
     restore_scheduled_jobs(application)
+
+    # Добавьте это перед run_polling
+    logger.info("Восстановление состояний...")
+    with get_db_connection(DB_DRAFT_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM user_states")
+        count = cursor.fetchone()[0]
+        logger.info(f"Найдено {count} активных сессий для восстановления")
 
     # Восстанавливаем запланированные задачи
     application.run_polling()

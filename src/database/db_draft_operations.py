@@ -155,16 +155,28 @@ def set_user_state(db_path, user_id, handler_name, state, draft_id=None):
     except sqlite3.Error as e:
         logger.error(f"Ошибка при сохранении состояния: {e}")
 
+
 def get_user_state(db_path, user_id):
+    """Возвращает состояние пользователя с проверкой существования черновика"""
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
+
+        # Получаем состояние только если черновик существует
         cursor.execute("""
-            SELECT current_handler, current_state, draft_id 
-            FROM user_states 
-            WHERE user_id = ?
+            SELECT us.current_handler, us.current_state, us.draft_id
+            FROM user_states us
+            JOIN drafts d ON us.draft_id = d.id
+            WHERE us.user_id = ? AND d.status != 'DONE'
         """, (user_id,))
+
         row = cursor.fetchone()
-        return dict(row) if row else None
+        if row:
+            return {
+                "handler": row[0],
+                "state": row[1],
+                "draft_id": row[2]
+            }
+        return None
 
 def clear_user_state(db_path: str, user_id: int):
     """Атомарная очистка состояния пользователя"""

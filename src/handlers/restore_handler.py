@@ -7,53 +7,66 @@ from src.logger.logger import logger
 
 async def restore_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        user_id = update.message.from_user.id
-        user_state = get_user_state(context.bot_data["drafts_db_path"], user_id)
+        # Пропускаем не текстовые сообщения и команды
+        if not update.message or not update.message.text or update.message.text.startswith('/'):
+            return None
 
+        user_id = update.message.from_user.id
+        db_path = context.bot_data["drafts_db_path"]
+
+        # Получаем состояние пользователя
+        user_state = get_user_state(db_path, user_id)
         if not user_state:
             return None
 
-        draft = get_draft(context.bot_data["drafts_db_path"], user_state["draft_id"])
+        # Получаем черновик
+        draft = get_draft(db_path, user_state["draft_id"])
         if not draft:
-            clear_user_state(context.bot_data["drafts_db_path"], user_id)
             return None
 
         # Преобразуем Row в dict если нужно
-        if hasattr(draft, 'keys'):  # Это sqlite3.Row
-            draft = dict(draft)
+        draft = dict(draft) if hasattr(draft, 'keys') else draft
 
-        # Восстанавливаем данные
+        # Восстанавливаем контекст
         context.user_data.update({
-            "draft_id": user_state["draft_id"],
+            "draft_id": draft["id"],
             "bot_message_id": draft.get("bot_message_id"),
             "description": draft.get("description"),
             "date": draft.get("date"),
-            "time": draft.get("time")
+            "time": draft.get("time"),
+            "original_text": "Восстановление сессии...",
+            "original_reply_markup": None
         })
 
-        # Перенаправляем в соответствующий обработчик
-        if user_state["handler"] == "create_event_handler":
-            if user_state["state"] == SET_DESCRIPTION:
+        # Определяем обработчик и состояние
+        handler = user_state["handler"]
+        state = user_state["state"]
+
+        logger.info(f"Восстановление: user={user_id}, handler={handler}, state={state}")
+
+        # Перенаправляем в нужный обработчик
+        if handler == "create_event_handler":
+            if state == SET_DESCRIPTION:
                 from src.event.create.set_description import set_description
                 return await set_description(update, context)
-            elif user_state["state"] == SET_DATE:
+            elif state == SET_DATE:
                 from src.event.create.set_date import set_date
                 return await set_date(update, context)
-            elif user_state["state"] == SET_TIME:
+            elif state == SET_TIME:
                 from src.event.create.set_time import set_time
                 return await set_time(update, context)
-            elif user_state["state"] == SET_LIMIT:
+            elif state == SET_LIMIT:
                 from src.event.create.set_limit import set_limit
                 return await set_limit(update, context)
 
-        elif user_state["handler"] == "mention_handler":
-            if user_state["state"] == SET_DATE:
+        elif handler == "mention_handler":
+            if state == SET_DATE:
                 from src.event.create.set_date import set_date
                 return await set_date(update, context)
-            elif user_state["state"] == SET_TIME:
+            elif state == SET_TIME:
                 from src.event.create.set_time import set_time
                 return await set_time(update, context)
-            elif user_state["state"] == SET_LIMIT:
+            elif state == SET_LIMIT:
                 from src.event.create.set_limit import set_limit
                 return await set_limit(update, context)
 
