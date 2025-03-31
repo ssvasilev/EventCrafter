@@ -20,14 +20,14 @@ def get_db_connection(db_path):
     conn.row_factory = sqlite3.Row
     return conn
 
-def add_draft(db_path, creator_id, chat_id, status, description=None, date=None, time=None,
+def add_draft(db_path, creator_id, chat_id, status="DRAFT", description=None, date=None, time=None,
               participant_limit=None, current_state=None, bot_message_id=None):
     """
     Добавляет черновик мероприятия в базу данных.
     :param db_path: Путь к базе данных.
     :param creator_id: ID создателя черновика.
     :param chat_id: ID чата.
-    :param status: Статус черновика.
+    :param status: Статус черновика (по умолчанию "DRAFT").
     :param description: Описание мероприятия.
     :param date: Дата мероприятия.
     :param time: Время мероприятия.

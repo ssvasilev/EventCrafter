@@ -41,7 +41,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         db_path=context.bot_data["drafts_db_path"],
                         creator_id=user_id,
                         chat_id=chat_id,
-                        status="AWAIT_DATE",
+                        status="AWAIT_DATE",  # Явно указываем статус
                         description=mention_text,
                         current_state="SET_DATE"
                     )

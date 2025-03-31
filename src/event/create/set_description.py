@@ -22,7 +22,9 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db_path=context.bot_data["drafts_db_path"],
             creator_id=user_id,
             chat_id=chat_id,
-            description=description
+            status="AWAIT_DATE",  # Добавляем статус
+            description=description,
+            current_state="SET_DATE"
         )
 
         # Сохраняем данные в контекст
