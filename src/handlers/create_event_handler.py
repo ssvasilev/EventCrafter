@@ -16,29 +16,28 @@ from src.handlers.conversation_handler_states import SET_DESCRIPTION, SET_DATE, 
 from src.handlers.mention_handler import mention_handler
 
 # Общий ConversationHandler для всех способов создания мероприятия
-conv_handler_create_event = ConversationHandler(
+conv_handler_create = ConversationHandler(
     entry_points=[
-        CallbackQueryHandler(create_event_button, pattern="^create_event$"),
-        MessageHandler(filters.Entity("mention") & filters.TEXT, mention_handler)
+        CallbackQueryHandler(create_event_button, pattern="^create_event$")
     ],
     states={
-        SET_DESCRIPTION: [
+        'SET_DESCRIPTION': [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_description),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
+            CallbackQueryHandler(cancel_input, pattern="^cancel_input$")
         ],
-        SET_DATE: [
+        'SET_DATE': [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_date),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
+            CallbackQueryHandler(cancel_input, pattern="^cancel_input$")
         ],
-        SET_TIME: [
+        'SET_TIME': [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_time),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
+            CallbackQueryHandler(cancel_input, pattern="^cancel_input$")
         ],
-        SET_LIMIT: [
+        'SET_LIMIT': [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),
-        ],
+            CallbackQueryHandler(cancel_input, pattern="^cancel_input$")
+        ]
     },
     fallbacks=[CommandHandler("cancel", cancel)],
-    per_message=False,
+    per_message=False
 )
