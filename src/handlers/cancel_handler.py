@@ -36,15 +36,15 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text="❌ Создание мероприятия отменено.",
             reply_markup=None
         )
-
     except Exception as e:
         logger.error(f"Error in cancel handler: {e}")
         try:
             await query.edit_message_text("❌ Отмена не удалась. Попробуйте снова.")
         except:
             pass
-
-    return ConversationHandler.END
+    finally:
+        context.user_data.clear()
+        return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -61,5 +61,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in cancel command: {e}")
         await update.message.reply_text("⚠️ Произошла ошибка при отмене.")
-
-    return ConversationHandler.END
+    finally:
+        context.user_data.clear()
+        return ConversationHandler.END

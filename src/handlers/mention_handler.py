@@ -9,8 +9,9 @@ from src.database.db_draft_operations import add_draft, get_user_draft, delete_d
 from src.logger.logger import logger
 
 async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Очищаем предыдущие данные
-    context.user_data.clear()
+    # Явная очистка предыдущего состояния
+    if context.user_data:
+        context.user_data.clear()
 
     if not update.message or not update.message.entities:
         return ConversationHandler.END
