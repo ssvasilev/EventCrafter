@@ -35,6 +35,8 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
+        if 'cancel_message_sent' in context.user_data:
+            del context.user_data['cancel_message_sent']
 
         # Редактируем существующее сообщение бота
         await context.bot.edit_message_text(

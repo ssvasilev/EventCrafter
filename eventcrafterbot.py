@@ -1,4 +1,5 @@
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram import Update
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.buttons.my_events_button import my_events_button
@@ -18,6 +19,8 @@ import os
 from dotenv import load_dotenv
 import locale
 
+from src.logger.logger import logger
+
 locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
 
 # Загружаем переменные окружения
@@ -35,9 +38,20 @@ init_db(DB_PATH)
 # Инициализация базы данных черновиков
 init_drafts_db(DB_DRAFT_PATH)
 
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    logger.error("Exception while handling update:", exc_info=context.error)
+
+    if isinstance(update, Update):
+        if update.callback_query:
+            await update.callback_query.answer("⚠ Произошла ошибка")
+        elif update.message:
+            await update.message.reply_text("⚠ Произошла ошибка")
+
 def main():
     # Создаём приложение и передаём токен
     application = Application.builder().token(BOT_TOKEN).build()
+    application.add_error_handler(error_handler)
 
     # Сохраняем путь к основной базе данных в context.bot_data
     application.bot_data["db_path"] = DB_PATH

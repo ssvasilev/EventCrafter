@@ -180,6 +180,8 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
                 parse_mode="HTML"
             )
+            if 'cancel_message_sent' in context.user_data:
+                del context.user_data['cancel_message_sent']
         except BadRequest as e:
             logger.error(f"Ошибка при редактировании сообщения: {e}")
 

@@ -4,39 +4,36 @@ from src.logger.logger import logger
 from src.database.db_draft_operations import clear_user_state
 
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    message_id = query.message.message_id
+
+    logger.info(f"Обработка отмены для user_id={user_id}")
+
+    # Очищаем состояние
+    clear_user_state(context.bot_data["drafts_db_path"], user_id)
+    context.user_data.clear()
+
     try:
-        query = update.callback_query
-        await query.answer()
+        # Удаляем сообщение с кнопками ИЛИ редактируем его
+        await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+    except Exception as e:
+        logger.warning(f"Не удалось удалить сообщение: {e}")
+        await query.edit_message_text("Операция отменена")
 
-        user_id = query.from_user.id
-        chat_id = query.message.chat_id
-        message_id = query.message.message_id
-
-        logger.info(f"Обработка отмены для user_id={user_id}")
-
-        # Очищаем состояние
-        clear_user_state(context.bot_data["drafts_db_path"], user_id)
-        context.user_data.clear()
-
-        # Удаляем сообщение с кнопками
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
-        except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение: {e}")
-
-        # Отправляем подтверждение отмены
+    # Отправляем подтверждение отмены ТОЛЬКО если не удалось удалить/изменить сообщение
+    # (чтобы избежать дублирования)
+    if not context.user_data.get('cancel_message_sent'):
         await context.bot.send_message(
             chat_id=chat_id,
             text="Операция отменена. Вы можете начать заново."
         )
+        context.user_data['cancel_message_sent'] = True
 
-        return ConversationHandler.END
-
-    except Exception as e:
-        logger.error(f"Ошибка в cancel_input: {e}")
-        if update.callback_query:
-            await update.callback_query.answer("⚠ Ошибка при отмене")
-        return ConversationHandler.END
+    return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
