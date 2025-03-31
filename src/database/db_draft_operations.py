@@ -135,3 +135,10 @@ def delete_draft(db_path: str, draft_id: int):
             logger.info(f"Черновик с ID {draft_id} удалён.")
     except sqlite3.Error as e:
         logger.error(f"Ошибка при удалении черновика: {e}")
+
+def get_all_active_drafts(db_path):
+    """Возвращает все активные черновики (статус не 'DONE')."""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM drafts WHERE status != 'DONE'")
+        return cursor.fetchall()

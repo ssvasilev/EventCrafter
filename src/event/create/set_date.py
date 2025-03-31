@@ -35,13 +35,24 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Редактируем существующее сообщение бота
-        await context.bot.edit_message_text(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"],
-            text=f"📢 {draft['description']}\n\n📅 Дата: {date_text}\n\nВведите время мероприятия в формате ЧЧ:ММ",
-            reply_markup=reply_markup,
-        )
+        # Если нет сохранённого сообщения бота - отправляем новое
+        if "bot_message_id" not in context.user_data or not context.user_data["bot_message_id"]:
+            sent_message = await update.message.reply_text(
+                f"📢 {draft['description']}\n\n📅 Дата: {date_text}\n\nВведите время мероприятия в формате ЧЧ:ММ",
+                reply_markup=reply_markup,
+            )
+            context.user_data["bot_message_id"] = sent_message.message_id
+        else:
+            # Иначе редактируем существующее
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=update.message.chat_id,
+                    message_id=context.user_data["bot_message_id"],
+                    text=f"📢 {draft['description']}\n\n📅 Дата: {date_text}\n\nВведите время мероприятия в формате ЧЧ:ММ",
+                    reply_markup=reply_markup,
+                )
+            except BadRequest:
+                pass
 
         # Пытаемся удалить сообщение пользователя
         try:
@@ -51,14 +62,29 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Переходим к состоянию SET_TIME
         return SET_TIME
+
     except ValueError:
-        # Если формат даты неверный, редактируем сообщение бота с ошибкой
-        await context.bot.edit_message_text(
-            chat_id=update.message.chat_id,
-            message_id=context.user_data["bot_message_id"],
-            text="Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]])
-        )
+        # Если формат даты неверный
+        error_message = "Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ"
+
+        # Если нет сохранённого сообщения бота - отправляем новое
+        if "bot_message_id" not in context.user_data or not context.user_data["bot_message_id"]:
+            sent_message = await update.message.reply_text(
+                error_message,
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]])
+            )
+            context.user_data["bot_message_id"] = sent_message.message_id
+        else:
+            # Иначе редактируем существующее
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=update.message.chat_id,
+                    message_id=context.user_data["bot_message_id"],
+                    text=error_message,
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]])
+                )
+            except BadRequest:
+                pass
 
         # Пытаемся удалить сообщение пользователя
         try:

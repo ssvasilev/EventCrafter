@@ -18,21 +18,28 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         description=description
     )
 
-    # Создаем клавиатуру с кнопкой "Отмена"
-    keyboard = [
-        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
-    ]
+    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Редактируем существующее сообщение бота
-    await context.bot.edit_message_text(
-        chat_id=update.message.chat_id,
-        message_id=context.user_data["bot_message_id"],
-        text=f"📢 {description}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
-        reply_markup=reply_markup,
-    )
+    # Если нет сохранённого сообщения бота - отправляем новое
+    if "bot_message_id" not in context.user_data or not context.user_data["bot_message_id"]:
+        sent_message = await update.message.reply_text(
+            f"📢 {description}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
+            reply_markup=reply_markup,
+        )
+        context.user_data["bot_message_id"] = sent_message.message_id
+    else:
+        # Иначе редактируем существующее
+        try:
+            await context.bot.edit_message_text(
+                chat_id=update.message.chat_id,
+                message_id=context.user_data["bot_message_id"],
+                text=f"📢 {description}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
+                reply_markup=reply_markup,
+            )
+        except BadRequest:
+            pass
 
-    # Пытаемся удалить сообщение пользователя, но продолжаем в случае ошибки
     try:
         await update.message.delete()
     except BadRequest:

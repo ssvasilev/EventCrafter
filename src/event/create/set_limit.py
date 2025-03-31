@@ -98,10 +98,11 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Пытаемся удалить последнее сообщение бота с параметрами мероприятия
         try:
-            await context.bot.delete_message(
-                chat_id=draft["chat_id"],
-                message_id=context.user_data["bot_message_id"]
-            )
+            if "bot_message_id" in context.user_data and context.user_data["bot_message_id"]:
+                await context.bot.delete_message(
+                    chat_id=draft["chat_id"],
+                    message_id=context.user_data["bot_message_id"]
+                )
         except BadRequest as e:
             logger.warning(f"Сообщение для удаления не найдено: {e}")
 
@@ -153,21 +154,28 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except ValueError as e:
         # Если введённый текст не является числом или лимит отрицательный
-        error_message = (
-            "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
-        )
+        error_message = "Неверный формат лимита. Введите положительное число или 0 для неограниченного числа участников:"
 
-        # Редактируем существующее сообщение бота с ошибкой
-        try:
-            await context.bot.edit_message_text(
-                chat_id=update.message.chat_id,
-                message_id=context.user_data["bot_message_id"],
-                text=error_message,
+        # Если нет сохранённого сообщения бота - отправляем новое
+        if "bot_message_id" not in context.user_data or not context.user_data["bot_message_id"]:
+            sent_message = await update.message.reply_text(
+                error_message,
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
                 parse_mode="HTML"
             )
-        except BadRequest as e:
-            logger.error(f"Ошибка при редактировании сообщения: {e}")
+            context.user_data["bot_message_id"] = sent_message.message_id
+        else:
+            # Иначе редактируем существующее
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=update.message.chat_id,
+                    message_id=context.user_data["bot_message_id"],
+                    text=error_message,
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]),
+                    parse_mode="HTML"
+                )
+            except BadRequest as e:
+                logger.error(f"Ошибка при редактировании сообщения: {e}")
 
         # Пытаемся удалить сообщение пользователя
         try:
