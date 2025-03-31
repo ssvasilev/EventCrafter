@@ -2,43 +2,44 @@ from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
-
 from src.handlers.conversation_handler_states import SET_TIME, SET_DATE
 from src.database.db_draft_operations import update_draft, get_draft, set_user_state
 
-
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Получаем текст даты
+    # Проверяем инициализацию черновика
+    if 'draft_id' not in context.user_data:
+        await update.message.reply_text("Сессия устарела. Начните заново.")
+        return ConversationHandler.END
+
     date_text = update.message.text
     try:
         date = datetime.strptime(date_text, "%d.%m.%Y").date()
 
-        # Получаем ID черновика из user_data
-        draft_id = context.user_data["draft_id"]
-
         # Обновляем черновик
         update_draft(
             db_path=context.bot_data["drafts_db_path"],
-            draft_id=draft_id,
+            draft_id=context.user_data["draft_id"],
             status="AWAIT_TIME",
             date=date.strftime("%d.%m.%Y")
         )
 
-        # Получаем данные черновика из базы данных
-        draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
-        if not draft:
-            await update.message.reply_text("Ошибка: черновик мероприятия не найден.")
-            return ConversationHandler.END
+        # Обновляем состояние
+        set_user_state(
+            context.bot_data["drafts_db_path"],
+            update.message.from_user.id,
+            "mention_handler" if "description" in context.user_data else "create_event_handler",
+            SET_TIME,
+            context.user_data["draft_id"]
+        )
 
-        # Создаем клавиатуру с кнопкой "Отмена"
-        keyboard = [
-            [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
-        ]
+        # Получаем данные черновика
+        draft = get_draft(context.bot_data["drafts_db_path"], context.user_data["draft_id"])
+
+        # Создаем клавиатуру
+        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        if 'cancel_message_sent' in context.user_data:
-            del context.user_data['cancel_message_sent']
 
-        # Редактируем существующее сообщение бота
+        # Редактируем сообщение
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
@@ -46,38 +47,23 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup,
         )
 
-        # Пытаемся удалить сообщение пользователя
         try:
             await update.message.delete()
         except BadRequest:
             pass
 
-        # Сохраняем состояние
-        handler = "mention_handler" if "description" in context.user_data else "create_event_handler"
-        set_user_state(
-            context.bot_data["drafts_db_path"],
-            update.message.from_user.id,
-            handler,
-            SET_TIME,
-            draft_id
-        )
-
-        # Переходим к состоянию SET_TIME
         return SET_TIME
+
     except ValueError:
-        # Если формат даты неверный, редактируем сообщение бота с ошибкой
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=context.user_data["bot_message_id"],
             text="Неверный формат даты. Попробуйте снова в формате ДД.ММ.ГГГГ",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]])
         )
-
-        # Пытаемся удалить сообщение пользователя
         try:
             await update.message.delete()
         except BadRequest:
             pass
 
-        # Остаемся в состоянии SET_DATE
         return SET_DATE

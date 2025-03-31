@@ -1,25 +1,24 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
-
-from src.handlers.conversation_handler_states import SET_DATE, SET_DESCRIPTION
-from src.database.db_draft_operations import update_draft, set_user_state, add_draft
-
+from src.handlers.conversation_handler_states import SET_DATE
+from src.database.db_draft_operations import update_draft, set_user_state
 
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Инициализация черновика если его нет
     if 'draft_id' not in context.user_data:
         draft_id = add_draft(
             context.bot_data["drafts_db_path"],
             update.message.from_user.id,
             update.message.chat_id,
-            "AWAIT_DESCRIPTION"
+            "AWAIT_DATE"
         )
         context.user_data["draft_id"] = draft_id
         set_user_state(
             context.bot_data["drafts_db_path"],
             update.message.from_user.id,
             "create_event_handler",
-            SET_DESCRIPTION,
+            SET_DATE,
             draft_id
         )
 
@@ -27,21 +26,25 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     description = update.message.text
 
     # Обновляем черновик
-    draft_id = context.user_data["draft_id"]
     update_draft(
         db_path=context.bot_data["drafts_db_path"],
-        draft_id=draft_id,
+        draft_id=context.user_data["draft_id"],
         status="AWAIT_DATE",
         description=description
     )
 
+    # Обновляем состояние
+    set_user_state(
+        context.bot_data["drafts_db_path"],
+        update.message.from_user.id,
+        "create_event_handler",
+        SET_DATE,
+        context.user_data["draft_id"]
+    )
+
     # Создаем клавиатуру с кнопкой "Отмена"
-    keyboard = [
-        [InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]
-    ]
+    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    if 'cancel_message_sent' in context.user_data:
-        del context.user_data['cancel_message_sent']
 
     # Редактируем существующее сообщение бота
     await context.bot.edit_message_text(
@@ -51,20 +54,10 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
     )
 
-    # Пытаемся удалить сообщение пользователя, но продолжаем в случае ошибки
+    # Пытаемся удалить сообщение пользователя
     try:
         await update.message.delete()
     except BadRequest:
-        pass  # Продолжаем выполнение, даже если не удалось удалить сообщение
+        pass
 
-    # Сохраняем состояние
-    set_user_state(
-        context.bot_data["drafts_db_path"],
-        update.message.from_user.id,
-        "create_event_handler",
-        SET_DATE,
-        draft_id
-    )
-
-    # Переходим к состоянию SET_DATE
     return SET_DATE
