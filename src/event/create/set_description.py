@@ -7,14 +7,16 @@ from src.database.db_draft_operations import update_draft, set_user_state, add_d
 
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Инициализация черновика если его нет
-    if 'draft_id' not in context.user_data:
-        draft_id = add_draft(
-            context.bot_data["drafts_db_path"],
-            update.message.from_user.id,
-            update.message.chat_id,
-            "AWAIT_DATE"
-        )
-        context.user_data["draft_id"] = draft_id
+    # Для восстановленных сессий пропускаем создание черновика
+    if not context.user_data.get("restored"):
+        if 'draft_id' not in context.user_data:
+            draft_id = add_draft(
+                context.bot_data["drafts_db_path"],
+                update.message.from_user.id,
+                update.message.chat_id,
+                "AWAIT_DATE"
+            )
+            context.user_data["draft_id"] = draft_id
         set_user_state(
             context.bot_data["drafts_db_path"],
             update.message.from_user.id,

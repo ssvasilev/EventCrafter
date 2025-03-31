@@ -101,7 +101,12 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ConversationHandler для создания мероприятия по упоминанию
 conv_handler_create_mention = ConversationHandler(
-    entry_points=[MessageHandler(filters.Entity("mention") & filters.TEXT, mention_handler)],
+    entry_points=[
+        MessageHandler(
+            filters.TEXT & filters.Entity("mention") & ~filters.COMMAND,
+            mention_handler
+        )
+    ],
     states={
         SET_DATE: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, set_date),
@@ -117,5 +122,5 @@ conv_handler_create_mention = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler("cancel", cancel)],
-    per_message=True,
+    per_message=False,
 )

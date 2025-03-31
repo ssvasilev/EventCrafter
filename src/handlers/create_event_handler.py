@@ -37,6 +37,6 @@ conv_handler_create = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler("cancel", cancel)],
-    per_message=True,
+    per_message=False,
 )
 

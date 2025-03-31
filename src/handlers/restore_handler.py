@@ -6,88 +6,56 @@ from src.logger.logger import logger
 
 
 async def restore_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        # Пропускаем команды и не текстовые сообщения
-        if not update.message or not update.message.text or update.message.text.startswith('/'):
-            return None
-
-        user_id = update.message.from_user.id
-        db_path = context.bot_data["drafts_db_path"]
-
-        # Получаем состояние пользователя
-        user_state = get_user_state(db_path, user_id)
-        if not user_state:
-            return None
-
-        # Получаем черновик
-        draft = get_draft(db_path, user_state["draft_id"])
-        if not draft:
-            clear_user_state(db_path, user_id)
-            return None
-
-        draft = dict(draft) if hasattr(draft, 'keys') else draft
-
-        # Восстанавливаем контекст
-        context.user_data.update({
-            "draft_id": draft["id"],
-            "description": draft.get("description"),
-            "date": draft.get("date"),
-            "time": draft.get("time")
-        })
-
-        # Создаем новое сообщение вместо редактирования старого
-        try:
-            message = await context.bot.send_message(
-                chat_id=update.message.chat_id,
-                text=get_restored_message_text(draft, user_state["state"]),
-                reply_markup=get_restored_reply_markup()
-            )
-            context.user_data["bot_message_id"] = message.message_id
-        except Exception as e:
-            logger.error(f"Ошибка отправки сообщения: {e}")
-            return None
-
-        # Перенаправляем в нужный обработчик
-        handler = user_state["handler"]
-        state = user_state["state"]
-
-        if handler == "create_event_handler":
-            if state == SET_DESCRIPTION:
-                from src.event.create.set_description import set_description
-                return await set_description(update, context)
-            # ... другие состояния
-
-        elif handler == "mention_handler":
-            if state == SET_DATE:
-                from src.event.create.set_date import set_date
-                return await set_date(update, context)
-            # ... другие состояния
-
+    # Пропускаем команды и не текстовые сообщения
+    if not update.message or not update.message.text or update.message.text.startswith('/'):
         return None
 
-    except Exception as e:
-        logger.error(f"Ошибка восстановления: {e}")
+    user_id = update.message.from_user.id
+    db_path = context.bot_data["drafts_db_path"]
+
+    # Получаем только активные сессии
+    user_state = get_active_user_state(db_path, user_id)
+    if not user_state:
+        return None
+
+    draft = get_draft(db_path, user_state["draft_id"])
+    if not draft:
         clear_user_state(db_path, user_id)
         return None
 
+    # Восстанавливаем контекст
+    context.user_data.update({
+        "draft_id": draft["id"],
+        "description": draft.get("description"),
+        "date": draft.get("date"),
+        "time": draft.get("time"),
+        "restored": True  # Флаг восстановления
+    })
 
-def get_restored_message_text(draft, state):
-    """Формирует текст сообщения в зависимости от состояния"""
-    if state == SET_DESCRIPTION:
-        return "Восстановлена сессия создания мероприятия\n\nВведите описание:"
-    elif state == SET_DATE:
-        return f"📢 {draft['description']}\n\nВведите дату в формате ДД.ММ.ГГГГ:"
-    elif state == SET_TIME:
-        return f"📢 {draft['description']}\n\n📅 Дата: {draft['date']}\n\nВведите время:"
-    elif state == SET_LIMIT:
-        return f"📢 {draft['description']}\n\n📅 Дата: {draft['date']}\n\n🕒 Время: {draft['time']}\n\nВведите лимит участников:"
-    return "Восстановлена сессия создания мероприятия"
+    # Отправляем новое сообщение вместо редактирования
+    try:
+        message = await send_restored_message(context, update.message.chat_id, draft, user_state["state"])
+        context.user_data["bot_message_id"] = message.message_id
+    except Exception as e:
+        logger.error(f"Ошибка отправки восстановленного сообщения: {e}")
+        return None
+
+    # Перенаправляем в нужный обработчик
+    return await redirect_to_handler(update, context, user_state["handler"], user_state["state"])
 
 
-def get_restored_reply_markup():
-    """Возвращает клавиатуру для восстановленного сообщения"""
-    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_input")]]
-    return InlineKeyboardMarkup(keyboard)
+def get_active_user_state(db_path, user_id):
+    """Получает только активные сессии с существующими черновиками"""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT us.current_handler, us.current_state, us.draft_id
+            FROM user_states us
+            JOIN drafts d ON us.draft_id = d.id
+            WHERE us.user_id = ? AND d.status NOT IN ('DONE', 'CANCELED')
+        """, (user_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 
 # Добавляем этот обработчик в главный файл бота

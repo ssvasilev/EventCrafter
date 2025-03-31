@@ -69,6 +69,8 @@ def main():
         MessageHandler(filters.TEXT & ~filters.COMMAND, restore_handler),
         group=0
     )
+    # 2. Обработчик упоминаний (раньше обычного создания)
+    application.add_handler(conv_handler_create_mention, group=1)
 
     # 2. Обработчик команды /cancel
     application.add_handler(CommandHandler("cancel", cancel))
@@ -76,8 +78,6 @@ def main():
     # 3. Обработчик кнопки отмены (должен быть перед общим обработчиком кнопок)
     application.add_handler(CallbackQueryHandler(cancel_input, pattern="^cancel_input$"))
 
-    # 2. Обработчик упоминаний (раньше обычного создания)
-    application.add_handler(conv_handler_create_mention, group=1)
 
     # 3. Обычный обработчик создания через кнопку
     application.add_handler(conv_handler_create, group=1)
