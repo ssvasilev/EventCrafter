@@ -128,7 +128,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user = query.from_user
         user_id = user.id
-        user_name = user.first_name
+        user_name = f"{user.first_name or 'Без имени'} (ID: {user.id})" + \
+                    (f" @{user.username}" if user.username else "")
         if user.username:
             user_name += f" (@{user.username})"
 
