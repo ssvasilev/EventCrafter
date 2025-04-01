@@ -8,24 +8,24 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
 
-    user_id = query.from_user.id
+    creator_id = query.from_user.id
     chat_id = query.message.chat_id
 
     # Проверяем существующий черновик
-    if get_user_chat_draft(context.bot_data["drafts_db_path"], user_id, chat_id):
-        await query.edit_message_text("⚠️ У вас уже есть активное создание мероприятия")
+    if get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id):
+        await query.edit_message_text("У вас уже есть активное создание мероприятия")
         return
 
-    # Создаем новый черновик
+    # Создаем новый черновик БЕЗ event_id (так как это новое мероприятие)
     draft_id = add_draft(
         db_path=context.bot_data["drafts_db_path"],
-        creator_id=user_id,
+        creator_id=creator_id,
         chat_id=chat_id,
         status="AWAIT_DESCRIPTION"
     )
 
     if not draft_id:
-        await query.edit_message_text("❌ Ошибка при создании мероприятия")
+        await query.edit_message_text("Ошибка при создании мероприятия")
         return
 
     # Отправляем запрос описания

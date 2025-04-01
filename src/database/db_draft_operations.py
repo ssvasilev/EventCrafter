@@ -20,21 +20,11 @@ def get_db_connection(db_path):
     conn.row_factory = sqlite3.Row
     return conn
 
-def add_draft(db_path, creator_id, chat_id, status, description=None,
-             date=None, time=None, participant_limit=None,
-             event_id=None, original_message_id=None):
-    """
-    Добавляет черновик мероприятия в базу данных.
-    :param db_path: Путь к базе данных.
-    :param creator_id: ID создателя черновика.
-    :param chat_id: ID чата.
-    :param status: Статус черновика.
-    :param description: Описание мероприятия.
-    :param date: Дата мероприятия.
-    :param time: Время мероприятия.
-    :param participant_limit: Лимит участников.
-    :return: ID добавленного черновика.
-    """
+def add_draft(db_path, creator_id, chat_id, status,
+             description=None, date=None, time=None,
+             participant_limit=None, event_id=None,
+             original_message_id=None):
+    """Добавляет черновик с поддержкой редактирования"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with sqlite3.connect(db_path) as conn:
@@ -43,12 +33,13 @@ def add_draft(db_path, creator_id, chat_id, status, description=None,
                 """
                 INSERT INTO drafts (
                     creator_id, chat_id, status, description, 
-                    date, time, participant_limit, created_at, updated_at,
-                    event_id, original_message_id
+                    date, time, participant_limit, event_id,
+                    original_message_id, created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (creator_id, chat_id, status, description, date, time,
-                 participant_limit, now, now, event_id, original_message_id),
+                (creator_id, chat_id, status, description,
+                 date, time, participant_limit, event_id,
+                 original_message_id, now, now),
             )
             return cursor.lastrowid
     except sqlite3.Error as e:
