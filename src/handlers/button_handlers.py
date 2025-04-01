@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, CallbackQueryHandler
 from src.database.db_operations import (
     add_participant,
     remove_participant,
@@ -112,3 +112,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     message_id = query.message.message_id
     await send_event_message(event_id, context, chat_id, message_id)
+
+def register_button_handler(application):
+    application.add_handler(CallbackQueryHandler(button_handler))

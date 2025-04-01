@@ -1,17 +1,14 @@
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler
-
+from telegram.ext import Application, CommandHandler
 from config import DB_PATH, tz, DB_DRAFT_PATH
-from src.buttons.my_events_button import my_events_button
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
-from src.handlers.button_handlers import button_handler
-from src.handlers.cancel_handler import cancel
-from src.handlers.create_event_handler import conv_handler_create, cancel_handler
-from src.handlers.mention_handler import conv_handler_create_mention, mention_handler
 from src.handlers.start_handler import start
 from src.handlers.version_handler import version
+from src.handlers.mention_handler import register_mention_handler
+from src.handlers.menu_button_handlers import  register_menu_button_handler
+from src.handlers.button_handlers import  register_button_handler
+from src.handlers.create_event_handler import register_create_handlers
 from src.jobs.notification_jobs import restore_scheduled_jobs
-
 import os
 from dotenv import load_dotenv
 import locale
@@ -39,19 +36,15 @@ def main():
         "tz": tz
     })
 
-    # Регистрируем обработчики
+    # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
-    application.add_handler(CommandHandler("cancel", cancel))
-    application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
 
-    # Обработчики создания мероприятий
-    application.add_handler(conv_handler_create)
-    application.add_handler(conv_handler_create_mention)
-    application.add_handler(cancel_handler)
-
-    # Обработчик кнопок
-    application.add_handler(CallbackQueryHandler(button_handler))
+    # Регистрируем обработчики
+    register_mention_handler(application)
+    register_create_handlers(application)
+    register_menu_button_handler(application)
+    register_button_handler(application)
 
     # Восстанавливаем запланированные задачи
     restore_scheduled_jobs(application)
