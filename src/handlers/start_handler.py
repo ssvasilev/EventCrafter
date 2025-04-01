@@ -1,7 +1,8 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.database.db_draft_operations import get_user_chat_draft
-from src.handlers.draft_handlers import handle_draft_message
+from src.handlers.draft_handlers import handle_draft_input
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     creator_id = update.message.from_user.id
@@ -12,7 +13,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if draft:
         # Передаем только update и context, так как handle_draft_message сама найдет черновик
-        return await handle_draft_message(update, context)
+        return await handle_draft_input(update, context)
 
     # Создаем клавиатуру
     keyboard = [
