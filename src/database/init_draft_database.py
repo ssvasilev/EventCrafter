@@ -6,7 +6,7 @@ def init_drafts_db(db_path):
     cursor = conn.cursor()
     cursor.execute(
         """
-        CREATE TABLE drafts (
+        CREATE TABLE IF NOT EXISTS drafts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             creator_id INTEGER NOT NULL,
             chat_id INTEGER NOT NULL,
