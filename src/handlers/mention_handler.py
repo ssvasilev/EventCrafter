@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 from telegram.error import BadRequest
 
 from src.database.db_draft_operations import add_draft, get_user_chat_draft, update_draft
-
+from src.handlers.draft_handlers import handle_draft_message
 
 from src.logger.logger import logger
 
@@ -34,7 +34,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if draft:
         # Если черновик уже есть, обрабатываем сообщение как ввод данных
-        return await handle_draft_input(update, context)
+        return await handle_draft_message (update, context)
 
     if mention_text:
         # Создаем новый черновик с описанием
