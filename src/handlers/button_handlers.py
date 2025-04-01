@@ -14,6 +14,7 @@ from src.database.db_operations import (
     is_user_in_declined,
     remove_from_declined
 )
+from src.handlers.edit_handlers import handle_edit_button
 from src.message.send_message import send_event_message
 
 from src.logger.logger import logger
@@ -133,7 +134,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif action == "leave":
             await handle_leave_action(db_path, event, user_id, user_name, query, context)
         elif action == "edit":
-            await query.answer("Редактирование пока не реализовано")
+            await handle_edit_button(update, context)
             return
         else:
             logger.warning(f"Unknown event action: {action}")
