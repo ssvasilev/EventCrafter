@@ -15,8 +15,10 @@ from src.database.db_operations import (
     remove_from_declined
 )
 from src.message.send_message import send_event_message
-from src.utils.utils import format_user_display_name
+
 from src.logger.logger import logger
+from src.utils.utils import format_user_name
+
 
 async def handle_join_action(db_path, event, user_id, user_name, query):
     logger.debug(f"Event structure: {event}")
@@ -129,7 +131,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user = query.from_user
         user_id = user.id
-        user_name = format_user_display_name(user) #форматирование имени пользователя по шаблону
+        user_name = format_user_name(user) #форматирование имени пользователя по шаблону
 
         if user.username:
             user_name += f" (@{user.username})"
