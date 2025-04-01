@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from src.handlers.create_event_handler import create_event_button
 from src.buttons.my_events_button import my_events_button
@@ -6,39 +6,45 @@ from src.handlers.cancel_handler import cancel_draft
 from src.handlers.cancel_utils import cancel_input
 from src.logger.logger import logger
 
-
 async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     data = query.data
 
     try:
-        if query.data.startswith("cancel_draft|"):
-            await cancel_draft(update, context)
-        elif data.startswith("cancel_input|"):
-            await cancel_input(update, context)
-        elif data == "create_event":
-            await create_event_button(update, context)
-        elif data == "my_events":
-            await my_events_button(update, context)
-        elif data.startswith("cancel_draft|"):
-            await cancel_draft(update, context)
-        elif "|" in data:
-            action, event_id = data.split("|", 1)
-            # Здесь можно добавить обработку других действий
-            logger.warning(f"Unhandled button action: {action} for event {event_id}")
-        else:
-            logger.warning(f"Unknown button data: {data}")
-            await query.edit_message_text("Неизвестная команда.")
+        if data.startswith("menu_"):
+            action = data[5:]  # Убираем префикс "menu_"
+
+            if action == "create_event":
+                await create_event_button(update, context)
+            elif action == "my_events":
+                await my_events_button(update, context)
+            else:
+                logger.warning(f"Unknown menu action: {action}")
+                await query.edit_message_text("Неизвестная команда меню.")
+
+        elif data.startswith("cancel_"):
+            action = data[7:]  # Убираем префикс "cancel_"
+
+            if action.startswith("draft|"):
+                await cancel_draft(update, context)
+            elif action.startswith("input|"):
+                await cancel_input(update, context)
+            else:
+                logger.warning(f"Unknown cancel action: {action}")
+                await query.edit_message_text("Неизвестная команда отмены.")
+
     except Exception as e:
-        logger.error(f"Ошибка в обработчике кнопок: {e}")
-        # Вместо попытки редактирования сообщения, отправляем новое
+        logger.error(f"Ошибка в обработчике кнопок меню: {e}")
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="⚠️ Произошла ошибка при обработке команды"
+            text="⚠️ Произошла ошибка при обработке команды меню"
         )
 
-
 def register_menu_button_handler(application):
-    application.add_handler(CallbackQueryHandler(menu_button_handler))
+    application.add_handler(
+        CallbackQueryHandler(
+            menu_button_handler,
+            pattern=r"^(menu_|cancel_)"  # Обрабатываем только menu_* и cancel_*
+        )
+    )

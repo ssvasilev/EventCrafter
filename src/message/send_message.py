@@ -55,7 +55,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     keyboard = [
         [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
         [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
-        [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")],
+        [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 

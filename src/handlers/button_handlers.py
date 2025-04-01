@@ -17,7 +17,6 @@ from src.database.db_operations import (
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
-
 async def handle_join_action(db_path, event, user_id, user_name, query):
     """Обрабатывает действие 'Участвовать'"""
     event_id = event["event_id"]
@@ -37,13 +36,12 @@ async def handle_join_action(db_path, event, user_id, user_name, query):
     # Добавляем в участники или резерв
     if event["participant_limit"] is None or get_participants_count(db_path, event_id) < event["participant_limit"]:
         add_participant(db_path, event_id, user_id, user_name)
-        await query.answer(f"✅ Вы теперь участвуете!")
+        await query.answer("✅ Вы теперь участвуете!")
         return True
     else:
         add_to_reserve(db_path, event_id, user_id, user_name)
         await query.answer("⏳ Вы добавлены в резерв")
         return True
-
 
 async def handle_leave_action(db_path, event, user_id, user_name, query, context):
     """Обрабатывает действие 'Не участвовать'"""
@@ -56,7 +54,6 @@ async def handle_leave_action(db_path, event, user_id, user_name, query, context
         add_to_declined(db_path, event_id, user_id, user_name)
         changed = True
 
-        # Пробуем переместить кого-то из резерва
         reserve = get_reserve(db_path, event_id)
         if reserve:
             new_participant = reserve[0]
@@ -67,7 +64,7 @@ async def handle_leave_action(db_path, event, user_id, user_name, query, context
                 chat_id=chat_id,
                 text=f"🎉 {new_participant['user_name']} перемещён(а) из резерва в участники!"
             )
-            await query.answer(f"❌ Вы отказались от участия. {new_participant['user_name']} теперь участвует!")
+            await query.answer(f"❌ Вы отказались. {new_participant['user_name']} теперь участвует!")
             return True
 
     elif is_user_in_reserve(db_path, event_id, user_id):
@@ -86,18 +83,16 @@ async def handle_leave_action(db_path, event, user_id, user_name, query, context
         return True
     return False
 
-
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()  # Важно для всех callback-запросов
+    await query.answer()
 
     try:
-        data = query.data
-        if not data or "|" not in data:
-            logger.error(f"Invalid callback data: {data}")
+        if not query.data or "|" not in query.data:
+            logger.error(f"Invalid callback data: {query.data}")
             return
 
-        action, event_id_str = data.split("|", 1)
+        action, event_id_str = query.data.split("|", 1)
         event_id = int(event_id_str)
 
         db_path = context.bot_data["db_path"]
@@ -121,7 +116,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("Редактирование пока не реализовано")
             return
         else:
-            logger.warning(f"Unknown button action: {action}")
+            logger.warning(f"Unknown event action: {action}")
             await query.answer("Неизвестное действие")
             return
 
@@ -129,14 +124,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_event_message(event_id, context, query.message.chat_id, query.message.message_id)
 
     except Exception as e:
-        logger.error(f"Button handler error: {e}", exc_info=True)
-        await query.answer("⚠ Произошла ошибка")
-
+        logger.error(f"Event button handler error: {e}")
+        await query.answer("⚠ Ошибка обработки")
 
 def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             button_handler,
-            pattern=r"^(join|leave|edit)\|"  # Явно указываем поддерживаемые действия
+            pattern=r"^(join|leave|edit)\|"  # Четко указываем формат кнопок мероприятий
         )
     )

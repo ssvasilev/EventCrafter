@@ -28,8 +28,8 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not mention_text:
         # Если текст после упоминания пустой, показываем меню
         keyboard = [
-            [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")],
-            [InlineKeyboardButton("📋 Мои мероприятия", callback_data="my_events")]
+            [InlineKeyboardButton("Создать мероприятие", callback_data="menu_create_event")],
+            [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
