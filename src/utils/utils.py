@@ -116,3 +116,10 @@ def format_user_name(user: User) -> str:
 
     # Для пользователей с username
     return f"{escape(name)} (@{user.username})"
+
+def format_user_name_legacy(existing_name: str) -> str:
+    """Форматирует уже сохранённые имена для совместимости"""
+    if "(ID:" in existing_name or ") @" in existing_name:
+        # Если имя уже содержит ID или username, возвращаем как есть
+        return existing_name
+    return existing_name.split(" (ID:")[0].split(" (@")[0]

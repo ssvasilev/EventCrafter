@@ -8,7 +8,7 @@ from config import DB_PATH
 from src.database.db_operations import get_event, get_participants, get_reserve, get_declined
 from src.logger.logger import logger
 from src.utils.pin_message import pin_message
-from src.utils.utils import time_until_event
+from src.utils.utils import time_until_event, format_user_name_legacy
 
 
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
@@ -33,7 +33,8 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
 
     # Форматируем списки
     participants_text = (
-        "\n".join([p["user_name"] for p in participants])
+        "\n".join([
+        format_user_name_legacy(p["user_name"]) for p in participants])
         if participants
         else "Ещё никто не участвует."
     )
