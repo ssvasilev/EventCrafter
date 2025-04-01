@@ -3,52 +3,43 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, MessageHandler, filters
 from telegram.error import BadRequest
 
-from src.database.db_draft_operations import (
-    update_draft, delete_draft, get_user_chat_draft
-)
+from src.database.db_draft_operations import update_draft, delete_draft, get_user_chat_draft
 from src.database.db_operations import add_event
+from src.handlers.message_handler import handle_draft_message
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
-async def handle_draft_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Основной обработчик ввода для черновиков"""
-    if not update.message:
-        return
 
-    user_id = update.message.from_user.id
-    chat_id = update.message.chat_id
+async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE, draft):
+    """Обрабатывает текущий шаг черновика на основе его статуса"""
     user_input = update.message.text
-
-    # Ищем активный черновик для этого пользователя в этом чате
-    draft = get_user_chat_draft(context.bot_data["drafts_db_path"], user_id, chat_id)
-    if not draft:
-        return  # Нет активного черновика - игнорируем
+    chat_id = update.message.chat_id
 
     try:
         if draft["status"] == "AWAIT_DESCRIPTION":
-            await _handle_description_input(update, context, draft, user_input)
+            await _process_description(update, context, draft, user_input)
         elif draft["status"] == "AWAIT_DATE":
-            await _handle_date_input(update, context, draft, user_input)
+            await _process_date(update, context, draft, user_input)
         elif draft["status"] == "AWAIT_TIME":
-            await _handle_time_input(update, context, draft, user_input)
+            await _process_time(update, context, draft, user_input)
         elif draft["status"] == "AWAIT_LIMIT":
-            await _handle_limit_input(update, context, draft, user_input)
+            await _process_limit(update, context, draft, user_input)
 
-        # Удаляем сообщение пользователя после обработки
+        # Пытаемся удалить сообщение пользователя
         try:
             await update.message.delete()
-        except BadRequest:
-            pass
+        except BadRequest as e:
+            logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
 
     except Exception as e:
-        logger.error(f"Error processing draft input: {e}")
+        logger.error(f"Ошибка обработки черновика: {e}")
         await context.bot.send_message(
             chat_id=chat_id,
             text="⚠️ Произошла ошибка при обработке вашего ввода"
         )
 
-async def _handle_description_input(update: Update, context: ContextTypes.DEFAULT_TYPE, draft, description):
-    """Обработка ввода описания"""
+async def _process_description(update, context, draft, description):
+    """Обработка шага ввода описания"""
     update_draft(
         db_path=context.bot_data["drafts_db_path"],
         draft_id=draft["id"],
@@ -56,19 +47,17 @@ async def _handle_description_input(update: Update, context: ContextTypes.DEFAUL
         description=description
     )
 
-    # Обновляем сообщение бота
     keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft['id']}")]]
     await context.bot.edit_message_text(
         chat_id=update.message.chat_id,
         message_id=draft["bot_message_id"],
-        text=f"📢 {description}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
+        text=f"📢 {description}\n\nВведите дату в формате ДД.ММ.ГГГГ",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def _handle_date_input(update: Update, context: ContextTypes.DEFAULT_TYPE, draft, date_input):
-    """Обработка ввода даты"""
+async def _process_date(update, context, draft, date_input):
+    """Обработка шага ввода даты"""
     try:
-        # Валидация даты
         datetime.strptime(date_input, "%d.%m.%Y").date()
 
         update_draft(
@@ -82,7 +71,7 @@ async def _handle_date_input(update: Update, context: ContextTypes.DEFAULT_TYPE,
         await context.bot.edit_message_text(
             chat_id=update.message.chat_id,
             message_id=draft["bot_message_id"],
-            text=f"📢 {draft['description']}\n\n📅 Дата: {date_input}\n\nВведите время в формате ЧЧ:ММ",
+            text=f"📢 {draft['description']}\n\n📅 Дата: {date_input}\n\nВведите время (ЧЧ:ММ)",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     except ValueError:
@@ -91,11 +80,9 @@ async def _handle_date_input(update: Update, context: ContextTypes.DEFAULT_TYPE,
             text="❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ"
         )
 
-
-async def _handle_time_input(update: Update, context: ContextTypes.DEFAULT_TYPE, draft, time_input):
-    """Обработка ввода времени мероприятия"""
+async def _process_time(update, context, draft, time_input):
+    """Обработка шага ввода времени"""
     try:
-        # Валидация времени
         datetime.strptime(time_input, "%H:%M").time()
 
         update_draft(
@@ -118,18 +105,17 @@ async def _handle_time_input(update: Update, context: ContextTypes.DEFAULT_TYPE,
     except ValueError:
         await context.bot.send_message(
             chat_id=update.message.chat_id,
-            text="❌ Неверный формат времени. Используйте ЧЧ:ММ (например, 18:30)"
+            text="❌ Неверный формат времени. Используйте ЧЧ:ММ"
         )
 
-
-async def _handle_limit_input(update: Update, context: ContextTypes.DEFAULT_TYPE, draft, limit_input):
-    """Обработка ввода лимита участников"""
+async def _process_limit(update, context, draft, limit_input):
+    """Обработка шага ввода лимита участников"""
     try:
         limit = int(limit_input)
         if limit < 0:
             raise ValueError("Лимит не может быть отрицательным")
 
-        # Создаем мероприятие в основной базе
+        # Создаем мероприятие
         event_id = add_event(
             db_path=context.bot_data["db_path"],
             description=draft["description"],
@@ -143,8 +129,8 @@ async def _handle_limit_input(update: Update, context: ContextTypes.DEFAULT_TYPE
         if not event_id:
             raise Exception("Не удалось создать мероприятие")
 
-        # Отправляем сообщение с информацией о мероприятии
-        message_id = await send_event_message(event_id, context, update.message.chat_id)
+        # Отправляем сообщение о мероприятии
+        await send_event_message(event_id, context, update.message.chat_id)
 
         # Удаляем черновик
         delete_draft(context.bot_data["drafts_db_path"], draft["id"])
@@ -158,10 +144,10 @@ async def _handle_limit_input(update: Update, context: ContextTypes.DEFAULT_TYPE
         except BadRequest:
             pass
 
-        # Отправляем подтверждение создателю
+        # Уведомление о успешном создании
         await context.bot.send_message(
             chat_id=update.message.from_user.id,
-            text=f"✅ Мероприятие успешно создано! (ID: {event_id})"
+            text="✅ Мероприятие успешно создано!"
         )
 
     except ValueError:
@@ -170,15 +156,15 @@ async def _handle_limit_input(update: Update, context: ContextTypes.DEFAULT_TYPE
             text="❌ Неверный формат лимита. Введите целое число (0 - без лимита)"
         )
     except Exception as e:
-        logger.error(f"Ошибка при создании мероприятия: {e}")
+        logger.error(f"Ошибка создания мероприятия: {e}")
         await context.bot.send_message(
             chat_id=update.message.chat_id,
             text="⚠️ Произошла ошибка при создании мероприятия"
         )
 
 def register_draft_handlers(application):
-    """Регистрирует все обработчики для работы с черновиками"""
+    """Регистрирует обработчики для работы с черновиками"""
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND,
-        handle_draft_input
+        lambda update, context: handle_draft_message(update, context)
     ))

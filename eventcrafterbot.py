@@ -3,6 +3,7 @@ from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
 from src.handlers.draft_handlers import register_draft_handlers
+from src.handlers.message_handler import register_message_handlers
 from src.handlers.start_handler import start
 from src.handlers.version_handler import version
 from src.handlers.mention_handler import register_mention_handler
@@ -37,16 +38,19 @@ def main():
         "tz": tz
     })
 
-    # Регистрируем обработчики команд
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("version", version))
+
 
     # Регистрируем обработчики
+    register_message_handlers(application)
     register_draft_handlers(application)
     register_mention_handler(application)
     register_create_handlers(application)
     register_menu_button_handler(application)
     register_button_handler(application)
+
+    # Регистрируем обработчики команд
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("version", version))
 
     # Восстанавливаем запланированные задачи
     restore_scheduled_jobs(application)
