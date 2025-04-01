@@ -33,8 +33,8 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
 
     if draft:
-        # Если черновик уже есть, обрабатываем сообщение как ввод данных
-        return await handle_draft_message (update, context)
+        # Просто создаем черновик, обработкой займется handle_all_messages
+        return
 
     if mention_text:
         # Создаем новый черновик с описанием
