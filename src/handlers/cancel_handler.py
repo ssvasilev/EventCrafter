@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from src.database.db_draft_operations import delete_draft
+from src.database.db_draft_operations import delete_draft, get_user_drafts
 from src.logger.logger import logger
 from src.handlers.menu import show_main_menu
 
