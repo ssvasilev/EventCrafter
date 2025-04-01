@@ -110,19 +110,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         action, event_id_str = query.data.split("|", 1)
-
-        try:
-            event_id = int(event_id_str)
-        except ValueError:
-            logger.error(f"Invalid event ID format: {event_id_str}")
-            await query.answer("Ошибка: неверный ID мероприятия")
-            return
-
+        event_id = int(event_id_str)
         db_path = context.bot_data["db_path"]
         event = get_event(db_path, event_id)
 
         if not event:
-            logger.error(f"Event not found: {event_id}")
             await query.answer("Мероприятие не найдено")
             return
 
@@ -134,10 +126,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user = query.from_user
         user_id = user.id
-        user_name = format_user_name(user) #форматирование имени пользователя по шаблону
-
-        if user.username:
-            user_name += f" (@{user.username})"
+        user_name = UserNamingService.get_display_name(user)  # Используем сервис
 
         if action == "join":
             await handle_join_action(db_path, event, user_id, user_name, query)
@@ -155,7 +144,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_event_message(event_id, context, query.message.chat_id, query.message.message_id)
 
     except Exception as e:
-        logger.error(f"Event button handler error: {e}", exc_info=True)
+        logger.error(f"Button handler error: {e}")
         await query.answer("⚠ Ошибка обработки")
 
 def register_button_handler(application):
