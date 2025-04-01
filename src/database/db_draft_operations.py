@@ -147,6 +147,16 @@ def get_user_draft(db_path, creator_id):
         cursor.execute("SELECT * FROM drafts WHERE creator_id = ? AND status != 'DONE'", (creator_id,))
         return cursor.fetchone()
 
+def get_user_drafts(db_path: str, user_id: int):
+    """Возвращает все черновики пользователя"""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM drafts WHERE creator_id = ? AND status != 'DONE'",
+            (user_id,)
+        )
+        return cursor.fetchall()
+
 def get_draft_by_bot_message(db_path: str, bot_message_id: int):
     """Находит черновик по ID сообщения бота"""
     with get_db_connection(db_path) as conn:

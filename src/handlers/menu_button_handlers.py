@@ -13,7 +13,9 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     data = query.data
 
     try:
-        if data == "create_event":
+        if query.data.startswith("cancel_draft|"):
+            await cancel_draft(update, context)
+        elif data == "create_event":
             await create_event_button(update, context)
         elif data == "my_events":
             await my_events_button(update, context)
@@ -27,8 +29,12 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.warning(f"Unknown button data: {data}")
             await query.edit_message_text("Неизвестная команда.")
     except Exception as e:
-        logger.error(f"Error in button handler: {e}")
-        await query.edit_message_text("Произошла ошибка при обработке команды.")
+        logger.error(f"Ошибка в обработчике кнопок: {e}")
+        # Вместо попытки редактирования сообщения, отправляем новое
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="⚠️ Произошла ошибка при обработке команды"
+        )
 
 
 def register_menu_button_handler(application):
