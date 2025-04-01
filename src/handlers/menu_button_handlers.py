@@ -2,7 +2,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from src.handlers.create_event_handler import create_event_button
 from src.buttons.my_events_button import my_events_button
-from src.handlers.cancel_handler import cancel_draft, cancel_input
+from src.handlers.cancel_handler import cancel_draft
+from src.handlers.cancel_utils import cancel_input
 from src.logger.logger import logger
 
 
