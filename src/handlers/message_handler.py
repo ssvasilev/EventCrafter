@@ -1,16 +1,13 @@
-from telegram import Update
-from telegram.ext import ContextTypes, MessageHandler, filters
+from telegram.ext import MessageHandler, filters
 from src.database.db_draft_operations import get_user_chat_draft
-from src.handlers.draft_handlers import process_draft_step
-from src.logger.logger import logger
+from src.handlers.draft_utils import process_draft_step
 
 
-async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Основной обработчик сообщений для черновиков"""
+async def handle_message(update, context):
+    """Основной обработчик сообщений"""
     if not update.message:
         return
 
-    # Получаем активный черновик
     draft = get_user_chat_draft(
         context.bot_data["drafts_db_path"],
         update.message.from_user.id,
@@ -25,5 +22,5 @@ def register_message_handlers(application):
     """Регистрирует обработчики сообщений"""
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND,
-        handle_draft_message
+        handle_message
     ), group=1)
