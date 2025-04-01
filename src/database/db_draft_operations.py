@@ -20,7 +20,9 @@ def get_db_connection(db_path):
     conn.row_factory = sqlite3.Row
     return conn
 
-def add_draft(db_path, creator_id, chat_id, status, description=None, date=None, time=None, participant_limit=None):
+def add_draft(db_path, creator_id, chat_id, status, description=None,
+             date=None, time=None, participant_limit=None,
+             event_id=None, original_message_id=None):
     """
     Добавляет черновик мероприятия в базу данных.
     :param db_path: Путь к базе данных.
@@ -33,23 +35,24 @@ def add_draft(db_path, creator_id, chat_id, status, description=None, date=None,
     :param participant_limit: Лимит участников.
     :return: ID добавленного черновика.
     """
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для created_at и updated_at
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO drafts (creator_id, chat_id, status, description, date, time, participant_limit, created_at , updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO drafts (
+                    creator_id, chat_id, status, description, 
+                    date, time, participant_limit, created_at, updated_at,
+                    event_id, original_message_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (creator_id, chat_id, status, description, date, time, participant_limit, now, now),
+                (creator_id, chat_id, status, description, date, time,
+                 participant_limit, now, now, event_id, original_message_id),
             )
-            draft_id = cursor.lastrowid
-            conn.commit()
-            logger.info(f"Черновик добавлен с ID: {draft_id}")
-            return draft_id
+            return cursor.lastrowid
     except sqlite3.Error as e:
-        logger.error(f"Ошибка при добавлении черновика в базу данных: {e}")
+        logger.error(f"Ошибка при добавлении черновика: {e}")
         return None
 
 
