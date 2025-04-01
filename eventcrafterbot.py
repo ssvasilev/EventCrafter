@@ -42,10 +42,10 @@ def main():
     application.add_handler(CommandHandler("version", version))
 
     # Регистрируем обработчики
+    register_draft_handlers(application)
     register_mention_handler(application)
     register_create_handlers(application)
     register_menu_button_handler(application)
-    register_draft_handlers(application)
     register_button_handler(application)
 
     # Восстанавливаем запланированные задачи

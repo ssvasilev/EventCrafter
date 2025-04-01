@@ -1,7 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from src.database.db_draft_operations import add_draft, get_user_chat_draft, update_draft
-from src.handlers.draft_handlers import handle_draft_message
 from src.logger.logger import logger
 
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -9,36 +8,31 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
 
-    creator_id = query.from_user.id
+    user_id = query.from_user.id
     chat_id = query.message.chat_id
 
     # Проверяем существующий черновик
-    draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
-    if draft:
-        # Отправляем текущее состояние черновика
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"У вас уже есть активное создание мероприятия: {draft['description']}"
-        )
+    if get_user_chat_draft(context.bot_data["drafts_db_path"], user_id, chat_id):
+        await query.edit_message_text("⚠️ У вас уже есть активное создание мероприятия")
         return
 
     # Создаем новый черновик
     draft_id = add_draft(
         db_path=context.bot_data["drafts_db_path"],
-        creator_id=creator_id,
+        creator_id=user_id,
         chat_id=chat_id,
         status="AWAIT_DESCRIPTION"
     )
 
     if not draft_id:
-        await query.edit_message_text("Ошибка при создании черновика.")
+        await query.edit_message_text("❌ Ошибка при создании мероприятия")
         return
 
     # Отправляем запрос описания
     keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
     sent_message = await context.bot.send_message(
         chat_id=chat_id,
-        text="Введите описание мероприятия:",
+        text="✏️ Введите описание мероприятия:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
