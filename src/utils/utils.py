@@ -3,6 +3,8 @@ import locale
 from datetime import datetime
 from zoneinfo import ZoneInfo  # Используем ZoneInfo для работы с часовыми поясами
 
+import telegram
+
 # Устанавливаем локаль для корректного отображения дней недели
 locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
 
@@ -102,3 +104,12 @@ def validate_time(time_str: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def format_user_display_name(user: telegram.User) -> str:
+    """Форматирует имя пользователя для отображения"""
+    name = user.first_name or 'Без имени'
+
+    if user.username:
+        return f"{name} (@{user.username})"
+    return f"{name} (ID: {user.id})"
