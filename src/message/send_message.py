@@ -8,8 +8,7 @@ from config import DB_PATH
 from src.database.db_operations import get_event, get_participants, get_reserve, get_declined
 from src.logger.logger import logger
 from src.utils.pin_message import pin_message
-from src.utils.user_naming import UserNamingService
-from src.utils.utils import time_until_event, format_user_name_legacy, format_users_list
+from src.utils.utils import time_until_event, format_users_list
 
 # Константы для текстов пустых списков
 EMPTY_PARTICIPANTS_TEXT = "Ещё никто не участвует."
