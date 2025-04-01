@@ -1,6 +1,6 @@
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, MessageHandler, filters
 from telegram.error import BadRequest
 
 from src.database.db_draft_operations import (
@@ -11,12 +11,19 @@ from src.database.db_operations import add_event
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
-
-async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYPE, draft):
+async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает сообщение пользователя в контексте черновика"""
+    if not update.message:
+        return
+
     user_message = update.message.text
     creator_id = update.message.from_user.id
     chat_id = update.message.chat_id
+
+    # Получаем активный черновик
+    draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
+    if not draft:
+        return
 
     try:
         if draft["status"] == "AWAIT_DESCRIPTION":
@@ -153,3 +160,10 @@ async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYP
             chat_id=chat_id,
             text="Произошла ошибка при обработке вашего запроса"
         )
+
+def register_draft_handlers(application):
+    """Регистрирует обработчики для работы с черновиками"""
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        handle_draft_message
+    ))

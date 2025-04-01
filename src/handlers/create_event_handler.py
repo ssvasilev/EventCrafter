@@ -15,7 +15,12 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Проверяем существующий черновик
     draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
     if draft:
-        return await handle_draft_message(update, context, draft)
+        # Отправляем текущее состояние черновика
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"У вас уже есть активное создание мероприятия: {draft['description']}"
+        )
+        return
 
     # Создаем новый черновик
     draft_id = add_draft(
@@ -31,8 +36,9 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Отправляем запрос описания
     keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
-    sent_message = await query.message.reply_text(
-        "Введите описание мероприятия:",
+    sent_message = await context.bot.send_message(
+        chat_id=chat_id,
+        text="Введите описание мероприятия:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
