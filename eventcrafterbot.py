@@ -46,13 +46,14 @@ def main():
     register_draft_handlers(application)
     register_mention_handler(application)
     register_create_handlers(application)
-    register_menu_button_handler(application)
+    register_menu_button_handler(application)  # Обрабатывает menu_* и cancel_*
+    register_button_handler(application)  # Обрабатывает join|*, leave|*, edit|*
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
 
-    register_button_handler(application)
+
 
     # Восстанавливаем запланированные задачи
     restore_scheduled_jobs(application)
