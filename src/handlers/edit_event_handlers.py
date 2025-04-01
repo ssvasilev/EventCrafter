@@ -6,7 +6,7 @@ from src.logger import logger
 
 
 async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, event_id, field_name):
-    """Начинает редактирование поля"""
+    """Начинает редактирование поля существующего мероприятия"""
     query = update.callback_query
     await query.answer()
 
@@ -15,6 +15,7 @@ async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, e
         await query.edit_message_text("Мероприятие не найдено")
         return
 
+    # Создаем черновик с event_id и original_message_id
     draft_id = add_draft(
         db_path=context.bot_data["drafts_db_path"],
         creator_id=query.from_user.id,
@@ -28,14 +29,9 @@ async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, e
         participant_limit=event["participant_limit"]
     )
 
-    prompts = {
-        "description": "Введите новое описание:",
-        "date": "Введите новую дату (ДД.ММ.ГГГГ):",
-        "time": "Введите новое время (ЧЧ:ММ):",
-        "limit": "Введите новый лимит участников:"
-    }
-
+    # Кнопка отмены для редактирования
     keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_input|{draft_id}")]]
     await query.edit_message_text(
-        text=prompts[field_name],
-        reply_markup=InlineKeyboardMarkup(keyboard))
+        text=f"Введите новое значение для {field_name}:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )

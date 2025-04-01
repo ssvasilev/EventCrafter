@@ -16,7 +16,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text("У вас уже есть активное создание мероприятия")
         return
 
-    # Создаем новый черновик БЕЗ event_id (так как это новое мероприятие)
+    # Создаем черновик без event_id (новое мероприятие)
     draft_id = add_draft(
         db_path=context.bot_data["drafts_db_path"],
         creator_id=creator_id,
@@ -28,7 +28,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text("Ошибка при создании мероприятия")
         return
 
-    # Отправляем запрос описания
+    # Кнопка отмены для создания
     keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
     sent_message = await context.bot.send_message(
         chat_id=chat_id,
@@ -36,7 +36,6 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    # Сохраняем ID сообщения бота
     update_draft(
         db_path=context.bot_data["drafts_db_path"],
         draft_id=draft_id,
