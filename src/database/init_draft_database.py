@@ -6,7 +6,7 @@ def init_drafts_db(db_path):
     cursor = conn.cursor()
     cursor.execute(
         """
-        CREATE TABLE IF NOT EXISTS drafts (
+        CREATE TABLE drafts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             creator_id INTEGER NOT NULL,
             chat_id INTEGER NOT NULL,
@@ -17,8 +17,11 @@ def init_drafts_db(db_path):
             date TEXT,
             time TEXT,
             participant_limit INTEGER,
+            event_id INTEGER,
+            original_message_id INTEGER,
             created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (event_id) REFERENCES events(id)
         )
         """
     )
