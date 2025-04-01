@@ -17,12 +17,14 @@ from src.database.db_operations import (
 from src.message.send_message import send_event_message
 
 from src.logger.logger import logger
-from src.utils.utils import format_user_name
+from src.utils.user_naming import UserNamingService
+
 
 
 async def handle_join_action(db_path, event, user_id, user_name, query):
     logger.debug(f"Event structure: {event}")
     """Обрабатывает действие 'Участвовать'"""
+    display_name = UserNamingService.get_display_name(query.from_user)
     try:
         event_id = event["id"]  # Изменено с event["event_id"] на event["id"]
 
@@ -54,6 +56,7 @@ async def handle_join_action(db_path, event, user_id, user_name, query):
 async def handle_leave_action(db_path, event, user_id, user_name, query, context):
     logger.debug(f"Event structure: {event}")
     """Обрабатывает действие 'Не участвовать'"""
+    display_name = UserNamingService.get_display_name(query.from_user)
     try:
         event_id = event["id"]  # Изменено с event["event_id"] на event["id"]
         chat_id = event["chat_id"]

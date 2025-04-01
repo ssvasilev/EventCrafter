@@ -3,8 +3,7 @@ import locale
 from datetime import datetime
 from zoneinfo import ZoneInfo  # Используем ZoneInfo для работы с часовыми поясами
 
-from telegram import User
-from html import escape
+from src.utils.user_naming import UserNamingService
 
 # Устанавливаем локаль для корректного отображения дней недели
 locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')  # Для Linux
@@ -106,20 +105,10 @@ def validate_time(time_str: str) -> bool:
     except ValueError:
         return False
 
-
-def format_user_name(user: User) -> str:
-    """Форматирует имя пользователя без дублирования"""
-    name = user.first_name or 'Без имени'
-
-    if not user.username:
-        return f"{escape(name)} (ID: {user.id})"
-
-    # Для пользователей с username
-    return f"{escape(name)} (@{user.username})"
-
-def format_user_name_legacy(existing_name: str) -> str:
-    """Форматирует уже сохранённые имена для совместимости"""
-    if "(ID:" in existing_name or ") @" in existing_name:
-        # Если имя уже содержит ID или username, возвращаем как есть
-        return existing_name
-    return existing_name.split(" (ID:")[0].split(" (@")[0]
+def format_users_list(users, empty_text):
+    if not users:
+        return empty_text
+    return "\n".join(
+        f"{i+1}. {UserNamingService.normalize_existing_name(u['user_name'])}"
+        for i, u in enumerate(users)
+    )
