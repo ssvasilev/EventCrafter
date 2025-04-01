@@ -33,7 +33,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if draft:
         # Если черновик уже есть, обрабатываем сообщение как ввод данных
-        return await handle_draft_message(update, context, draft)
+        return await handle_draft_message(update, context)
 
     if mention_text:
         # Создаем новый черновик с описанием

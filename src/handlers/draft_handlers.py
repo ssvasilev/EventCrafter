@@ -20,7 +20,7 @@ async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYP
     creator_id = update.message.from_user.id
     chat_id = update.message.chat_id
 
-    # Получаем активный черновик
+    # Получаем активный черновик (теперь внутри функции)
     draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
     if not draft:
         return
@@ -47,7 +47,7 @@ async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYP
         elif draft["status"] == "AWAIT_DATE":
             try:
                 # Проверяем формат даты
-                date = datetime.strptime(user_message, "%d.%m.%Y").date()
+                datetime.strptime(user_message, "%d.%m.%Y").date()
                 update_draft(
                     db_path=context.bot_data["drafts_db_path"],
                     draft_id=draft["id"],
