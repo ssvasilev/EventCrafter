@@ -1,42 +1,63 @@
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
-    ConversationHandler,
     MessageHandler,
-    filters,
+    filters, ContextTypes,
+)
+from src.handlers.draft_handlers import handle_draft_message
+from src.handlers.cancel_handler import cancel_draft, cancel
+from src.database.db_draft_operations import add_draft, get_user_chat_draft, update_draft
+
+
+async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик кнопки 'Создать мероприятие'"""
+    query = update.callback_query
+    await query.answer()
+
+    creator_id = query.from_user.id
+    chat_id = query.message.chat_id
+
+    # Проверяем, есть ли уже активный черновик
+    draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
+
+    if draft:
+        # Если черновик уже есть, отправляем текущее состояние
+        return await handle_draft_message(update, context, draft)
+
+    # Создаем новый черновик
+    draft_id = add_draft(
+        db_path=context.bot_data["drafts_db_path"],
+        creator_id=creator_id,
+        chat_id=chat_id,
+        status="AWAIT_DESCRIPTION"
+    )
+
+    if not draft_id:
+        await query.edit_message_text("Ошибка при создании черновика мероприятия.")
+        return
+
+    # Отправляем сообщение с запросом описания
+    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    sent_message = await query.message.reply_text(
+        "Введите описание мероприятия:",
+        reply_markup=reply_markup,
+    )
+
+    # Сохраняем ID сообщения бота в черновик
+    update_draft(
+        db_path=context.bot_data["drafts_db_path"],
+        draft_id=draft_id,
+        bot_message_id=sent_message.message_id
+    )
+
+# Обработчики для создания мероприятия
+conv_handler_create = MessageHandler(
+    filters.TEXT & ~filters.COMMAND,
+    lambda update, context: handle_draft_message(update, context)
 )
 
-from src.buttons.create_event_button import create_event_button
-from src.event.create.set_date import set_date
-from src.event.create.set_description import set_description
-from src.event.create.set_limit import set_limit
-from src.event.create.set_time import set_time
-from src.handlers.cancel_handler import cancel_input, cancel
-from src.handlers.conversation_handler_states import SET_DESCRIPTION, SET_DATE, SET_TIME, SET_LIMIT
-
-# ConversationHandler для создания мероприятия
-conv_handler_create = ConversationHandler(
-    entry_points=[CallbackQueryHandler(create_event_button, pattern="^create_event$")],  # Кнопка "Создать
-    # мероприятие"
-    states={
-        SET_DESCRIPTION: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, set_description),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
-        ],
-        SET_DATE: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, set_date),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
-        ],
-        SET_TIME: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, set_time),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
-        ],
-        SET_LIMIT: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, set_limit),
-            CallbackQueryHandler(cancel_input, pattern="^cancel_input$"),  # Обработчик отмены
-        ],
-    },
-    fallbacks=[CommandHandler("cancel", cancel)],
-    per_message=False,
-)
-
+# Добавляем обработчик отмены
+cancel_handler = CallbackQueryHandler(cancel_draft, pattern="^cancel_draft\|")

@@ -1,37 +1,54 @@
 from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler
+from telegram.ext import ContextTypes
+from src.database.db_draft_operations import delete_draft, get_user_chat_draft
 from src.logger.logger import logger
 
-
-async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик отмены черновика"""
     query = update.callback_query
     await query.answer()
 
-    # Восстанавливаем исходное сообщение
-    original_message_id = context.user_data.get("bot_message_id")
-    original_text = context.user_data.get("original_text")
-    original_reply_markup = context.user_data.get("original_reply_markup")
+    # Получаем ID черновика из callback_data (формат: cancel_draft|123)
+    draft_id = int(query.data.split('|')[1])
 
-    if original_message_id and original_text:
+    try:
+        # Удаляем черновик
+        delete_draft(context.bot_data["drafts_db_path"], draft_id)
+
+        # Удаляем сообщение бота с формой
         try:
-            await context.bot.edit_message_text(
+            await context.bot.delete_message(
                 chat_id=query.message.chat_id,
-                message_id=original_message_id,
-                text=original_text,
-                reply_markup=original_reply_markup,
-                parse_mode="HTML"
+                message_id=query.message.message_id
             )
         except Exception as e:
-            logger.error(f"Ошибка при восстановлении сообщения: {e}")
-            await query.edit_message_text("Операция отменена.")
-    else:
-        await query.edit_message_text("Операция отменена.")
+            logger.warning(f"Не удалось удалить сообщение бота: {e}")
 
-    context.user_data.clear()  # Очищаем user_data
-    return ConversationHandler.END
+        await query.edit_message_text("Создание мероприятия отменено.")
 
+    except Exception as e:
+        logger.error(f"Ошибка при отмене черновика: {e}")
+        await query.edit_message_text("Произошла ошибка при отмене мероприятия.")
 
-# Отмена создания мероприятия
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик команды /cancel"""
+    creator_id = update.message.from_user.id
+    chat_id = update.message.chat_id
+
+    # Ищем активный черновик
+    draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
+
+    if draft:
+        # Удаляем черновик
+        delete_draft(context.bot_data["drafts_db_path"], draft["id"])
+
+        # Пытаемся удалить сообщение бота с формой
+        try:
+            await context.bot.delete_message(
+                chat_id=chat_id,
+                message_id=draft["bot_message_id"]
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось удалить сообщение бота: {e}")
+
     await update.message.reply_text("Создание мероприятия отменено.")
-    return ConversationHandler.END

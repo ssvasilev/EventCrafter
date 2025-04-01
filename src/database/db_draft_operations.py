@@ -52,7 +52,9 @@ def add_draft(db_path, creator_id, chat_id, status, description=None, date=None,
         logger.error(f"Ошибка при добавлении черновика в базу данных: {e}")
         return None
 
-def update_draft(db_path, draft_id, status=None, description=None, date=None, time=None, participant_limit=None):
+
+def update_draft(db_path, draft_id, status=None, description=None, date=None,
+                 time=None, participant_limit=None, bot_message_id=None):
     """
     Обновляет черновик мероприятия в базе данных.
     :param db_path: Путь к базе данных.
@@ -62,6 +64,7 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None, ti
     :param date: Дата мероприятия.
     :param time: Время мероприятия.
     :param participant_limit: Лимит участников.
+    :param bot_message_id: ID сообщения бота.
     """
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для updated_at
     try:
@@ -69,6 +72,7 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None, ti
             cursor = conn.cursor()
             updates = []
             params = []
+
             if status:
                 updates.append("status = ?")
                 params.append(status)
@@ -84,10 +88,16 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None, ti
             if participant_limit is not None:
                 updates.append("participant_limit = ?")
                 params.append(participant_limit)
+            if bot_message_id is not None:
+                updates.append("bot_message_id = ?")
+                params.append(bot_message_id)
+
             # Добавляем обновление поля updated_at
             updates.append("updated_at = ?")
             params.append(now)
+
             params.append(draft_id)
+
             cursor.execute(
                 f"UPDATE drafts SET {', '.join(updates)} WHERE id = ?",
                 params,
@@ -107,6 +117,22 @@ def get_draft(db_path, draft_id):
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
+        return cursor.fetchone()
+
+def get_user_chat_draft(db_path, creator_id, chat_id):
+    """
+    Возвращает активный черновик для конкретного пользователя и чата.
+    :param db_path: Путь к базе данных.
+    :param creator_id: ID создателя.
+    :param chat_id: ID чата.
+    :return: Черновик мероприятия или None.
+    """
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM drafts WHERE creator_id = ? AND chat_id = ? AND status != 'DONE'",
+            (creator_id, chat_id)
+        )
         return cursor.fetchone()
 
 def get_user_draft(db_path, creator_id):
