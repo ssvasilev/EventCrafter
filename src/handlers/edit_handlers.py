@@ -99,63 +99,80 @@ async def handle_field_selection(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Сохранение изменённого поля с полной проверкой"""
+    """Улучшенный обработчик сохранения изменений с полной обработкой ошибок"""
     try:
         user_id = update.message.from_user.id
+        chat_id = update.message.chat_id
+        msg_id = update.message.message_id
         drafts_db = context.bot_data["drafts_db_path"]
         main_db = context.bot_data["db_path"]
 
-        # Получаем активный черновик
+        # 1. Получаем активный черновик
         draft = get_user_draft(drafts_db, user_id)
-        if not draft:
-            await update.message.reply_text("🚫 Сессия редактирования устарела")
+        if not draft or not draft.get("event_id"):
+            logger.error(f"Черновик не найден для user_id {user_id}")
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="🚫 Активная сессия редактирования не найдена. Начните заново."
+            )
             return
 
-        logger.info(f"Обработка черновика {draft['id']}, статус: {draft['status']}")
+        logger.info(f"Обрабатываем черновик ID {draft['id']}, статус: {draft['status']}")
 
-        # Определяем поле для редактирования
-        field_map = {
-            "EDIT_DESCRIPTION": ("description", str),
-            "EDIT_DATE": ("date", "%d.%m.%Y"),
-            "EDIT_TIME": ("time", "%H:%M"),
-            "EDIT_LIMIT": ("participant_limit", int)
-        }
+        # 2. Определяем поле для редактирования
+        field_config = {
+            "EDIT_DESCRIPTION": {"field": "description", "type": str, "error_msg": "текстовое описание"},
+            "EDIT_DATE": {"field": "date", "format": "%d.%m.%Y", "error_msg": "дата в формате ДД.ММ.ГГГГ"},
+            "EDIT_TIME": {"field": "time", "format": "%H:%M", "error_msg": "время в формате ЧЧ:ММ"},
+            "EDIT_LIMIT": {"field": "participant_limit", "type": int, "error_msg": "число (например: 10)"}
+        }.get(draft["status"])
 
-        field, validation = field_map.get(draft["status"], (None, None))
-        if not field:
-            await update.message.reply_text("⚠ Неизвестный тип редактирования")
+        if not field_config:
+            logger.error(f"Неизвестный статус черновика: {draft['status']}")
+            await context.bot.send_message(chat_id, "⚠ Ошибка: неизвестный тип редактирования")
             return
 
-        # Валидация и преобразование значения
+        # 3. Валидация и преобразование значения
         try:
             new_value = update.message.text.strip()
-            if isinstance(validation, str):  # Проверка формата даты/времени
+            if "format" in field_config:
                 from datetime import datetime
-                datetime.strptime(new_value, validation)
-            elif callable(validation):  # Преобразование типа (например, int)
-                new_value = validation(new_value)
-        except ValueError:
-            await update.message.reply_text(f"❌ Неверный формат. Ожидается: {validation}")
+                datetime.strptime(new_value, field_config["format"])
+            elif "type" in field_config:
+                new_value = field_config["type"](new_value)
+                if field_config["field"] == "participant_limit" and new_value < 0:
+                    raise ValueError("Лимит не может быть отрицательным")
+        except ValueError as e:
+            logger.warning(f"Неверный формат данных: {e}")
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ Неверный формат. Введите {field_config['error_msg']}"
+            )
             return
 
-        # Обновляем черновик (для сохранения истории)
-        if not update_draft(drafts_db, draft["id"], **{field: new_value}):
-            await update.message.reply_text("⚠ Ошибка сохранения черновика")
+        # 4. Пытаемся удалить сообщение пользователя (не критично, если не получится)
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+        except Exception as e:
+            logger.warning(f"Не удалось удалить сообщение {msg_id}: {e}")
+
+        # 5. Обновляем основную БД
+        if not update_event_field(main_db, draft["event_id"], field_config["field"], new_value):
+            logger.error("Ошибка обновления в основной БД")
+            await context.bot.send_message(chat_id, "⚠ Ошибка сохранения в базе данных")
             return
 
-        # Обновляем основное мероприятие
-        if not update_event_field(main_db, draft["event_id"], field, new_value):
-            await update.message.reply_text("⚠ Ошибка обновления мероприятия")
-            return
+        logger.info(f"Поле {field_config['field']} обновлено в БД")
 
-        # Для даты/времени - пересоздаем уведомления
-        if field in ("date", "time"):
+        # 6. Для даты/времени - пересоздаем уведомления
+        if field_config["field"] in ("date", "time"):
+            logger.info("Обновление даты/времени - пересоздаем уведомления")
             event = get_event(main_db, draft["event_id"])
             if event:
                 remove_scheduled_jobs(context, event["id"])
                 schedule_notifications(context, event)
 
-        # Обновляем сообщение
+        # 7. Обновляем сообщение мероприятия (с резервным вариантом)
         try:
             await send_event_message(
                 draft["event_id"],
@@ -165,25 +182,36 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except Exception as e:
             logger.error(f"Ошибка обновления сообщения: {e}")
-            # Создаем новое сообщение при ошибке
-            new_msg = await send_event_message(
-                draft["event_id"],
-                context,
-                draft["chat_id"]
-            )
-            update_event_field(main_db, draft["event_id"], "message_id", new_msg.message_id)
+            try:
+                new_msg = await send_event_message(
+                    draft["event_id"],
+                    context,
+                    draft["chat_id"]
+                )
+                update_event_field(main_db, draft["event_id"], "message_id", new_msg.message_id)
+                logger.info(f"Создано новое сообщение: {new_msg.message_id}")
+            except Exception as fallback_e:
+                logger.error(f"Не удалось создать новое сообщение: {fallback_e}")
 
-        # Удаляем черновик
+        # 8. Удаляем черновик
         delete_draft(drafts_db, draft["id"])
+
+        # 9. Отправляем подтверждение
         await context.bot.send_message(
-            update.message.chat_id,
-            "✅ Изменения сохранены",
+            chat_id=chat_id,
+            text="✅ Изменения успешно сохранены",
             reply_to_message_id=draft.get("original_message_id")
         )
 
     except Exception as e:
-        logger.error(f"Ошибка сохранения: {e}", exc_info=True)
-        await update.message.reply_text("⚠ Критическая ошибка при сохранении")
+        logger.error(f"Критическая ошибка в save_edited_field: {str(e)}", exc_info=True)
+        try:
+            await context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text="⚠ Произошла непредвиденная ошибка при сохранении"
+            )
+        except Exception as send_error:
+            logger.error(f"Не удалось отправить сообщение об ошибке: {send_error}")
 
 def register_edit_handlers(application):
     """Регистрация всех обработчиков редактирования"""
