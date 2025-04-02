@@ -164,22 +164,8 @@ async def _process_limit(update, context, draft, limit_input):
 
         existing_event = get_event(db_path, draft["event_id"])
 
-        # Проверяем, что existing_event - это словарь
-        if existing_event and not isinstance(existing_event, dict):
-            logger.error(f"get_event вернул {type(existing_event)} вместо dict")
-            existing_event = dict(existing_event)
-
-        if existing_event:
-            if not update_event_field(
-                db_path,
-                existing_event["id"],
-                "participant_limit",
-                limit if limit != 0 else None
-            ):
-                raise Exception("Ошибка обновления лимита")
-            event_id = existing_event["id"]
-            message_id = existing_event.get("message_id")
-        else:
+        if not existing_event:
+            logger.error(f"Мероприятие {draft['event_id']} не найдено, создаём новое.")
             event_id = add_event(
                 db_path=db_path,
                 description=draft["description"],
@@ -191,37 +177,54 @@ async def _process_limit(update, context, draft, limit_input):
             )
             if not event_id:
                 raise Exception("Ошибка создания мероприятия")
-            message_id = None
+            message_id = None  # Будет отправлено новое сообщение
+        else:
+            if not isinstance(existing_event, dict):
+                logger.error(f"get_event вернул {type(existing_event)} вместо dict")
+                existing_event = dict(existing_event)
+
+            logger.info(f"Обновляем мероприятие {existing_event['id']}, старый message_id={existing_event.get('message_id')}")
+
+            if not update_event_field(
+                db_path,
+                existing_event["id"],
+                "participant_limit",
+                limit if limit != 0 else None
+            ):
+                raise Exception("Ошибка обновления лимита")
+
+            event_id = existing_event["id"]
+            message_id = existing_event.get("message_id")  # Достаём message_id
+
+            if not message_id:
+                logger.warning(f"У мероприятия {event_id} нет message_id, будет отправлено новое сообщение.")
+
+        new_message_id = await send_event_message(
+            event_id,
+            context,
+            chat_id,
+            message_id  # Если message_id есть, то сообщение обновится
+        )
+
+        logger.info(f"Обновлён message_id={new_message_id} для мероприятия {event_id}")
+
+        if draft.get("bot_message_id"):
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=draft["bot_message_id"],
+                    text="✅ Мероприятие сохранено",
+                    reply_markup=None
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось обновить сообщение: {str(e)}")
 
         try:
-            new_message_id = await send_event_message(
-                event_id,
-                context,
-                chat_id,
-                message_id
-            )
+            await update.message.delete()
+        except Exception:
+            pass
 
-            if draft.get("bot_message_id"):
-                try:
-                    await context.bot.edit_message_text(
-                        chat_id=chat_id,
-                        message_id=draft["bot_message_id"],
-                        text="✅ Мероприятие сохранено",
-                        reply_markup=None
-                    )
-                except Exception as e:
-                    logger.warning(f"Не удалось обновить сообщение: {str(e)}")
-
-            try:
-                await update.message.delete()
-            except Exception:
-                pass
-
-            delete_draft(drafts_db_path, draft["id"])
-
-        except Exception as e:
-            logger.error(f"Ошибка отправки сообщения: {str(e)}")
-            raise
+        delete_draft(drafts_db_path, draft["id"])
 
     except Exception as e:
         logger.error(f"Ошибка в _process_limit: {str(e)}")
@@ -229,4 +232,5 @@ async def _process_limit(update, context, draft, limit_input):
             chat_id=chat_id,
             text="⚠️ Ошибка при сохранении мероприятия"
         )
+
 

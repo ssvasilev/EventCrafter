@@ -60,6 +60,8 @@ def get_event(db_path, event_id):
         """Конвертирует sqlite3.Row в словарь"""
         if isinstance(row, sqlite3.Row):
             return {key: row[key] for key in row.keys()}
+        elif isinstance(row, dict):
+            return row
         return dict(row) if row else None
 
     try:
@@ -72,7 +74,7 @@ def get_event(db_path, event_id):
             if not event_row:
                 return None
 
-            event = row_to_dict(event_row)
+            event = row_to_dict(event_row)  # Здесь точно конвертируем в dict
 
             def get_users(table):
                 cursor.execute(f"""
@@ -94,11 +96,12 @@ def get_event(db_path, event_id):
             event["declined_count"] = len(event["declined"])
 
             logger.debug(f"get_event({event_id}) -> {type(event)}: {event}")
-            return event if isinstance(event, dict) else dict(event)
+            return event  # Уже dict
 
     except sqlite3.Error as e:
         logger.error(f"Ошибка БД при получении мероприятия {event_id}: {str(e)}")
         return None
+
 
 
 def get_events_by_participant(db_path, user_id):
