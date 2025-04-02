@@ -77,6 +77,46 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
+async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отмена редактирования мероприятия"""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        draft_id = int(query.data.split('|')[1])
+        draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
+
+        if not draft:
+            raise Exception("Черновик не найден")
+
+        # Восстанавливаем оригинальное сообщение мероприятия
+        if draft.get("event_id") and draft.get("original_message_id"):
+            await send_event_message(
+                draft["event_id"],
+                context,
+                draft["chat_id"],
+                message_id=draft["original_message_id"]
+            )
+
+        # Удаляем черновик
+        delete_draft(context.bot_data["drafts_db_path"], draft_id)
+
+        # Удаляем сообщение с формой редактирования
+        try:
+            await context.bot.delete_message(
+                chat_id=query.message.chat_id,
+                message_id=query.message.message_id
+            )
+        except BadRequest:
+            pass
+
+    except Exception as e:
+        logger.error(f"Ошибка при отмене редактирования: {e}")
+        try:
+            await query.edit_message_text("⚠️ Не удалось отменить редактирование")
+        except:
+            pass
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /cancel"""
     user_id = update.message.from_user.id

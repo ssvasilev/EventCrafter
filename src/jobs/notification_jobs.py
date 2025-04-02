@@ -222,6 +222,28 @@ def remove_existing_notification_jobs(event_id: int, context: ContextTypes.DEFAU
     logger.info(f"Задачи напоминания для мероприятия {event_id} удалены из базы данных.")
 
 
+def remove_scheduled_jobs(context: ContextTypes.DEFAULT_TYPE, event_id: int):
+    """
+    Удаляет все запланированные задачи для указанного мероприятия.
+    :param context: Контекст бота
+    :param event_id: ID мероприятия
+    """
+    db_path = context.bot_data["db_path"]
+
+    # Удаляем задачи из JobQueue
+    jobs = context.job_queue.get_jobs_by_name(str(event_id))
+    for job in jobs:
+        job.schedule_removal()
+        logger.info(f"Удалена задача {job.id} для мероприятия {event_id}")
+
+    # Удаляем задачи уведомлений
+    remove_existing_notification_jobs(event_id, context)
+
+    # Удаляем задачи из базы данных
+    delete_scheduled_job(db_path, event_id)
+    logger.info(f"Все задачи для мероприятия {event_id} удалены")
+
+
 def restore_scheduled_jobs(application: Application):
     """
     Восстанавливает запланированные задачи из базы данных при запуске бота.

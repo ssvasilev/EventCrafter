@@ -113,6 +113,16 @@ def get_draft(db_path, draft_id):
         cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
         return cursor.fetchone()
 
+def get_draft_by_event_id(db_path: str, event_id: int):
+    """Находит черновик по ID мероприятия"""
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM drafts WHERE event_id = ? AND status LIKE 'EDIT_%'",
+            (event_id,)
+        )
+        return cursor.fetchone()
+
 def get_user_chat_draft(db_path, creator_id, chat_id):
     """
     Возвращает активный черновик для конкретного пользователя и чата.
