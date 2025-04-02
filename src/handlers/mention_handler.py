@@ -13,7 +13,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.entities:
         return
 
-    # Проверяем, упомянут ли бот
+    # Проверяем упоминание бота
     bot_username = context.bot.username.lower()
     mention_text = ""
 
@@ -25,8 +25,17 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 mention_text = update.message.text[entity.offset + entity.length:].strip()
                 break
 
+    creator_id = update.message.from_user.id
+    chat_id = update.message.chat_id
+
+    # Проверяем активный черновик
+    draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
+    if draft:
+        logger.debug(f"У пользователя {creator_id} уже есть активный черновик")
+        return
+
     if not mention_text:
-        # Если текст после упоминания пустой, редактируем сообщение с меню
+        # Если просто упоминание без текста - отправляем меню
         keyboard = [
             [InlineKeyboardButton("Создать мероприятие", callback_data="menu_create_event")],
             [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")]
@@ -34,27 +43,25 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
-            # Редактируем сообщение с упоминанием вместо создания нового
-            await update.message.edit_text(
-                "Вы упомянули меня! Что вы хотите сделать?",
+            # Отправляем новое сообщение с меню
+            sent_message = await context.bot.send_message(
+                chat_id=chat_id,
+                text="Вы упомянули меня! Что вы хотите сделать?",
                 reply_markup=reply_markup
             )
+
+            # Пытаемся удалить сообщение с упоминанием
+            try:
+                await update.message.delete()
+            except BadRequest as e:
+                logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
+
             return
         except Exception as e:
-            logger.error(f"Ошибка при редактировании сообщения с упоминанием: {e}")
+            logger.error(f"Ошибка при обработке упоминания: {e}")
             return
 
-    creator_id = update.message.from_user.id
-    chat_id = update.message.chat_id
-
-    # Проверяем, есть ли уже активный черновик
-    draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
-
-    if draft:
-        logger.debug(f"У пользователя {creator_id} уже есть активный черновик")
-        return
-
-    # Создаем новый черновик с описанием
+    # Создаем черновик
     draft_id = add_draft(
         db_path=context.bot_data["drafts_db_path"],
         creator_id=creator_id,
@@ -67,25 +74,26 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Ошибка при создании черновика мероприятия.")
         return
 
-    # Редактируем существующее сообщение вместо создания нового
+    # Отправляем первое сообщение формы
     keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
-        # Редактируем сообщение с упоминанием
-        await update.message.edit_text(
-            f"📢 {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
+        # Отправляем новое сообщение с формой
+        sent_message = await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"📢 {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
             reply_markup=reply_markup
         )
 
-        # Обновляем черновик с ID сообщения
+        # Сохраняем ID этого сообщения в черновике
         update_draft(
             db_path=context.bot_data["drafts_db_path"],
             draft_id=draft_id,
-            bot_message_id=update.message.message_id
+            bot_message_id=sent_message.message_id
         )
 
-        # Пытаемся удалить сообщение пользователя (если есть права)
+        # Пытаемся удалить сообщение с упоминанием
         try:
             await update.message.delete()
         except BadRequest as e:
