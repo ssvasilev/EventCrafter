@@ -3,7 +3,7 @@ from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
 from src.handlers.draft_handlers import register_draft_handlers
-from src.handlers.edit_handlers import register_edit_handlers
+
 from src.handlers.message_handler import register_message_handlers
 from src.handlers.start_handler import start
 from src.handlers.version_handler import version
@@ -52,9 +52,6 @@ def main():
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
-
-    # Обработчик редактирования
-    register_edit_handlers(application)
 
     # Восстанавливаем запланированные задачи
     restore_scheduled_jobs(application)
