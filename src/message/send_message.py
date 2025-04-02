@@ -73,6 +73,7 @@ async def send_event_message(event_id, context, chat_id, message_id=None):
                     reply_markup=reply_markup,
                     parse_mode="HTML"
                 )
+                logger.info(f"Сообщение {message_id} отредактировано")
                 return message_id
             except Exception as edit_error:
                 logger.warning(f"Не удалось отредактировать сообщение {message_id}: {str(edit_error)}")
@@ -87,8 +88,9 @@ async def send_event_message(event_id, context, chat_id, message_id=None):
         )
         new_message_id = message.message_id
 
-        # Обновляем message_id в БД
-        update_message_id(db_path, event_id, new_message_id)
+        # Обновляем message_id в БД только для новых сообщений
+        if not message_id:  # Если это новое сообщение, а не редактирование
+            update_message_id(db_path, event_id, new_message_id)
 
         # Закрепляем сообщение
         try:

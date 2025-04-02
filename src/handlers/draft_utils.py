@@ -194,7 +194,7 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
     """Обработка лимита участников"""
     try:
         # Преобразуем Row в словарь, если нужно
-        if hasattr(draft, '_fields'):  # Это sqlite3.Row
+        if hasattr(draft, '_fields'):
             draft = {key: draft[key] for key in draft.keys()}
 
         # Валидация ввода
@@ -214,7 +214,9 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
             status="COMPLETED"
         )
 
-        # Создаем или обновляем мероприятие
+        # Получаем ID сообщения бота из черновика
+        bot_message_id = draft.get("bot_message_id")
+
         if "event_id" in draft and draft["event_id"]:
             # Редактирование существующего мероприятия
             update_event_field(
@@ -224,17 +226,16 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
                 value=limit if limit != 0 else None
             )
 
-            # Получаем обновленные данные мероприятия
             event = get_event(context.bot_data["db_path"], draft["event_id"])
             if not event:
                 raise Exception("Мероприятие не найдено")
 
-            # Восстанавливаем оригинальное сообщение
+            # Редактируем сообщение бота
             await send_event_message(
                 event_id=event["id"],
                 context=context,
                 chat_id=draft["chat_id"],
-                message_id=draft.get("original_message_id")
+                message_id=bot_message_id  # Используем ID сообщения бота
             )
         else:
             # Создание нового мероприятия
@@ -254,7 +255,7 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
                 if not event:
                     raise Exception("Не удалось создать мероприятие")
 
-                # Отправляем сообщение о мероприятии
+                # Отправляем новое сообщение (не редактируем)
                 await send_event_message(
                     event_id=event["id"],
                     context=context,
@@ -263,6 +264,15 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
 
         # Удаляем черновик
         delete_draft(context.bot_data["drafts_db_path"], draft["id"])
+
+        # Удаляем сообщение с формой ввода
+        try:
+            await context.bot.delete_message(
+                chat_id=draft["chat_id"],
+                message_id=bot_message_id
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось удалить сообщение бота: {e}")
 
     except Exception as e:
         logger.error(f"Ошибка в _process_limit: {str(e)}")
