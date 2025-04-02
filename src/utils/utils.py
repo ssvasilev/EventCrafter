@@ -105,10 +105,12 @@ def validate_time(time_str: str) -> bool:
     except ValueError:
         return False
 
-def format_users_list(users, empty_text):
+
+def format_users_list(users: list, empty_text: str) -> str:
+    """Форматирует список пользователей без использования username из БД"""
     if not users:
         return empty_text
+
     return "\n".join(
-        f"{i+1}. {UserNamingService.normalize_existing_name(u['user_name'])}"
-        for i, u in enumerate(users)
-    )
+        f"{i + 1}. {user['user_name']}"  # Используем уже отформатированное имя из БД
+        for i, user in enumerate(users))

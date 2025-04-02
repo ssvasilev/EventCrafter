@@ -163,26 +163,28 @@ def is_user_in_declined(db_path, event_id, user_id):
 #Добавление в один из трёх списков
 
 
-def add_participant(db_path, event_id, user_id, user_name):
-    """
-    Добавляет участника в таблицу participants.
-    :param db_path: Путь к базе данных.
-    :param event_id: ID мероприятия.
-    :param user_id: ID пользователя.
-    :param user_name: Имя пользователя.
-    """
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время
+def add_participant(db_path, event_id, user):
+    """Добавляет участника с форматированием имени"""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Форматируем имя пользователя
+    user_name = (
+        f"{user.first_name} (@{user.username})"
+        if user.username
+        else f"{user.first_name} (ID: {user.id})"
+    )
+
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO participants (event_id, user_id, user_name, created_at, updated_at)
+            INSERT INTO participants 
+            (event_id, user_id, user_name, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (event_id, user_id, user_name, now, now),
+            (event_id, user.id, user_name, now, now),
         )
         conn.commit()
-        logger.info(f"Участник {user_name} добавлен в мероприятие {event_id}.")
 
 def add_to_reserve(db_path, event_id, user_id, user_name):
     """
