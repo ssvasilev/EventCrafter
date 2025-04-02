@@ -280,40 +280,21 @@ def get_participants_count(db_path, event_id):
 
 
 #Обновление поля в мероприятии
-def update_event_field(db_path: str, event_id: int, field: str, value: str | int | None) -> bool:
-    """
-    Универсальная функция для обновления любого поля в таблице events.
-    Обновляет также поле updated_at текущей датой-временем.
-
-    :param db_path: Путь к базе данных
-    :param event_id: ID мероприятия
-    :param field: Название поля (description/date/time/participant_limit)
-    :param value: Новое значение
-    :return: True если обновление прошло успешно
-    """
+def update_event_field(db_path, event_id, field, value):
+    """Обновляет поле мероприятия с проверкой типов"""
     try:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        with get_db_connection(db_path) as conn:
+        event_id = int(event_id)  # Гарантируем целочисленный ID
+        with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                f"UPDATE events SET {field} = ?, updated_at = ? WHERE id = ?",
-                (value, now, event_id)
+                f"UPDATE events SET {field} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (value, event_id)
             )
             conn.commit()
-
-            if cursor.rowcount > 0:
-                logger.info(f"Обновлено поле {field} для мероприятия ID={event_id}")
-                return True
-            return False
-
-    except sqlite3.Error as e:
-        logger.error(f"Ошибка обновления поля {field}: {e}")
+            return cursor.rowcount > 0
+    except (ValueError, sqlite3.Error) as e:
+        logger.error(f"Ошибка обновления {field}: {str(e)}")
         return False
-    except Exception as e:
-        logger.error(f"Неожиданная ошибка: {e}")
-        return False
-
 def update_event(db_path, event_id, participants, reserve, declined):
     """
     Обновляет списки участников, резерва и отказавшихся.

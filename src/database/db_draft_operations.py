@@ -101,14 +101,26 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None,
     except sqlite3.Error as e:
         logger.error(f"Ошибка при обновлении черновика: {e}")
 
+
 def get_draft(db_path, draft_id):
-    """Получает черновик и гарантированно возвращает словарь"""
-    with get_db_connection(db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
-        row = cursor.fetchone()
-        if row:
-            return dict(zip([col[0] for col in cursor.description], row))
+    """Безопасно получает черновик с проверкой типа ID"""
+    try:
+        # Преобразуем ID к целому числу
+        draft_id = int(draft_id)
+
+        with get_db_connection(db_path) as conn:
+            conn.row_factory = lambda cursor, row: {
+                col[0]: row[idx] for idx, col in enumerate(cursor.description)
+            }
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
+            return cursor.fetchone()
+
+    except (ValueError, TypeError) as e:
+        logger.error(f"Неверный тип ID черновика: {draft_id}. Ошибка: {str(e)}")
+        return None
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка БД при получении черновика {draft_id}: {str(e)}")
         return None
 
 def get_user_chat_draft(db_path, creator_id, chat_id):
