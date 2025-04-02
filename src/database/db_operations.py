@@ -21,7 +21,7 @@ def get_db_connection(db_path):
     return conn
 
 
-def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id=None):
+def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id):
     """
     Добавляет мероприятие в базу данных.
     :param db_path: Путь к базе данных.
@@ -47,7 +47,7 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
             )
             event_id = cursor.lastrowid
             conn.commit()
-            logger.info(f"Мероприятие добавлено с ID: {event_id}")
+            logger.info(f"Мероприятие добавлено с ID: {event_id} и номером сообщения {message_id}")
             return event_id
     except sqlite3.Error as e:
         logger.error(f"Ошибка при добавлении мероприятия в базу данных: {e}")
