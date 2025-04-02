@@ -47,59 +47,53 @@ def add_draft(db_path, creator_id, chat_id, status,
         return None
 
 
-def update_draft(db_path, draft_id, status=None, description=None, date=None,
-                 time=None, participant_limit=None, bot_message_id=None):
+def update_draft(db_path, draft_id, **kwargs):
     """
     Обновляет черновик мероприятия в базе данных.
-    :param db_path: Путь к базе данных.
-    :param draft_id: ID черновика.
-    :param status: Статус черновика.
-    :param description: Описание мероприятия.
-    :param date: Дата мероприятия.
-    :param time: Время мероприятия.
-    :param participant_limit: Лимит участников.
-    :param bot_message_id: ID сообщения бота.
+    Возвращает True при успешном обновлении, False при ошибке.
     """
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для updated_at
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
             updates = []
             params = []
 
-            if status:
-                updates.append("status = ?")
-                params.append(status)
-            if description:
-                updates.append("description = ?")
-                params.append(description)
-            if date:
-                updates.append("date = ?")
-                params.append(date)
-            if time:
-                updates.append("time = ?")
-                params.append(time)
-            if participant_limit is not None:
-                updates.append("participant_limit = ?")
-                params.append(participant_limit)
-            if bot_message_id is not None:
-                updates.append("bot_message_id = ?")
-                params.append(bot_message_id)
+            valid_fields = {
+                'status', 'description', 'date', 'time',
+                'participant_limit', 'bot_message_id', 'event_id'
+            }
 
-            # Добавляем обновление поля updated_at
+            for field, value in kwargs.items():
+                if field in valid_fields:
+                    updates.append(f"{field} = ?")
+                    params.append(value)
+
+            if not updates:
+                logger.warning("Нет полей для обновления")
+                return False
+
+            # Добавляем обновление времени
             updates.append("updated_at = ?")
             params.append(now)
 
             params.append(draft_id)
 
-            cursor.execute(
-                f"UPDATE drafts SET {', '.join(updates)} WHERE id = ?",
-                params,
-            )
+            query = f"UPDATE drafts SET {', '.join(updates)} WHERE id = ?"
+            cursor.execute(query, params)
             conn.commit()
-            logger.info(f"Черновик с ID {draft_id} обновлен.")
+
+            updated = cursor.rowcount > 0
+            if updated:
+                logger.info(f"Черновик {draft_id} обновлен: {kwargs}")
+            else:
+                logger.warning(f"Черновик {draft_id} не найден")
+
+            return updated
+
     except sqlite3.Error as e:
-        logger.error(f"Ошибка при обновлении черновика: {e}")
+        logger.error(f"Ошибка при обновлении черновика {draft_id}: {e}")
+        return False
 
 def get_draft(db_path, draft_id):
     """
