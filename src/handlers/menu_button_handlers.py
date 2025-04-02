@@ -30,6 +30,9 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await cancel_draft(update, context)
             elif action.startswith("input|"):
                 await cancel_input(update, context)
+            elif action.startswith("edit|"):
+                # Обработка отмены редактирования
+                await cancel_edit(update, context)
             else:
                 logger.warning(f"Unknown cancel action: {action}")
                 await query.edit_message_text("Неизвестная команда отмены.")

@@ -1,9 +1,12 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from src.database.db_operations import get_event, update_event_field
-from src.database.db_draft_operations import add_draft
+from src.database.db_draft_operations import add_draft, update_draft, delete_draft, get_draft
 from src.logger import logger
 from src.message.send_message import send_event_message
+from src.jobs.notification_jobs import remove_existing_notification_jobs, schedule_notifications, \
+    schedule_unpin_and_delete
+from datetime import datetime
 
 
 async def handle_edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -24,34 +27,46 @@ async def handle_edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.answer("Только автор может редактировать.", show_alert=True)
             return
 
-        # Сохраняем данные для возврата
-        context.user_data["edit_context"] = {
-            "event_id": event_id,
-            "chat_id": query.message.chat_id,
-            "message_id": query.message.message_id
-        }
-
-        # Клавиатура выбора поля
-        keyboard = [
-            [
-                InlineKeyboardButton("📝 Описание", callback_data=f"edit_desc|{event_id}"),
-                InlineKeyboardButton("👥 Лимит", callback_data=f"edit_limit|{event_id}")
-            ],
-            [
-                InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}"),
-                InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")
-            ],
-            [InlineKeyboardButton("◀ Назад", callback_data=f"event|{event_id}")]
-        ]
-
-        await query.edit_message_text(
-            "Что редактируем?",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+        # Создаем черновик для редактирования
+        draft_id = add_draft(
+            db_path=context.bot_data["drafts_db_path"],
+            creator_id=query.from_user.id,
+            chat_id=query.message.chat_id,
+            status="EDIT_MENU",
+            event_id=event_id,
+            original_message_id=query.message.message_id
         )
+
+        # Сохраняем ID черновика в user_data
+        context.user_data["edit_draft_id"] = draft_id
+
+        await show_edit_menu(update, context, event_id)
 
     except Exception as e:
         logger.error(f"Edit button error: {e}")
         await query.answer("Ошибка редактирования")
+
+
+async def show_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, event_id: int):
+    """Показывает меню редактирования"""
+    query = update.callback_query
+
+    keyboard = [
+        [
+            InlineKeyboardButton("📝 Описание", callback_data=f"edit_desc|{event_id}"),
+            InlineKeyboardButton("👥 Лимит", callback_data=f"edit_limit|{event_id}")
+        ],
+        [
+            InlineKeyboardButton("📅 Дата", callback_data=f"edit_date|{event_id}"),
+            InlineKeyboardButton("🕒 Время", callback_data=f"edit_time|{event_id}")
+        ],
+        [InlineKeyboardButton("◀ Назад", callback_data=f"cancel_edit|{event_id}")]
+    ]
+
+    await query.edit_message_text(
+        "Выберите параметр для редактирования:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 
 async def handle_field_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -61,32 +76,39 @@ async def handle_field_selection(update: Update, context: ContextTypes.DEFAULT_T
 
     try:
         action, event_id = query.data.split("|")
+        db_path = context.bot_data["db_path"]
+        drafts_db_path = context.bot_data["drafts_db_path"]
+        draft_id = context.user_data.get("edit_draft_id")
+
+        if not draft_id:
+            await query.answer("Сессия редактирования устарела. Начните заново.", show_alert=True)
+            return
+
         field_map = {
-            "edit_desc": ("описание", "description"),
-            "edit_date": ("дату (ДД.ММ.ГГГГ)", "date"),
-            "edit_time": ("время (ЧЧ:ММ)", "time"),
-            "edit_limit": ("лимит участников", "participant_limit")
+            "edit_desc": ("описание", "description", "AWAIT_DESCRIPTION"),
+            "edit_date": ("дату (ДД.ММ.ГГГГ)", "date", "AWAIT_DATE"),
+            "edit_time": ("время (ЧЧ:ММ)", "time", "AWAIT_TIME"),
+            "edit_limit": ("лимит участников (число или 0 для без лимита)", "participant_limit", "AWAIT_LIMIT")
         }
 
         if action not in field_map:
             return
 
-        # Сохраняем выбранное поле
-        context.user_data["edit_field"] = field_map[action][1]
+        field_name, field_key, status = field_map[action]
 
-        # Создаем черновик (из вашего кода)
-        draft_id = add_draft(
-            db_path=context.bot_data["drafts_db_path"],
-            creator_id=query.from_user.id,
-            chat_id=query.message.chat_id,
-            status=f"EDIT_{field_map[action][1]}",
-            event_id=event_id,
-            original_message_id=query.message.message_id
+        # Обновляем статус черновика
+        update_draft(
+            db_path=drafts_db_path,
+            draft_id=draft_id,
+            status=status
         )
 
-        keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data=f"cancel_edit|{draft_id}")]]
+        # Сохраняем поле для редактирования в user_data
+        context.user_data["edit_field"] = field_key
+
+        keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data=f"cancel_input|{draft_id}")]]
         await query.edit_message_text(
-            f"Введите новое {field_map[action][0]}:",
+            f"Введите новое {field_name}:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
@@ -98,47 +120,133 @@ async def handle_field_selection(update: Update, context: ContextTypes.DEFAULT_T
 async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Сохранение изменённого поля"""
     try:
-        edit_data = context.user_data.get("edit_context")
-        if not edit_data or "edit_field" not in context.user_data:
+        user_data = context.user_data
+        drafts_db_path = context.bot_data["drafts_db_path"]
+        db_path = context.bot_data["db_path"]
+
+        draft_id = user_data.get("edit_draft_id")
+        if not draft_id:
             return
 
-        field = context.user_data["edit_field"]
+        draft = get_draft(drafts_db_path, draft_id)
+        if not draft:
+            await update.message.reply_text("Сессия редактирования устарела. Начните заново.")
+            return
+
+        field = user_data.get("edit_field")
         new_value = update.message.text
+        event_id = draft["event_id"]
 
         # Валидация ввода
         if field == "date":
-            from datetime import datetime
-            datetime.strptime(new_value, "%d.%m.%Y")  # Проверка формата
+            try:
+                datetime.strptime(new_value, "%d.%m.%Y")  # Проверка формата
+            except ValueError:
+                await update.message.reply_text("Неверный формат даты. Используйте ДД.ММ.ГГГГ")
+                return
+        elif field == "time":
+            try:
+                datetime.strptime(new_value, "%H:%M")  # Проверка формата времени
+            except ValueError:
+                await update.message.reply_text("Неверный формат времени. Используйте ЧЧ:ММ")
+                return
+        elif field == "participant_limit":
+            try:
+                new_value = int(new_value)
+                if new_value < 0:
+                    raise ValueError
+            except ValueError:
+                await update.message.reply_text("Лимит должен быть положительным числом или 0")
+                return
 
-        # Обновление в БД
+        # Обновляем поле в черновике
+        update_draft(
+            db_path=drafts_db_path,
+            draft_id=draft_id,
+            **{field: new_value}
+        )
+
+        # Обновляем поле в основном мероприятии
         success = update_event_field(
-            context.bot_data["db_path"],
-            edit_data["event_id"],
+            db_path,
+            event_id,
             field,
             new_value
         )
 
-        if success:
-            await update.message.reply_text("✅ Изменения сохранены")
-            # Обновляем сообщение о мероприятии
-            await send_event_message(
-                edit_data["event_id"],
-                context,
-                edit_data["chat_id"],
-                edit_data["message_id"]
+        if not success:
+            await update.message.reply_text("⚠ Ошибка сохранения изменений")
+            return
+
+        # Если изменились дата или время, обновляем уведомления
+        if field in ("date", "time"):
+            event = get_event(db_path, event_id)
+            try:
+                event_datetime = datetime.strptime(
+                    f"{event['date']} {event['time']}",
+                    "%d.%m.%Y %H:%M"
+                )
+                # Удаляем старые уведомления
+                remove_existing_notification_jobs(event_id, context)
+                # Создаем новые уведомления
+                await schedule_notifications(event_id, context, event_datetime, draft["chat_id"])
+                # Обновляем задачу удаления
+                await schedule_unpin_and_delete(event_id, context, draft["chat_id"])
+            except Exception as e:
+                logger.error(f"Error updating notifications: {e}")
+
+        # Удаляем сообщение с вводом пользователя
+        try:
+            await context.bot.delete_message(
+                chat_id=update.message.chat_id,
+                message_id=update.message.message_id
             )
-        else:
-            await update.message.reply_text("⚠ Ошибка сохранения")
+        except Exception as e:
+            logger.warning(f"Could not delete user message: {e}")
 
-        # Очищаем контекст
-        context.user_data.pop("edit_context", None)
-        context.user_data.pop("edit_field", None)
+        # Обновляем сообщение с мероприятием
+        await send_event_message(
+            event_id,
+            context,
+            draft["chat_id"],
+            draft["original_message_id"]
+        )
 
-    except ValueError:
-        await update.message.reply_text("Неверный формат. Попробуйте снова.")
+        # Возвращаем меню редактирования
+        await show_edit_menu(update, context, event_id)
+
     except Exception as e:
         logger.error(f"Save edit error: {e}")
         await update.message.reply_text("⚠ Ошибка при сохранении")
+
+
+async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отмена редактирования"""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        _, event_id = query.data.split("|")
+        drafts_db_path = context.bot_data["drafts_db_path"]
+        draft_id = context.user_data.get("edit_draft_id")
+
+        if draft_id:
+            # Удаляем черновик
+            delete_draft(drafts_db_path, draft_id)
+            context.user_data.pop("edit_draft_id", None)
+            context.user_data.pop("edit_field", None)
+
+        # Возвращаем оригинальное сообщение
+        await send_event_message(
+            event_id,
+            context,
+            query.message.chat_id,
+            query.message.message_id
+        )
+
+    except Exception as e:
+        logger.error(f"Cancel edit error: {e}")
+        await query.answer("Ошибка при отмене")
 
 
 def register_edit_handlers(application):
@@ -153,6 +261,12 @@ def register_edit_handlers(application):
     application.add_handler(CallbackQueryHandler(
         handle_field_selection,
         pattern=r"^edit_(desc|date|time|limit)\|"
+    ))
+
+    # Обработчик отмены редактирования
+    application.add_handler(CallbackQueryHandler(
+        cancel_edit,
+        pattern=r"^cancel_edit\|"
     ))
 
     # Обработчик сохранения изменений
