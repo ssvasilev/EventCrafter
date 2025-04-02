@@ -1,7 +1,8 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from src.database.db_operations import get_event, update_event_field
-from src.database.db_draft_operations import add_draft, get_draft, update_draft, delete_draft, get_user_draft
+from src.database.db_draft_operations import add_draft, get_draft, update_draft, delete_draft, get_user_draft, \
+    get_draft_by_event_id
 import logging
 from src.message.send_message import send_event_message
 from src.jobs.notification_jobs import schedule_notifications, remove_scheduled_jobs
@@ -27,7 +28,7 @@ async def handle_edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
 
         # Проверяем, есть ли уже черновик для этого мероприятия
-        draft = get_draft(context.bot_data["drafts_db_path"], event_id=event_id)
+        draft = get_draft_by_event_id(context.bot_data["drafts_db_path"], event_id)
         if draft:
             await query.answer("Редактирование уже начато.", show_alert=True)
             return
