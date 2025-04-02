@@ -57,26 +57,23 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
 def get_event(db_path, event_id):
     """Возвращает информацию о мероприятии в виде словаря"""
     def row_to_dict(row):
-        """Конвертирует sqlite3.Row или tuple в словарь"""
+        """Конвертирует sqlite3.Row в словарь"""
         if isinstance(row, sqlite3.Row):
             return {key: row[key] for key in row.keys()}
         return dict(row) if row else None
 
     try:
         with get_db_connection(db_path) as conn:
-            conn.row_factory = sqlite3.Row  # Используем Row для более безопасного доступа
+            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            # 1. Получаем основную информацию
             cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
             event_row = cursor.fetchone()
             if not event_row:
                 return None
 
-            # 2. Преобразуем в словарь явно
             event = row_to_dict(event_row)
 
-            # 3. Получаем участников
             def get_users(table):
                 cursor.execute(f"""
                     SELECT user_id, user_name 
@@ -86,23 +83,23 @@ def get_event(db_path, event_id):
                 """, (event_id,))
                 return [row_to_dict(row) for row in cursor.fetchall()]
 
-            # 4. Собираем все данные
             event.update({
                 "participants": get_users("participants"),
                 "reserve": get_users("reserve"),
                 "declined": get_users("declined")
             })
 
-            # 5. Добавляем счетчики
             event["participants_count"] = len(event["participants"])
             event["reserve_count"] = len(event["reserve"])
             event["declined_count"] = len(event["declined"])
 
-            return event
+            logger.debug(f"get_event({event_id}) -> {type(event)}: {event}")
+            return event if isinstance(event, dict) else dict(event)
 
     except sqlite3.Error as e:
         logger.error(f"Ошибка БД при получении мероприятия {event_id}: {str(e)}")
         return None
+
 
 def get_events_by_participant(db_path, user_id):
     """
