@@ -150,7 +150,7 @@ async def _process_time(update, context, draft, time_input):
 async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик ввода данных для черновика"""
     try:
-        # Получаем ID черновика из user_data
+        # Получаем черновик из user_data
         user_data = context.user_data
         if not user_data or 'current_draft_id' not in user_data:
             await update.message.reply_text("Сессия устарела. Начните заново.")
@@ -189,9 +189,14 @@ async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.error(f"Ошибка в handle_draft_message: {str(e)}")
         await update.message.reply_text("⚠️ Произошла ошибка обработки")
 
-async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, draft: dict, limit_input: str):
+
+async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, draft, limit_input: str):
     """Обработка лимита участников"""
     try:
+        # Преобразуем Row в словарь, если нужно
+        if hasattr(draft, '_fields'):  # Это sqlite3.Row
+            draft = {key: draft[key] for key in draft.keys()}
+
         # Валидация ввода
         try:
             limit = int(limit_input.strip())
@@ -210,7 +215,7 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
         )
 
         # Создаем или обновляем мероприятие
-        if draft.get("event_id"):
+        if "event_id" in draft and draft["event_id"]:  # Проверяем наличие event_id
             # Редактирование существующего мероприятия
             update_event_field(
                 db_path=context.bot_data["db_path"],
@@ -224,7 +229,7 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
                 event_id=draft["event_id"],
                 context=context,
                 chat_id=draft["chat_id"],
-                message_id=draft["original_message_id"]
+                message_id=draft.get("original_message_id")  # Используем .get() для безопасного доступа
             )
         else:
             # Создание нового мероприятия
@@ -238,12 +243,13 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
                 chat_id=draft["chat_id"]
             )
 
-            # Отправляем сообщение о мероприятии
-            await send_event_message(
-                event_id=event_id,
-                context=context,
-                chat_id=draft["chat_id"]
-            )
+            if event_id:
+                # Отправляем сообщение о мероприятии
+                await send_event_message(
+                    event_id=event_id,
+                    context=context,
+                    chat_id=draft["chat_id"]
+                )
 
         # Удаляем черновик
         delete_draft(context.bot_data["drafts_db_path"], draft["id"])
