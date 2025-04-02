@@ -55,52 +55,46 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
 
 
 def get_event(db_path, event_id):
-    """Возвращает информацию о мероприятии в виде словаря"""
-    def row_to_dict(row):
-        """Конвертирует sqlite3.Row в словарь"""
-        if isinstance(row, sqlite3.Row):
-            return {key: row[key] for key in row.keys()}
-        elif isinstance(row, dict):
-            return row
-        return dict(row) if row else None
-
+    """Получает мероприятие и гарантированно возвращает словарь"""
     try:
         with get_db_connection(db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
+            # Получаем основную информацию
             cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
-            event_row = cursor.fetchone()
-            if not event_row:
+            event = convert_row_to_dict(cursor.fetchone())
+            if not event:
                 return None
 
-            event = row_to_dict(event_row)  # Здесь точно конвертируем в dict
-
+            # Получаем связанные данные
             def get_users(table):
-                cursor.execute(f"""
-                    SELECT user_id, user_name 
-                    FROM {table} 
-                    WHERE event_id = ?
-                    ORDER BY created_at
-                """, (event_id,))
-                return [row_to_dict(row) for row in cursor.fetchall()]
+                cursor.execute(f"SELECT user_id, user_name FROM {table} WHERE event_id = ?", (event_id,))
+                return [convert_row_to_dict(row) for row in cursor.fetchall()]
 
             event.update({
-                "participants": get_users("participants"),
-                "reserve": get_users("reserve"),
-                "declined": get_users("declined")
+                'participants': get_users('participants'),
+                'reserve': get_users('reserve'),
+                'declined': get_users('declined')
             })
 
-            event["participants_count"] = len(event["participants"])
-            event["reserve_count"] = len(event["reserve"])
-            event["declined_count"] = len(event["declined"])
+            return event
 
-            logger.debug(f"get_event({event_id}) -> {type(event)}: {event}")
-            return event  # Уже dict
-
-    except sqlite3.Error as e:
-        logger.error(f"Ошибка БД при получении мероприятия {event_id}: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error getting event {event_id}: {str(e)}")
         return None
+
+def convert_row_to_dict(row):
+    """Безопасно преобразует sqlite3.Row или tuple в словарь"""
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return row
+    if hasattr(row, '_fields'):  # Для sqlite3.Row
+        return {key: row[key] for key in row.keys()}
+    if isinstance(row, (tuple, list)) and hasattr(row, '_fields'):
+        return dict(zip(row._fields, row))
+    return dict(row)
 
 
 
