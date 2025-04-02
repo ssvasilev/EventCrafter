@@ -106,17 +106,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    action, event_id = query.data.split("|")
-    event_id = int(event_id)
+    try:
+        action, event_id = query.data.split("|")
+        event_id = int(event_id)
 
-    if action == "join":
-        # Обработка участия
-        pass
-    elif action == "leave":
-        # Обработка отказа
-        pass
-    elif action == "edit":
-        await handle_edit_event(query, context, event_id)
+        if action == "join":
+            await handle_participation(query, context, event_id, participate=True)
+        elif action == "leave":
+            await handle_participation(query, context, event_id, participate=False)
+        elif action == "edit":
+            await handle_edit_event(query, context, event_id)
+
+    except Exception as e:
+        logger.error(f"Ошибка обработки callback: {e}")
+        await query.edit_message_text("⚠️ Произошла ошибка при обработке запроса")
 
 async def handle_edit_event(query, context, event_id):
     """Обработка нажатия кнопки редактирования"""
@@ -138,6 +141,57 @@ async def handle_edit_event(query, context, event_id):
     await query.edit_message_text(
         text="Выберите поле для редактирования:",
         reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def handle_participation(query, context, event_id, participate):
+    """Обработка участия/отказа от мероприятия"""
+    from src.database.db_operations import (
+        get_event,
+        add_participant,
+        add_to_declined,
+        remove_participant,
+        remove_from_declined,
+        get_participants_count,
+        get_participants,
+        get_reserve
+    )
+
+    user = query.from_user
+    event = get_event(context.bot_data["db_path"], event_id)
+
+    if not event:
+        await query.edit_message_text("Мероприятие не найдено")
+        return
+
+    if participate:
+        # Логика для "Участвую"
+        if event["participant_limit"] and get_participants_count(context.bot_data["db_path"], event_id) >= event[
+            "participant_limit"]:
+            await query.answer("Все места заняты, вы добавлены в резерв", show_alert=True)
+            add_to_reserve(context.bot_data["db_path"], event_id, user.id, user.full_name)
+        else:
+            remove_from_declined(context.bot_data["db_path"], event_id, user.id)
+            add_participant(context.bot_data["db_path"], event_id, user.id, user.full_name)
+            await query.answer("Вы добавлены в список участников")
+    else:
+        # Логика для "Не участвую"
+        remove_participant(context.bot_data["db_path"], event_id, user.id)
+        add_to_declined(context.bot_data["db_path"], event_id, user.id, user.full_name)
+        await query.answer("Вы отказались от участия")
+
+    # Обновляем сообщение мероприятия
+    await update_event_message(context, event_id, query.message)
+
+
+async def update_event_message(context, event_id, message):
+    """Обновляет сообщение о мероприятии"""
+    from src.message.send_message import send_event_message
+    await send_event_message(
+        event_id=event_id,
+        context=context,
+        chat_id=message.chat_id,
+        message_id=message.message_id
     )
 
 
