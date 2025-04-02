@@ -167,25 +167,28 @@ async def _process_limit(update, context, draft, limit_input):
             raise Exception("Не удалось создать мероприятие")
 
         # Отправляем сообщение о мероприятии
-        await send_event_message(event_id, context, update.message.chat_id)
+        message_id = await send_event_message(event_id, context, update.message.chat_id)
+
+        # Обновляем оригинальное сообщение черновика (если существует)
+        if draft.get("bot_message_id"):
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=update.message.chat_id,
+                    message_id=draft["bot_message_id"],
+                    text="✅ Мероприятие успешно создано!",
+                    reply_markup=None
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось обновить сообщение черновика: {e}")
 
         # Удаляем черновик
         delete_draft(context.bot_data["drafts_db_path"], draft["id"])
 
-        # Удаляем сообщение бота с формой
+        # Удаляем сообщение пользователя с вводом лимита
         try:
-            await context.bot.delete_message(
-                chat_id=update.message.chat_id,
-                message_id=draft["bot_message_id"]
-            )
-        except BadRequest:
-            pass
-
-        # Уведомление о успешном создании
-        await context.bot.send_message(
-            chat_id=update.message.from_user.id,
-            text="✅ Мероприятие успешно создано!"
-        )
+            await update.message.delete()
+        except Exception as e:
+            logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
 
     except ValueError:
         await context.bot.send_message(
