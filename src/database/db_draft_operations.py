@@ -95,17 +95,13 @@ def update_draft(db_path, draft_id, **kwargs):
         logger.error(f"Ошибка при обновлении черновика {draft_id}: {e}")
         return False
 
-def get_draft(db_path, draft_id):
-    """
-    Возвращает черновик мероприятия по его ID.
-    :param db_path: Путь к базе данных.
-    :param draft_id: ID черновика.
-    :return: Черновик мероприятия.
-    """
+def get_draft(db_path: str, draft_id: int) -> dict:
+    """Возвращает черновик как словарь"""
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 def get_draft_by_event_id(db_path: str, event_id: int):
     """Находит черновик по ID мероприятия"""
@@ -133,17 +129,17 @@ def get_user_chat_draft(db_path, creator_id, chat_id):
         )
         return cursor.fetchone()
 
-def get_user_draft(db_path, creator_id):
-    """
-    Возвращает активный черновик пользователя.
-    :param db_path: Путь к базе данных.
-    :param creator_id: ID создателя черновика.
-    :return: Черновик мероприятия.
-    """
+def get_user_draft(db_path: str, user_id: int) -> dict:
+    """Возвращает черновик как словарь"""
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM drafts WHERE creator_id = ? AND status != 'DONE'", (creator_id,))
-        return cursor.fetchone()
+        cursor.execute(
+            "SELECT * FROM drafts WHERE creator_id = ? AND status LIKE 'AWAIT_%'",
+            (user_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
 
 def get_user_drafts(db_path: str, user_id: int):
     """Возвращает все черновики пользователя"""

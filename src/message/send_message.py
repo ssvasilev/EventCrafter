@@ -86,11 +86,10 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.info(f"Сообщение {message_id} отредактировано.")
         except telegram.error.BadRequest as e:
             if "Message is not modified" in str(e):
-                # Если сообщение не изменилось, просто игнорируем ошибку
-                logger.info(f"Сообщение {message_id} не изменилось.")
-            else:
-                logger.error(f"Ошибка при редактировании сообщения: {e}")
-                raise e  # Если ошибка другая, пробрасываем её дальше
+                raise
+        except Exception as e:
+                logger.error(f"Error in send_event_message: {e}")
+                raise
         #await pin_message(context, chat_id, message_id)
         return message_id
     else:
