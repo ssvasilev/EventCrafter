@@ -53,14 +53,17 @@ async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE,
     chat_id = update.message.chat_id
 
     try:
-        if draft["status"] == "AWAIT_DESCRIPTION":
-            await _process_description(update, context, draft, user_input)
-        elif draft["status"] == "AWAIT_DATE":
-            await _process_date(update, context, draft, user_input)
-        elif draft["status"] == "AWAIT_TIME":
-            await _process_time(update, context, draft, user_input)
-        elif draft["status"] == "AWAIT_LIMIT":
-            await _process_limit(update, context, draft, user_input)
+        if draft["status"].startswith("EDIT_"):
+            await process_edit_step(update, context, draft)
+        else:
+            if draft["status"] == "AWAIT_DESCRIPTION":
+                await _process_description(update, context, draft, user_input)
+            elif draft["status"] == "AWAIT_DATE":
+                await _process_date(update, context, draft, user_input)
+            elif draft["status"] == "AWAIT_TIME":
+                await _process_time(update, context, draft, user_input)
+            elif draft["status"] == "AWAIT_LIMIT":
+                await _process_limit(update, context, draft, user_input)
 
         # Пытаемся удалить сообщение пользователя
         try:
@@ -204,3 +207,84 @@ async def _process_limit(update, context, draft, limit_input):
             text="⚠️ Произошла ошибка при создании мероприятия",
             reply_to_message_id=draft["bot_message_id"]
         )
+
+
+async def process_edit_step(update: Update, context: ContextTypes.DEFAULT_TYPE, draft):
+    """Обрабатывает шаг редактирования"""
+    field = draft["status"].split("_")[1]  # Получаем поле из статуса (EDIT_description -> description)
+    user_input = update.message.text
+
+    if field == "description":
+        await _update_event_field(context, draft, "description", user_input)
+    elif field == "date":
+        await _validate_and_update(update, context, draft, "date", user_input, "%d.%m.%Y", "ДД.ММ.ГГГГ")
+    elif field == "time":
+        await _validate_and_update(update, context, draft, "time", user_input, "%H:%M", "ЧЧ:ММ")
+    elif field == "limit":
+        await _update_participant_limit(update, context, draft, user_input)
+
+    # Удаляем сообщение пользователя
+    try:
+        await update.message.delete()
+    except BadRequest as e:
+        logger.warning(f"Не удалось удалить сообщение: {e}")
+
+
+async def _update_event_field(context, draft, field, value):
+    """Обновляет поле мероприятия"""
+    from src.database.db_operations import update_event_field
+
+    update_event_field(
+        db_path=context.bot_data["db_path"],
+        event_id=draft["event_id"],
+        field=field,
+        value=value
+    )
+    await _finalize_edit(context, draft)
+
+
+async def _validate_and_update(update, context, draft, field, value, fmt, error_hint):
+    """Проверяет формат и обновляет поле"""
+    from datetime import datetime
+    try:
+        datetime.strptime(value, fmt)  # Валидация формата
+        await _update_event_field(context, draft, field, value)
+    except ValueError:
+        await context.bot.send_message(
+            chat_id=update.message.chat_id,
+            text=f"❌ Неверный формат. Используйте {error_hint}"
+        )
+
+
+async def _update_participant_limit(update, context, draft, value):
+    """Обновляет лимит участников"""
+    try:
+        limit = int(value)
+        if limit < 0:
+            raise ValueError
+        await _update_event_field(
+            context, draft,
+            "participant_limit",
+            limit if limit != 0 else None
+        )
+    except ValueError:
+        await context.bot.send_message(
+            chat_id=update.message.chat_id,
+            text="❌ Лимит должен быть целым числом ≥ 0"
+        )
+
+
+async def _finalize_edit(context, draft):
+    """Завершает редактирование"""
+    from src.message.send_message import send_event_message
+
+    # Обновляем сообщение мероприятия
+    await send_event_message(
+        event_id=draft["event_id"],
+        context=context,
+        chat_id=draft["chat_id"],
+        message_id=draft["original_message_id"]
+    )
+
+    # Удаляем черновик
+    delete_draft(context.bot_data["drafts_db_path"], draft["id"])

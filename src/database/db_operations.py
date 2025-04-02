@@ -297,17 +297,9 @@ def update_event_field(db_path: str, event_id: int, field: str, value: str | int
                 (value, now, event_id)
             )
             conn.commit()
-
-            if cursor.rowcount > 0:
-                logger.info(f"Обновлено поле {field} для мероприятия ID={event_id}")
-                return True
-            return False
-
+            return cursor.rowcount > 0
     except sqlite3.Error as e:
-        logger.error(f"Ошибка обновления поля {field}: {e}")
-        return False
-    except Exception as e:
-        logger.error(f"Неожиданная ошибка: {e}")
+        logger.error(f"Ошибка обновления {field}: {e}")
         return False
 
 def update_event(db_path, event_id, participants, reserve, declined):

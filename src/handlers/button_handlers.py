@@ -1,5 +1,7 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
+
+from src.database.db_draft_operations import add_draft
 from src.database.db_operations import (
     get_event,
     add_participant,
@@ -105,53 +107,127 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    try:
-        if not query.data or "|" not in query.data:
-            logger.error(f"Invalid callback data: {query.data}")
-            return
+    action, event_id = query.data.split("|")
+    event_id = int(event_id)
 
-        action, event_id_str = query.data.split("|", 1)
-        event_id = int(event_id_str)
-        db_path = context.bot_data["db_path"]
-        event = get_event(db_path, event_id)
+    if action == "join":
+        # Обработка участия
+        pass
+    elif action == "leave":
+        # Обработка отказа
+        pass
+    elif action == "edit":
+        await handle_edit_event(query, context, event_id)
 
-        if not event:
-            await query.answer("Мероприятие не найдено")
-            return
+async def handle_edit_event(query, context, event_id):
+    """Обработка нажатия кнопки редактирования"""
+    event = get_event(context.bot_data["db_path"], event_id)
 
-        # Добавляем проверку структуры event
-        if "id" not in event or "chat_id" not in event:
-            logger.error(f"Invalid event structure: {event}")
-            await query.answer("Ошибка: некорректные данные мероприятия")
-            return
+    if not event:
+        await query.edit_message_text("Мероприятие не найдено")
+        return
 
-        user = query.from_user
-        user_id = user.id
-        user_name = UserNamingService.get_display_name(user)  # Используем сервис
+    # Клавиатура для выбора поля редактирования
+    keyboard = [
+        [InlineKeyboardButton("📝 Описание", callback_data=f"edit_field|{event_id}|description")],
+        [InlineKeyboardButton("📅 Дата", callback_data=f"edit_field|{event_id}|date")],
+        [InlineKeyboardButton("🕒 Время", callback_data=f"edit_field|{event_id}|time")],
+        [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_field|{event_id}|limit")],
+        [InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_edit|{event_id}")]
+    ]
 
-        if action == "join":
-            await handle_join_action(db_path, event, user_id, user_name, query)
-        elif action == "leave":
-            await handle_leave_action(db_path, event, user_id, user_name, query, context)
-        elif action == "edit":
-            await handle_edit_button(update, context)
-            return
-        else:
-            logger.warning(f"Unknown event action: {action}")
-            await query.answer("Неизвестное действие")
-            return
+    await query.edit_message_text(
+        text="Выберите поле для редактирования:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
-        # Обновляем сообщение мероприятия
-        await send_event_message(event_id, context, query.message.chat_id, query.message.message_id)
 
-    except Exception as e:
-        logger.error(f"Button handler error: {e}")
-        await query.answer("⚠ Ошибка обработки")
+async def edit_field_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка выбора конкретного поля для редактирования"""
+    query = update.callback_query
+    await query.answer()
+
+    _, event_id, field = query.data.split("|")
+    event_id = int(event_id)
+    event = get_event(context.bot_data["db_path"], event_id)
+
+    if not event:
+        await query.edit_message_text("Мероприятие не найдено")
+        return
+
+    # Создаем черновик для редактирования
+    draft_id = add_draft(
+        db_path=context.bot_data["drafts_db_path"],
+        creator_id=query.from_user.id,
+        chat_id=query.message.chat_id,
+        status=f"EDIT_{field}",
+        event_id=event_id,
+        original_message_id=query.message.message_id,
+        description=event["description"],
+        date=event["date"],
+        time=event["time"],
+        participant_limit=event["participant_limit"]
+    )
+
+    # Запрашиваем новое значение
+    field_prompts = {
+        "description": "Введите новое описание мероприятия:",
+        "date": "Введите новую дату (ДД.ММ.ГГГГ):",
+        "time": "Введите новое время (ЧЧ:ММ):",
+        "limit": "Введите новый лимит участников (0 - без лимита):"
+    }
+
+    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_input|{draft_id}")]]
+    await query.edit_message_text(
+        text=field_prompts[field],
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def cancel_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка отмены редактирования"""
+    query = update.callback_query
+    await query.answer()
+
+    _, event_id = query.data.split("|")
+    event_id = int(event_id)
+    event = get_event(context.bot_data["db_path"], event_id)
+
+    if not event:
+        await query.edit_message_text("Мероприятие не найдено")
+        return
+
+    # Возвращаем стандартное сообщение
+    keyboard = [
+        [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
+        [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
+        [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")]
+    ]
+
+    # Форматируем сообщение (используйте ваш формат)
+    message_text = f"📢 {event['description']}\n\nДата: {event['date']}\nВремя: {event['time']}\nЛимит: {event['participant_limit'] or '∞'}"
+
+    await query.edit_message_text(
+        text=message_text,
+        reply_markup=InlineKeyboardMarkup(keyboard))
+
 
 def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             button_handler,
             pattern=r"^(join|leave|edit)\|"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            edit_field_handler,
+            pattern=r"^edit_field\|"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            cancel_edit_handler,
+            pattern=r"^cancel_edit\|"
         )
     )
