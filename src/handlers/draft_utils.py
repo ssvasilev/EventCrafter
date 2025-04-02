@@ -215,7 +215,7 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
         )
 
         # Создаем или обновляем мероприятие
-        if "event_id" in draft and draft["event_id"]:  # Проверяем наличие event_id
+        if "event_id" in draft and draft["event_id"]:
             # Редактирование существующего мероприятия
             update_event_field(
                 db_path=context.bot_data["db_path"],
@@ -224,12 +224,17 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
                 value=limit if limit != 0 else None
             )
 
+            # Получаем обновленные данные мероприятия
+            event = get_event(context.bot_data["db_path"], draft["event_id"])
+            if not event:
+                raise Exception("Мероприятие не найдено")
+
             # Восстанавливаем оригинальное сообщение
             await send_event_message(
-                event_id=draft["event_id"],
+                event_id=event["id"],
                 context=context,
                 chat_id=draft["chat_id"],
-                message_id=draft.get("original_message_id")  # Используем .get() для безопасного доступа
+                message_id=draft.get("original_message_id")
             )
         else:
             # Создание нового мероприятия
@@ -244,9 +249,14 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
             )
 
             if event_id:
+                # Получаем данные нового мероприятия
+                event = get_event(context.bot_data["db_path"], event_id)
+                if not event:
+                    raise Exception("Не удалось создать мероприятие")
+
                 # Отправляем сообщение о мероприятии
                 await send_event_message(
-                    event_id=event_id,
+                    event_id=event["id"],
                     context=context,
                     chat_id=draft["chat_id"]
                 )

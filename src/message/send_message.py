@@ -34,10 +34,12 @@ async def send_event_message(event_id, context, chat_id, message_id=None):
         reserve_text = format_users_list(event["reserve"], "Резерв пуст")
         declined_text = format_users_list(event["declined"], "Отказавшихся нет")
         limit_text = "∞ (без лимита)" if not event["participant_limit"] else str(event["participant_limit"])
+        participants_count = len(event["participants"])
 
         # Форматируем дату
         event_date = datetime.strptime(event["date"], "%d.%m.%Y").strftime("%d.%m.%Y (%A)")
         time_until = time_until_event(event["date"], event["time"], context.bot_data.get("tz"))
+
 
         # Текст сообщения
         message_text = (
@@ -46,7 +48,7 @@ async def send_event_message(event_id, context, chat_id, message_id=None):
             f"🕒 <i>Время:</i> {event['time']}\n"
             f"⏳ <i>До мероприятия:</i> {time_until}\n"
             f"👥 <i>Лимит:</i> {limit_text}\n\n"
-            f"✅ <i>Участники ({event['participants_count']}):</i>\n{participants_text}\n\n"
+            f"✅ <i>Участники ({participants_count}):</i>\n{participants_text}\n\n"
             f"⏳ <i>Резерв:</i>\n{reserve_text}\n\n"
             f"❌ <i>Отказавшиеся:</i>\n{declined_text}"
         )
