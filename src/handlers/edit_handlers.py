@@ -97,6 +97,7 @@ async def handle_field_selection(update: Update, context: ContextTypes.DEFAULT_T
         logger.error(f"Field selection error: {e}")
         await query.answer("Ошибка выбора поля")
 
+
 async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Сохранение изменённого поля"""
     try:
@@ -104,20 +105,27 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
         drafts_db_path = context.bot_data["drafts_db_path"]
         db_path = context.bot_data["db_path"]
 
-        # Ищем активный черновик редактирования для этого пользователя
+        logger.info(f"Начало обработки редактирования от пользователя {user_id}")
+
+        # Ищем активный черновик
         draft = get_user_draft(drafts_db_path, user_id)
+        logger.info(f"Найден черновик: {draft}")
+
         if not draft or not draft.get("event_id"):
+            logger.warning("Черновик не найден или отсутствует event_id")
             await update.message.reply_text("Нет активного редактирования.")
             return
 
-        # Удаляем сообщение пользователя
+        # Логируем перед удалением сообщения
+        logger.info(f"Попытка удалить сообщение ID {update.message.message_id} в чате {update.message.chat_id}")
         try:
             await context.bot.delete_message(
                 chat_id=update.message.chat_id,
                 message_id=update.message.message_id
             )
+            logger.info("Сообщение успешно удалено")
         except Exception as e:
-            logger.error(f"Не удалось удалить сообщение: {e}")
+            logger.error(f"Ошибка удаления сообщения: {e}")
 
         field_map = {
             "EDIT_DESCRIPTION": "description",
@@ -127,24 +135,34 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
 
         field = field_map.get(draft["status"])
+        logger.info(f"Редактируем поле: {field}, статус черновика: {draft['status']}")
+
         if not field:
-            await update.message.reply_text("Неизвестное поле для редактирования.")
+            logger.error("Неизвестный тип поля для редактирования")
+            await context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text="⚠ Ошибка: неизвестное поле"
+            )
             return
 
         new_value = update.message.text
         event_id = draft["event_id"]
 
-        # Обновление в БД
+        logger.info(f"Обновляем {field} на '{new_value}' для события {event_id}")
+
+        # Обновляем в БД
         success = update_event_field(db_path, event_id, field, new_value)
+        logger.info(f"Результат обновления в БД: {success}")
 
         if success:
-            # Если изменили дату или время - пересоздаём уведомления
             if field in ("date", "time"):
+                logger.info("Обновление даты/времени - пересоздаём уведомления")
                 event = get_event(db_path, event_id)
                 remove_scheduled_jobs(context, event_id)
                 schedule_notifications(context, event)
 
-            # Обновляем сообщение о мероприятии
+            logger.info(
+                f"Обновляем сообщение мероприятия: chat_id={draft['chat_id']}, message_id={draft['original_message_id']}")
             await send_event_message(
                 event_id,
                 context,
@@ -152,19 +170,22 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 draft["original_message_id"]
             )
 
-            # Удаляем черновик после успешного сохранения
+            logger.info("Удаляем черновик")
             delete_draft(drafts_db_path, draft["id"])
+
+            logger.info("Редактирование завершено успешно")
         else:
+            logger.error("Ошибка обновления в БД")
             await context.bot.send_message(
                 chat_id=update.message.chat_id,
                 text="⚠ Ошибка сохранения изменений"
             )
 
     except Exception as e:
-        logger.error(f"Save edit error: {e}")
+        logger.error(f"Критическая ошибка в save_edited_field: {str(e)}", exc_info=True)
         await context.bot.send_message(
             chat_id=update.message.chat_id,
-            text="⚠ Ошибка при сохранении изменений"
+            text="⚠ Произошла ошибка при сохранении"
         )
 
 def register_edit_handlers(application):
