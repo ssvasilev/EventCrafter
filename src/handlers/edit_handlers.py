@@ -2,9 +2,11 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from src.database.db_operations import get_event, update_event_field
 from src.database.db_draft_operations import add_draft, get_draft, update_draft, delete_draft, get_user_draft
-from src.logger import logger
+import logging
 from src.message.send_message import send_event_message
 from src.jobs.notification_jobs import schedule_notifications, remove_scheduled_jobs
+
+logger = logging.getLogger(__name__)
 
 async def handle_edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик кнопки 'Редактировать'"""
