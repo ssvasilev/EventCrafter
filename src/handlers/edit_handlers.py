@@ -109,12 +109,8 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # 1. Получаем активный черновик
         draft = get_user_draft(drafts_db, user_id)
-        if not draft or not draft.get("event_id"):
-            logger.error(f"Черновик не найден для user_id {user_id}")
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text="🚫 Активная сессия редактирования не найдена. Начните заново."
-            )
+        if not draft:
+            # Нет активного редактирования - пропускаем обработку
             return
 
         logger.info(f"Обрабатываем черновик ID {draft['id']}, статус: {draft['status']}")
@@ -214,21 +210,24 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Не удалось отправить сообщение об ошибке: {send_error}")
 
 def register_edit_handlers(application):
-    """Регистрация всех обработчиков редактирования"""
-    # Обработчик кнопки "Редактировать"
+    """Регистрация обработчиков с приоритетами"""
+    # Высокий приоритет - обработчик кнопки редактирования
     application.add_handler(CallbackQueryHandler(
         handle_edit_button,
-        pattern=r"^edit\|"
-    ))
+        pattern=r"^edit\|",
+        block=False
+    ), group=1)
 
-    # Обработчики выбора полей
+    # Средний приоритет - обработчики выбора полей
     application.add_handler(CallbackQueryHandler(
         handle_field_selection,
-        pattern=r"^edit_(desc|date|time|limit)\|"
-    ))
+        pattern=r"^edit_(desc|date|time|limit)\|",
+        block=False
+    ), group=2)
 
-    # Обработчик сохранения изменений
+    # Низкий приоритет - обработчик ввода данных
     application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        save_edited_field
-    ))
+        filters.TEXT & ~filters.COMMAND & filters.ChatType.GROUPS,
+        save_edited_field,
+        block=False
+    ), group=3)

@@ -40,6 +40,8 @@ def main():
     })
 
 
+    # 2. Регистрируем обработчики в правильном порядке
+    register_edit_handlers(application)  # Первыми - самые специфичные
 
     # Регистрируем обработчики
     register_message_handlers(application)
@@ -52,9 +54,6 @@ def main():
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
-
-    # Обработчик редактирования
-    register_edit_handlers(application)
 
     # Восстанавливаем запланированные задачи
     restore_scheduled_jobs(application)
