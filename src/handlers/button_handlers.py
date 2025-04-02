@@ -16,7 +16,6 @@ from src.database.db_operations import (
     is_user_in_declined,
     remove_from_declined
 )
-from src.handlers.edit_handlers import handle_edit_button
 from src.message.send_message import send_event_message
 
 from src.logger.logger import logger
