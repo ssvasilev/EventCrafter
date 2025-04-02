@@ -26,7 +26,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 break
 
     if not mention_text:
-        # Если текст после упоминания пустой, показываем меню
+        # Если текст после упоминания пустой, редактируем сообщение с меню
         keyboard = [
             [InlineKeyboardButton("Создать мероприятие", callback_data="menu_create_event")],
             [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")]
@@ -34,13 +34,14 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
-            await update.message.reply_text(
+            # Редактируем сообщение с упоминанием вместо создания нового
+            await update.message.edit_text(
                 "Вы упомянули меня! Что вы хотите сделать?",
-                reply_markup=reply_markup,
+                reply_markup=reply_markup
             )
             return
         except Exception as e:
-            logger.error(f"Ошибка при обработке пустого упоминания: {e}")
+            logger.error(f"Ошибка при редактировании сообщения с упоминанием: {e}")
             return
 
     creator_id = update.message.from_user.id
@@ -66,21 +67,22 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Ошибка при создании черновика мероприятия.")
         return
 
-    # Отправляем сообщение с запросом даты
+    # Редактируем существующее сообщение вместо создания нового
     keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
-        sent_message = await update.message.reply_text(
+        # Редактируем сообщение с упоминанием
+        await update.message.edit_text(
             f"📢 {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
-            reply_markup=reply_markup,
+            reply_markup=reply_markup
         )
 
-        # Обновляем черновик с ID сообщения бота
+        # Обновляем черновик с ID сообщения
         update_draft(
             db_path=context.bot_data["drafts_db_path"],
             draft_id=draft_id,
-            bot_message_id=sent_message.message_id
+            bot_message_id=update.message.message_id
         )
 
         # Пытаемся удалить сообщение пользователя (если есть права)

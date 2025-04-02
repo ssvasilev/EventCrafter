@@ -161,37 +161,46 @@ async def _process_limit(update, context, draft, limit_input):
             limit=limit if limit != 0 else None,
             creator_id=update.message.from_user.id,
             chat_id=update.message.chat_id,
-            message_id=draft["bot_message_id"]  # Сохраняем ID существующего сообщения
+            message_id=draft["bot_message_id"]
         )
 
         if not event_id:
             raise Exception("Не удалось создать мероприятие")
 
-        # Редактируем существующее сообщение вместо создания нового
+        # Редактируем существующее сообщение
         await send_event_message(
             event_id=event_id,
             context=context,
             chat_id=update.message.chat_id,
-            message_id=draft["bot_message_id"]  # Используем ID существующего сообщения
+            message_id=draft["bot_message_id"]
         )
 
         # Удаляем черновик
         delete_draft(context.bot_data["drafts_db_path"], draft["id"])
 
-        # Уведомление о успешном создании
+        # Удаляем сообщение пользователя с вводом лимита
+        try:
+            await update.message.delete()
+        except BadRequest as e:
+            logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
+
+        # Уведомление о успешном создании можно отправить как reply к отредактированному сообщению
         await context.bot.send_message(
-            chat_id=update.message.from_user.id,
-            text="✅ Мероприятие успешно создано!"
+            chat_id=update.message.chat_id,
+            text="✅ Мероприятие успешно создано!",
+            reply_to_message_id=draft["bot_message_id"]
         )
 
     except ValueError:
         await context.bot.send_message(
             chat_id=update.message.chat_id,
-            text="❌ Неверный формат лимита. Введите целое число (0 - без лимита)"
+            text="❌ Неверный формат лимита. Введите целое число (0 - без лимита)",
+            reply_to_message_id=draft["bot_message_id"]
         )
     except Exception as e:
         logger.error(f"Ошибка создания мероприятия: {e}")
         await context.bot.send_message(
             chat_id=update.message.chat_id,
-            text="⚠️ Произошла ошибка при создании мероприятия"
+            text="⚠️ Произошла ошибка при создании мероприятия",
+            reply_to_message_id=draft["bot_message_id"]
         )
