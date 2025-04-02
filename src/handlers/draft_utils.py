@@ -146,92 +146,86 @@ async def _process_time(update, context, draft, time_input):
         )
 
 async def _process_limit(update, context, draft, limit_input):
-    """Обработка шага ввода лимита участников с полной обработкой ошибок"""
+    """Обрабатывает ввод лимита участников с полной обработкой ошибок"""
     try:
-        # 1. Проверка и преобразование лимита
+        # Валидация ввода
         try:
             limit = int(limit_input)
             if limit < 0:
-                raise ValueError("Лимит не может быть отрицательным")
-        except ValueError as e:
-            await context.bot.send_message(
-                chat_id=update.message.chat_id,
-                text="❌ Неверный формат лимита. Введите целое число (0 - без лимита)"
-            )
+                raise ValueError("Лимит должен быть ≥ 0")
+        except ValueError:
+            await update.message.reply_text("❌ Введите целое число ≥ 0 (0 - без лимита)")
             return
 
-        # 2. Получаем соединение с базой данных
         db_path = context.bot_data["db_path"]
         drafts_db_path = context.bot_data["drafts_db_path"]
+        chat_id = update.message.chat_id
+        user_id = update.message.from_user.id
 
-        # 3. Проверяем существование мероприятия
+        # Получаем существующее мероприятие (если редактируем)
         existing_event = None
         if draft.get("event_id"):
             existing_event = get_event(db_path, draft["event_id"])
-            if existing_event and hasattr(existing_event, 'get'):
-                existing_event = dict(existing_event)  # Преобразуем Row в dict
+            if existing_event and hasattr(existing_event, '_fields'):  # Проверка на sqlite3.Row
+                existing_event = dict(zip(existing_event._fields, existing_event))
 
-        # 4. Создаем или обновляем мероприятие
+        # Создаем или обновляем мероприятие
         if existing_event:
-            # Обновляем существующее мероприятие
-            success = update_event_field(
-                db_path,
-                existing_event["id"],
-                "participant_limit",
-                limit if limit != 0 else None
-            )
+            # Режим редактирования
+            if not update_event_field(db_path, existing_event["id"],
+                                   "participant_limit", limit if limit != 0 else None):
+                raise Exception("Не удалось обновить лимит")
             event_id = existing_event["id"]
         else:
-            # Создаем новое мероприятие
+            # Режим создания
             event_id = add_event(
                 db_path=db_path,
                 description=draft["description"],
                 date=draft["date"],
                 time=draft["time"],
                 limit=limit if limit != 0 else None,
-                creator_id=update.message.from_user.id,
-                chat_id=update.message.chat_id
+                creator_id=user_id,
+                chat_id=chat_id
             )
+            if not event_id:
+                raise Exception("Не удалось создать мероприятие")
 
-        if not event_id:
-            raise Exception("Не удалось сохранить мероприятие")
-
-        # 5. Отправляем/обновляем сообщение о мероприятии
+        # Отправляем/обновляем сообщение о мероприятии
         try:
             message_id = await send_event_message(
                 event_id,
                 context,
-                update.message.chat_id,
+                chat_id,
                 existing_event["message_id"] if existing_event else None
             )
         except Exception as e:
-            logger.error(f"Ошибка отправки сообщения мероприятия: {e}")
+            logger.error(f"Ошибка отправки сообщения: {str(e)}")
             raise
 
-        # 6. Обновляем сообщение с формой
+        # Обновляем сообщение с формой
         try:
             if draft.get("bot_message_id"):
                 await context.bot.edit_message_text(
-                    chat_id=update.message.chat_id,
+                    chat_id=chat_id,
                     message_id=draft["bot_message_id"],
                     text="✅ Мероприятие успешно сохранено!",
                     reply_markup=None
                 )
         except Exception as e:
-            logger.warning(f"Не удалось обновить сообщение формы: {e}")
+            logger.warning(f"Не удалось обновить сообщение формы: {str(e)}")
 
-        # 7. Удаляем сообщение пользователя с вводом лимита
+        # Удаляем сообщение пользователя
         try:
             await update.message.delete()
         except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
+            logger.warning(f"Не удалось удалить сообщение пользователя: {str(e)}")
 
-        # 8. Удаляем черновик
+        # Удаляем черновик
         delete_draft(drafts_db_path, draft["id"])
 
     except Exception as e:
-        logger.error(f"Критическая ошибка в _process_limit: {str(e)}")
+        logger.error(f"Ошибка в _process_limit: {str(e)}")
         await context.bot.send_message(
             chat_id=update.message.chat_id,
-            text="⚠️ Произошла критическая ошибка при сохранении мероприятия"
+            text="⚠️ Произошла ошибка при сохранении мероприятия"
         )
