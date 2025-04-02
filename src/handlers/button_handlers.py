@@ -15,7 +15,7 @@ from src.database.db_operations import (
     is_user_in_declined,
     update_event_field
 )
-from src.database.db_draft_operations import add_draft, delete_draft
+from src.database.db_draft_operations import add_draft, delete_draft, get_draft
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
@@ -24,19 +24,32 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     try:
-        action, event_id = query.data.split("|")
-        event_id = int(event_id)
+        # Разбираем callback_data в зависимости от формата
+        if '|' in query.data:
+            parts = query.data.split('|')
+            action = parts[0]
 
-        if action == "join":
-            await handle_join(query, context, event_id)
-        elif action == "leave":
-            await handle_leave(query, context, event_id)
-        elif action == "edit":
-            await handle_edit_event(query, context, event_id)
-        elif action.startswith("edit_field"):
-            await handle_edit_field(query, context, event_id)
-        elif action.startswith("cancel_edit"):
-            await handle_cancel_edit(query, context, event_id)
+            if action in ['join', 'leave', 'edit', 'cancel_edit']:
+                event_id = int(parts[1])
+                if action == 'join':
+                    await handle_join(query, context, event_id)
+                elif action == 'leave':
+                    await handle_leave(query, context, event_id)
+                elif action == 'edit':
+                    await handle_edit_event(query, context, event_id)
+                elif action == 'cancel_edit':
+                    await handle_cancel_edit(query, context, event_id)
+
+            elif action == 'edit_field':
+                event_id = int(parts[1])
+                field = parts[2]
+                await handle_edit_field(query, context, event_id, field)
+
+            elif action == 'cancel_input':
+                draft_id = int(parts[1])
+                await handle_cancel_input(query, context, draft_id)
+        else:
+            await query.edit_message_text("⚠️ Неизвестный формат запроса")
 
     except Exception as e:
         logger.error(f"Ошибка обработки callback: {e}")
@@ -146,9 +159,8 @@ async def handle_edit_event(query, context, event_id):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def handle_edit_field(query, context, event_id):
+async def handle_edit_field(query, context, event_id, field):
     """Обработка выбора поля для редактирования"""
-    _, _, field = query.data.split("|")
     event = get_event(context.bot_data["db_path"], event_id)
 
     if not event:
@@ -203,6 +215,13 @@ async def handle_cancel_edit(query, context, event_id):
         text=message_text,
         reply_markup=InlineKeyboardMarkup(keyboard))
 
+async def handle_cancel_input(query, context, draft_id):
+    """Обработка отмены ввода при редактировании"""
+    draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
+    if draft:
+        delete_draft(context.bot_data["drafts_db_path"], draft_id)
+        await handle_cancel_edit(query, context, draft["event_id"])
+
 async def update_event_message(context, event_id, message):
     """Обновляет сообщение о мероприятии"""
     await send_event_message(
@@ -216,6 +235,6 @@ def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             button_handler,
-            pattern=r"^(join|leave|edit|edit_field|cancel_edit)\|"
+            pattern=r"^(join|leave|edit|edit_field|cancel_edit|cancel_input)\|"
         )
     )
