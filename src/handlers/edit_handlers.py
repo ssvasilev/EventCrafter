@@ -10,41 +10,32 @@ from datetime import datetime
 
 
 async def handle_edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик кнопки 'Редактировать'"""
+    """Обработчик кнопки редактирования"""
     query = update.callback_query
     await query.answer()
 
     try:
-        _, event_id = query.data.split("|")
-        db_path = context.bot_data["db_path"]
-        event = get_event(db_path, event_id)
+        event_id = int(query.data.split("|")[1])  # Получаем ID мероприятия
+        user_data = context.user_data
 
-        if not event:
-            await query.answer("Мероприятие не найдено.", show_alert=True)
-            return
-
-        if event["creator_id"] != query.from_user.id:
-            await query.answer("Только автор может редактировать.", show_alert=True)
-            return
-
-        # Создаем черновик для редактирования
+        # Создаем черновик
         draft_id = add_draft(
-            db_path=context.bot_data["drafts_db_path"],
+            context.bot_data["drafts_db_path"],
             creator_id=query.from_user.id,
             chat_id=query.message.chat_id,
-            status="EDIT_MENU",
-            event_id=event_id,
-            original_message_id=query.message.message_id
+            status="EDIT_MODE",
+            event_id=event_id
         )
 
         # Сохраняем ID черновика в user_data
-        context.user_data["edit_draft_id"] = draft_id
+        user_data['current_draft_id'] = draft_id
 
-        await show_edit_menu(update, context, event_id)
+        # Показываем меню редактирования
+        await show_edit_menu(query, event_id)
 
     except Exception as e:
-        logger.error(f"Edit button error: {e}")
-        await query.answer("Ошибка редактирования")
+        logger.error(f"Ошибка в handle_edit_button: {str(e)}")
+        await query.edit_message_text("⚠️ Ошибка редактирования")
 
 
 async def show_edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, event_id: int):

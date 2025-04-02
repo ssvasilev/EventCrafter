@@ -147,100 +147,67 @@ async def _process_time(update, context, draft, time_input):
         )
 
 
-async def _process_limit(update, context, draft_id, limit_input):
-    """Обработка лимита участников с защитой от всех ошибок"""
+async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик ввода данных для черновика"""
     try:
-        # 1. Преобразуем ID черновика
-        try:
-            draft_id = int(draft_id)
-        except (ValueError, TypeError):
-            logger.error(f"Неверный ID черновика: {draft_id}")
-            await update.message.reply_text("⚠️ Ошибка системы. Пожалуйста, начните заново.")
+        # Получаем ID черновика из user_data
+        user_data = context.user_data
+        if not user_data or 'current_draft_id' not in user_data:
+            await update.message.reply_text("Сессия устарела. Начните заново.")
             return
 
-        # 2. Получаем черновик
+        draft_id = int(user_data['current_draft_id'])  # Гарантируем int
         draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
+
         if not draft:
-            logger.error(f"Черновик {draft_id} не найден")
             await update.message.reply_text("Черновик не найден")
             return
 
-        # 3. Валидация лимита
+        # Обработка в зависимости от статуса черновика
+        if draft['status'] == 'AWAIT_LIMIT':
+            await _process_limit(update, context, draft_id, update.message.text)
+        # ... другие статусы
+
+    except Exception as e:
+        logger.error(f"Ошибка в handle_draft_message: {str(e)}")
+        await update.message.reply_text("⚠️ Произошла ошибка обработки")
+
+
+async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, draft_id: int, limit_input: str):
+    """Обработка лимита участников"""
+    try:
+        # Преобразуем ID в int (дополнительная проверка)
+        draft_id = int(draft_id)
+        draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
+
+        if not draft:
+            await update.message.reply_text("Черновик не найден")
+            return
+
+        # Валидация ввода
         try:
             limit = int(limit_input.strip())
             if limit < 0:
                 raise ValueError
-            limit = None if limit == 0 else limit  # Преобразуем 0 в NULL
         except ValueError:
-            await update.message.reply_text(
-                "❌ Введите целое число ≥ 0\n"
-                "• 0 - без ограничения\n"
-                "• 1+ - ограничение количества участников"
-            )
+            await update.message.reply_text("❌ Введите целое число ≥ 0 (0 - без лимита)")
             return
 
-        # 4. Подготовка данных
-        db_path = context.bot_data["db_path"]
-        chat_id = update.message.chat_id
-        user_id = update.message.from_user.id
+        # Обновление базы данных
+        success = update_draft(
+            context.bot_data["drafts_db_path"],
+            draft_id,
+            participant_limit=limit if limit != 0 else None,
+            status="COMPLETED"
+        )
 
-        # 5. Сохраняем в базу данных
-        if draft.get("event_id"):
-            # Режим редактирования
-            if not update_event_field(
-                db_path,
-                int(draft["event_id"]),  # Явное преобразование
-                "participant_limit",
-                limit
-            ):
-                raise Exception("Ошибка обновления лимита")
-            event_id = int(draft["event_id"])
-        else:
-            # Режим создания
-            event_id = add_event(
-                db_path=db_path,
-                description=draft["description"],
-                date=draft["date"],
-                time=draft["time"],
-                limit=limit,
-                creator_id=user_id,
-                chat_id=chat_id
-            )
-            if not event_id:
-                raise Exception("Ошибка создания мероприятия")
+        if not success:
+            raise Exception("Не удалось обновить черновик")
 
-        # 6. Обновляем сообщение
-        try:
-            await send_event_message(
-                event_id,
-                context,
-                chat_id,
-                int(draft["original_message_id"]) if draft.get("original_message_id") else None
-            )
-        except Exception as e:
-            logger.error(f"Ошибка отправки сообщения: {str(e)}")
-            raise
-
-        # 7. Очистка
-        try:
-            await update.message.delete()
-            if draft.get("bot_message_id"):
-                await context.bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=int(draft["bot_message_id"]),
-                    text="✅ Настройки сохранены",
-                    reply_markup=None
-                )
-        except Exception as e:
-            logger.warning(f"Ошибка очистки: {str(e)}")
-
-        delete_draft(context.bot_data["drafts_db_path"], draft_id)
+        # Дальнейшая обработка...
 
     except Exception as e:
-        logger.error(f"Критическая ошибка: {str(e)}", exc_info=True)
-        await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text="⚠️ Системная ошибка. Пожалуйста, попробуйте позже."
-        )
+        logger.error(f"Ошибка в _process_limit: {str(e)}")
+        await update.message.reply_text("⚠️ Ошибка сохранения лимита")
 
 

@@ -1,6 +1,8 @@
 import os
 import sqlite3
 from datetime import datetime
+from typing import Optional
+
 from src.logger.logger import logger
 
 
@@ -102,25 +104,44 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None,
         logger.error(f"Ошибка при обновлении черновика: {e}")
 
 
-def get_draft(db_path, draft_id):
-    """Безопасно получает черновик с проверкой типа ID"""
+def get_draft(db_path: str, draft_id: int) -> Optional[dict]:
+    """Получает черновик и гарантированно возвращает словарь"""
     try:
-        # Преобразуем ID к целому числу
-        draft_id = int(draft_id)
+        draft_id = int(draft_id)  # Дополнительная конвертация
 
         with get_db_connection(db_path) as conn:
-            conn.row_factory = lambda cursor, row: {
-                col[0]: row[idx] for idx, col in enumerate(cursor.description)
-            }
+            # Явно указываем columns для избежания проблем с Row
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
-            return cursor.fetchone()
+            cursor.execute("""
+                SELECT 
+                    id, creator_id, chat_id, status, 
+                    description, date, time, participant_limit,
+                    event_id, bot_message_id, original_message_id
+                FROM drafts 
+                WHERE id = ?
+            """, (draft_id,))
 
-    except (ValueError, TypeError) as e:
-        logger.error(f"Неверный тип ID черновика: {draft_id}. Ошибка: {str(e)}")
-        return None
-    except sqlite3.Error as e:
-        logger.error(f"Ошибка БД при получении черновика {draft_id}: {str(e)}")
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            # Явное преобразование в словарь
+            return {
+                'id': row[0],
+                'creator_id': row[1],
+                'chat_id': row[2],
+                'status': row[3],
+                'description': row[4],
+                'date': row[5],
+                'time': row[6],
+                'participant_limit': row[7],
+                'event_id': row[8],
+                'bot_message_id': row[9],
+                'original_message_id': row[10]
+            }
+
+    except Exception as e:
+        logger.error(f"Ошибка получения черновика {draft_id}: {str(e)}")
         return None
 
 def get_user_chat_draft(db_path, creator_id, chat_id):
