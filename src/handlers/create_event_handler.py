@@ -12,11 +12,21 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     chat_id = query.message.chat_id
 
     # Проверяем существующий черновик
-    if get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id):
-        await query.edit_message_text("У вас уже есть активное создание мероприятия")
+    existing_draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
+    if existing_draft:
+        status_map = {
+            "AWAIT_DESCRIPTION": "описание",
+            "AWAIT_DATE": "дату",
+            "AWAIT_TIME": "время",
+            "AWAIT_LIMIT": "лимит участников"
+        }
+        status = existing_draft.get("status", "")
+        await query.edit_message_text(
+            f"У вас уже есть активное создание мероприятия (ожидается {status_map.get(status, 'данные')})"
+        )
         return
 
-    # Создаем черновик без event_id (новое мероприятие)
+    # Создаем новый черновик
     draft_id = add_draft(
         db_path=context.bot_data["drafts_db_path"],
         creator_id=creator_id,
@@ -25,22 +35,33 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     if not draft_id:
-        await query.edit_message_text("Ошибка при создании мероприятия")
+        await query.edit_message_text("⚠️ Ошибка при создании мероприятия")
         return
 
-    # Кнопка отмены для создания
-    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
-    sent_message = await context.bot.send_message(
-        chat_id=chat_id,
-        text="✏️ Введите описание мероприятия:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    # Отправляем запрос описания
+    keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
+    try:
+        sent_message = await context.bot.send_message(
+            chat_id=chat_id,
+            text="✏️ Введите описание мероприятия:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
-    update_draft(
-        db_path=context.bot_data["drafts_db_path"],
-        draft_id=draft_id,
-        bot_message_id=sent_message.message_id
-    )
+        update_draft(
+            db_path=context.bot_data["drafts_db_path"],
+            draft_id=draft_id,
+            bot_message_id=sent_message.message_id
+        )
+
+        # Удаляем меню
+        try:
+            await query.message.delete()
+        except Exception as e:
+            logger.warning(f"Не удалось удалить меню: {e}")
+
+    except Exception as e:
+        logger.error(f"Ошибка при создании мероприятия: {e}")
+        await query.edit_message_text("⚠️ Ошибка при создании мероприятия")
 
 # Регистрация обработчика
 def register_create_handlers(application):

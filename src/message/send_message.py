@@ -4,7 +4,6 @@ import telegram
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
-from config import DB_PATH
 from src.database.db_operations import get_event, get_participants, get_reserve, get_declined, update_message_id
 from src.logger.logger import logger
 from src.utils.pin_message import pin_message
@@ -72,34 +71,24 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             f"❌ <i>Отказавшиеся: </i>\n{declined_text}"
         )
 
+        # Редактирование или создание сообщения
         if message_id:
             try:
-                # Сначала проверяем, существует ли сообщение
-                try:
-                    await context.bot.get_chat_message(chat_id, message_id)
-                except Exception as e:
-                    logger.warning(f"Сообщение {message_id} не найдено, создаём новое: {e}")
-                    message_id = None
-                else:
-                    # Если сообщение существует, редактируем его
-                    await context.bot.edit_message_text(
-                        chat_id=chat_id,
-                        message_id=message_id,
-                        text=message_text,
-                        reply_markup=reply_markup,
-                        parse_mode="HTML"
-                    )
-                    logger.info(f"Сообщение {message_id} отредактировано.")
-                    return message_id
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=message_text,
+                    reply_markup=reply_markup,
+                    parse_mode="HTML"
+                )
+                logger.info(f"Сообщение {message_id} отредактировано")
+                return message_id
             except telegram.error.BadRequest as e:
-                if "Message is not modified" in str(e):
-                    logger.info(f"Сообщение {message_id} не изменилось.")
-                    return message_id
-                else:
-                    logger.error(f"Ошибка при редактировании сообщения {message_id}: {e}")
-                    message_id = None  # Принудительно создаём новое сообщение
+                if "Message is not modified" not in str(e):
+                    logger.warning(f"Не удалось отредактировать {message_id}: {e}")
+                    # Продолжаем создавать новое сообщение
 
-        # Если message_id=None или редактирование не удалось
+        # Создание нового сообщения
         message = await context.bot.send_message(
             chat_id=chat_id,
             text=message_text,
@@ -107,12 +96,13 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             parse_mode="HTML"
         )
         new_message_id = message.message_id
-        logger.info(f"Новое сообщение отправлено с ID: {new_message_id}")
+        logger.info(f"Создано новое сообщение {new_message_id}")
 
-        # Обновляем message_id в базе данных
-        update_message_id(db_path, event_id, new_message_id)
+        # Обновляем ID в базе
+        if not update_message_id(db_path, event_id, new_message_id):
+            logger.error(f"Не удалось обновить message_id в БД для {event_id}")
 
-        # Закрепляем сообщение в чате
+        # Закрепляем сообщение
         try:
             await pin_message(context, chat_id, new_message_id)
         except Exception as e:

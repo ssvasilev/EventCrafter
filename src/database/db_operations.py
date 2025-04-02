@@ -368,31 +368,28 @@ def update_event(db_path, event_id, participants, reserve, declined):
         logger.info(f"Мероприятие с ID={event_id} обновлено.")
 
 
-def update_message_id(db_path, event_id, message_id):
+def update_message_id(db_path: str, event_id: int, message_id: int) -> bool:
     """
-    Обновляет message_id мероприятия.
-    :param db_path: Путь к файлу базы данных.
-    :param event_id: ID мероприятия.
-    :param message_id: ID сообщения в Telegram.
+    Обновляет message_id мероприятия в базе данных
+    :param db_path: Путь к базе данных
+    :param event_id: ID мероприятия
+    :param message_id: Новый ID сообщения
+    :return: True если обновление успешно
     """
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для updated_at
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
-        conn = get_db_connection(db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            UPDATE events
-            SET message_id = ?, updated_at = ?
-            WHERE id = ?
-            """,
-            (message_id, now, event_id),
-        )
-        conn.commit()
-        logger.info(f"message_id={message_id} обновлен для мероприятия с ID={event_id}")
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE events SET message_id = ?, updated_at = ? WHERE id = ?",
+                (message_id, now, event_id)
+            )
+            conn.commit()
+            logger.info(f"Обновлён message_id={message_id} для мероприятия {event_id}")
+            return True
     except sqlite3.Error as e:
-        logger.error(f"Ошибка при обновлении message_id: {e}")
-#    finally:
-#        conn.close()
+        logger.error(f"Ошибка обновления message_id: {e}")
+        return False
 
 def add_scheduled_job(db_path, event_id, job_id, chat_id, execute_at, job_type=None):
     """

@@ -7,9 +7,6 @@ from src.handlers.draft_handlers import handle_draft_message
 from src.logger.logger import logger
 
 async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Логируем входящее сообщение для отладки
-    logger.debug(f"Получено сообщение: {update.message.text}")
-
     if not update.message or not update.message.entities:
         return
 
@@ -25,55 +22,46 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 mention_text = update.message.text[entity.offset + entity.length:].strip()
                 break
 
-    if not mention_text:
-        # Если текст после упоминания пустой, показываем меню
-        keyboard = [
-            [InlineKeyboardButton("Создать мероприятие", callback_data="menu_create_event")],
-            [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        try:
-            await update.message.reply_text(
-                "Вы упомянули меня! Что вы хотите сделать?",
-                reply_markup=reply_markup,
-            )
-            return
-        except Exception as e:
-            logger.error(f"Ошибка при обработке пустого упоминания: {e}")
-            return
-
     creator_id = update.message.from_user.id
     chat_id = update.message.chat_id
 
-    # Проверяем, есть ли уже активный черновик
-    draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
-
-    if draft:
-        logger.debug(f"У пользователя {creator_id} уже есть активный черновик")
+    # Проверяем существующий черновик
+    existing_draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
+    if existing_draft:
+        logger.debug(f"Уже есть активный черновик: {existing_draft['id']}")
         return
 
-    # Создаем новый черновик с описанием
+    if not mention_text:
+        # Показываем меню, если нет текста после упоминания
+        keyboard = [
+            [InlineKeyboardButton("✏️ Создать мероприятие", callback_data="menu_create_event")],
+            [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")]
+        ]
+        await update.message.reply_text(
+            "Выберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
+    # Создаем черновик
     draft_id = add_draft(
         db_path=context.bot_data["drafts_db_path"],
         creator_id=creator_id,
         chat_id=chat_id,
-        status="AWAIT_DATE",
-        description=mention_text
+        status="AWAIT_DATE",  # Сразу переходим к дате
+        description=mention_text[:200]  # Обрезаем слишком длинные описания
     )
 
     if not draft_id:
-        await update.message.reply_text("Ошибка при создании черновика мероприятия.")
+        await update.message.reply_text("⚠️ Ошибка при создании мероприятия")
         return
 
-    # Отправляем сообщение с запросом даты
-    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
+    # Отправляем запрос даты
+    keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
     try:
         sent_message = await update.message.reply_text(
-            f"📢 {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
-            reply_markup=reply_markup,
+             f"📢 {mention_text}\n\nВведите дату мероприятия в формате ДД.ММ.ГГГГ",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
         # Обновляем черновик с ID сообщения бота
@@ -86,12 +74,12 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Пытаемся удалить сообщение пользователя (если есть права)
         try:
             await update.message.delete()
-        except BadRequest as e:
-            logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
+        except Exception as e:
+            logger.warning(f"Не удалось удалить сообщение: {e}")
 
     except Exception as e:
-        logger.error(f"Ошибка при обработке упоминания: {e}")
-        await update.message.reply_text("Произошла ошибка при обработке вашего запроса.")
+        logger.error(f"Ошибка при создании мероприятия: {e}")
+        await update.message.reply_text("⚠️ Ошибка при обработке запроса")
 
 def register_mention_handler(application):
     mention_filter = filters.Entity(MessageEntity.MENTION) & ~filters.COMMAND
