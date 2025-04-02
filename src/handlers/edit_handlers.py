@@ -102,12 +102,22 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user_id = update.message.from_user.id
         drafts_db_path = context.bot_data["drafts_db_path"]
+        db_path = context.bot_data["db_path"]
 
         # Ищем активный черновик редактирования для этого пользователя
         draft = get_user_draft(drafts_db_path, user_id)
         if not draft or not draft.get("event_id"):
             await update.message.reply_text("Нет активного редактирования.")
             return
+
+        # Удаляем сообщение пользователя
+        try:
+            await context.bot.delete_message(
+                chat_id=update.message.chat_id,
+                message_id=update.message.message_id
+            )
+        except Exception as e:
+            logger.error(f"Не удалось удалить сообщение: {e}")
 
         field_map = {
             "EDIT_DESCRIPTION": "description",
@@ -122,24 +132,7 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         new_value = update.message.text
-        db_path = context.bot_data["db_path"]
         event_id = draft["event_id"]
-
-        # Валидация ввода
-        if field == "date":
-            from datetime import datetime
-            datetime.strptime(new_value, "%d.%m.%Y")  # Проверка формата
-        elif field == "time":
-            from datetime import datetime
-            datetime.strptime(new_value, "%H:%M")  # Проверка формата
-        elif field == "participant_limit":
-            try:
-                new_value = int(new_value)
-                if new_value < 0:
-                    raise ValueError("Лимит не может быть отрицательным")
-            except ValueError:
-                await update.message.reply_text("Лимит должен быть целым числом. Попробуйте снова.")
-                return
 
         # Обновление в БД
         success = update_event_field(db_path, event_id, field, new_value)
@@ -151,7 +144,6 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 remove_scheduled_jobs(context, event_id)
                 schedule_notifications(context, event)
 
-            await update.message.reply_text("✅ Изменения сохранены")
             # Обновляем сообщение о мероприятии
             await send_event_message(
                 event_id,
@@ -159,18 +151,21 @@ async def save_edited_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 draft["chat_id"],
                 draft["original_message_id"]
             )
+
+            # Удаляем черновик после успешного сохранения
+            delete_draft(drafts_db_path, draft["id"])
         else:
-            await update.message.reply_text("⚠ Ошибка сохранения")
+            await context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text="⚠ Ошибка сохранения изменений"
+            )
 
-        # Удаляем черновик после успешного сохранения
-        delete_draft(drafts_db_path, draft["id"])
-
-    except ValueError as e:
-        await update.message.reply_text(f"Неверный формат: {e}. Попробуйте снова.")
     except Exception as e:
         logger.error(f"Save edit error: {e}")
-        await update.message.reply_text("⚠ Ошибка при сохранении")
-        # В случае ошибки оставляем черновик для возможности повтора
+        await context.bot.send_message(
+            chat_id=update.message.chat_id,
+            text="⚠ Ошибка при сохранении изменений"
+        )
 
 def register_edit_handlers(application):
     """Регистрация всех обработчиков редактирования"""
