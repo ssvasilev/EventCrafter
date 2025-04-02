@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 from telegram.error import BadRequest
 
 from src.database.db_draft_operations import update_draft, delete_draft, get_user_chat_draft, add_draft
-from src.database.db_operations import add_event, get_event
+from src.database.db_operations import add_event, get_event, update_event_field
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
