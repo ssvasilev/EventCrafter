@@ -55,60 +55,53 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
 
 
 def get_event(db_path, event_id):
-    """Возвращает полную информацию о мероприятии со всеми связанными данными"""
+    """Возвращает информацию о мероприятии в виде словаря"""
+    def row_to_dict(row):
+        """Конвертирует sqlite3.Row или tuple в словарь"""
+        if isinstance(row, sqlite3.Row):
+            return {key: row[key] for key in row.keys()}
+        return dict(row) if row else None
+
     try:
         with get_db_connection(db_path) as conn:
-            # Устанавливаем фабрику для преобразования строк в словари
-            conn.row_factory = lambda cursor, row: {
-                col[0]: row[idx] for idx, col in enumerate(cursor.description)
-            }
+            conn.row_factory = sqlite3.Row  # Используем Row для более безопасного доступа
             cursor = conn.cursor()
 
-            # 1. Получаем основную информацию о мероприятии
-            cursor.execute("""
-                SELECT id, description, date, time, participant_limit,
-                       creator_id, chat_id, message_id, created_at, updated_at
-                FROM events 
-                WHERE id = ?
-            """, (event_id,))
-            event = cursor.fetchone()
-
-            if not event:
+            # 1. Получаем основную информацию
+            cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+            event_row = cursor.fetchone()
+            if not event_row:
                 return None
 
-            # 2. Функция для получения участников/резерва/отказавшихся
-            def get_event_users(table_name):
-                """Возвращает список пользователей из указанной таблицы"""
-                try:
-                    cursor.execute(f"""
-                        SELECT user_id, user_name 
-                        FROM {table_name}
-                        WHERE event_id = ?
-                        ORDER BY created_at
-                    """, (event_id,))
-                    return cursor.fetchall()  # Уже преобразуется в dict благодаря row_factory
-                except sqlite3.Error as e:
-                    logger.warning(f"Ошибка получения {table_name} для мероприятия {event_id}: {e}")
-                    return []
+            # 2. Преобразуем в словарь явно
+            event = row_to_dict(event_row)
 
-            # 3. Получаем все связанные данные
-            participants = get_event_users("participants")
-            reserve = get_event_users("reserve")
-            declined = get_event_users("declined")
+            # 3. Получаем участников
+            def get_users(table):
+                cursor.execute(f"""
+                    SELECT user_id, user_name 
+                    FROM {table} 
+                    WHERE event_id = ?
+                    ORDER BY created_at
+                """, (event_id,))
+                return [row_to_dict(row) for row in cursor.fetchall()]
 
-            # 4. Формируем итоговый объект
-            return {
-                **event,  # Основные данные мероприятия
-                "participants": participants,
-                "reserve": reserve,
-                "declined": declined,
-                "participants_count": len(participants),
-                "reserve_count": len(reserve),
-                "declined_count": len(declined)
-            }
+            # 4. Собираем все данные
+            event.update({
+                "participants": get_users("participants"),
+                "reserve": get_users("reserve"),
+                "declined": get_users("declined")
+            })
+
+            # 5. Добавляем счетчики
+            event["participants_count"] = len(event["participants"])
+            event["reserve_count"] = len(event["reserve"])
+            event["declined_count"] = len(event["declined"])
+
+            return event
 
     except sqlite3.Error as e:
-        logger.error(f"Ошибка БД при получении мероприятия {event_id}: {e}")
+        logger.error(f"Ошибка БД при получении мероприятия {event_id}: {str(e)}")
         return None
 
 def get_events_by_participant(db_path, user_id):
