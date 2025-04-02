@@ -193,9 +193,8 @@ async def handle_draft_message(update: Update, context: ContextTypes.DEFAULT_TYP
 async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, draft, limit_input: str):
     """Обработка лимита участников"""
     try:
-        # Преобразуем Row в словарь, если нужно
-        if hasattr(draft, '_fields'):
-            draft = {key: draft[key] for key in draft.keys()}
+        # Преобразуем draft в словарь независимо от исходного типа
+        draft_dict = dict(draft) if hasattr(draft, '_fields') else draft
 
         # Валидация ввода
         try:
@@ -209,70 +208,70 @@ async def _process_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, dra
         # Обновление базы данных
         update_draft(
             db_path=context.bot_data["drafts_db_path"],
-            draft_id=draft["id"],
+            draft_id=draft_dict["id"],
             participant_limit=limit if limit != 0 else None,
             status="COMPLETED"
         )
 
-        # Получаем ID сообщения бота из черновика
-        bot_message_id = draft.get("bot_message_id")
+        # Получаем ID сообщения бота
+        bot_message_id = draft_dict.get("bot_message_id")
 
-        if "event_id" in draft and draft["event_id"]:
+        # Обработка в зависимости от типа операции (создание/редактирование)
+        if draft_dict.get("event_id"):
             # Редактирование существующего мероприятия
             update_event_field(
                 db_path=context.bot_data["db_path"],
-                event_id=draft["event_id"],
+                event_id=draft_dict["event_id"],
                 field="participant_limit",
                 value=limit if limit != 0 else None
             )
 
-            event = get_event(context.bot_data["db_path"], draft["event_id"])
+            event = get_event(context.bot_data["db_path"], draft_dict["event_id"])
             if not event:
                 raise Exception("Мероприятие не найдено")
 
-            # Редактируем сообщение бота
+            # Редактируем сообщение
             await send_event_message(
                 event_id=event["id"],
                 context=context,
-                chat_id=draft["chat_id"],
-                message_id=bot_message_id  # Используем ID сообщения бота
+                chat_id=draft_dict["chat_id"],
+                message_id=bot_message_id
             )
         else:
             # Создание нового мероприятия
             event_id = add_event(
                 db_path=context.bot_data["db_path"],
-                description=draft["description"],
-                date=draft["date"],
-                time=draft["time"],
+                description=draft_dict["description"],
+                date=draft_dict["date"],
+                time=draft_dict["time"],
                 limit=limit if limit != 0 else None,
-                creator_id=draft["creator_id"],
-                chat_id=draft["chat_id"]
+                creator_id=draft_dict["creator_id"],
+                chat_id=draft_dict["chat_id"]
             )
 
             if event_id:
-                # Получаем данные нового мероприятия
                 event = get_event(context.bot_data["db_path"], event_id)
                 if not event:
                     raise Exception("Не удалось создать мероприятие")
 
-                # Отправляем новое сообщение (не редактируем)
                 await send_event_message(
                     event_id=event["id"],
                     context=context,
-                    chat_id=draft["chat_id"]
+                    chat_id=draft_dict["chat_id"]
                 )
 
         # Удаляем черновик
-        delete_draft(context.bot_data["drafts_db_path"], draft["id"])
+        delete_draft(context.bot_data["drafts_db_path"], draft_dict["id"])
 
         # Удаляем сообщение с формой ввода
-        try:
-            await context.bot.delete_message(
-                chat_id=draft["chat_id"],
-                message_id=bot_message_id
-            )
-        except Exception as e:
-            logger.warning(f"Не удалось удалить сообщение бота: {e}")
+        if bot_message_id:
+            try:
+                await context.bot.delete_message(
+                    chat_id=draft_dict["chat_id"],
+                    message_id=bot_message_id
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось удалить сообщение бота: {e}")
 
     except Exception as e:
         logger.error(f"Ошибка в _process_limit: {str(e)}")
