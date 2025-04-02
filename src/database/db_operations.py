@@ -53,46 +53,73 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
         logger.error(f"Ошибка при добавлении мероприятия в базу данных: {e}")
         return None
 
+
 def get_event(db_path, event_id):
-    """Возвращает информацию о мероприятии по его ID."""
-    with get_db_connection(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+    """Возвращает информацию о мероприятии по его ID.
 
-        # Получаем основную информацию о мероприятии
-        cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
-        event = cursor.fetchone()
+    Args:
+        db_path: Путь к файлу базы данных
+        event_id: ID мероприятия
 
-        if not event:
-            return None
+    Returns:
+        Словарь с данными мероприятия или None, если не найдено
+    """
+    try:
+        with get_db_connection(db_path) as conn:
+            # Устанавливаем row_factory для преобразования строк в словари
+            conn.row_factory = lambda cursor, row: {
+                col[0]: row[idx] for idx, col in enumerate(cursor.description)
+            }
 
-        # Получаем участников
-        cursor.execute("SELECT user_id, user_name FROM participants WHERE event_id = ?", (event_id,))
-        participants = [{"user_id": row["user_id"], "name": row["user_name"]} for row in cursor.fetchall()]
+            cursor = conn.cursor()
 
-        # Получаем резерв
-        cursor.execute("SELECT user_id, user_name FROM reserve WHERE event_id = ?", (event_id,))
-        reserve = [{"user_id": row["user_id"], "name": row["user_name"]} for row in cursor.fetchall()]
+            # Получаем основную информацию о мероприятии
+            cursor.execute("""
+                SELECT 
+                    id,
+                    description,
+                    date,
+                    time,
+                    participant_limit,
+                    creator_id,
+                    chat_id,
+                    message_id,
+                    created_at,
+                    updated_at
+                FROM events 
+                WHERE id = ?
+            """, (event_id,))
 
-        # Получаем отказавшихся
-        cursor.execute("SELECT user_id, user_name FROM declined WHERE event_id = ?", (event_id,))
-        declined = [{"user_id": row["user_id"], "name": row["user_name"]} for row in cursor.fetchall()]
+            event = cursor.fetchone()
+            if not event:
+                return None
 
-        event_data = {
-            "id": event["id"],
-            "description": event["description"],
-            "date": event["date"],
-            "time": event["time"],
-            "participant_limit": event["participant_limit"],  # Переименовано с "limit" на "participant_limit"
-            "creator_id": event["creator_id"],
-            "chat_id": event["chat_id"],  # Добавлено поле chat_id
-            "message_id": event["message_id"],
-            "participants": participants,
-            "reserve": reserve,
-            "declined": declined,
-        }
+            # Получаем участников, резерв и отказавшихся за один запрос каждого типа
+            def get_event_users(table):
+                cursor.execute(f"""
+                    SELECT user_id, user_name 
+                    FROM {table} 
+                    WHERE event_id = ?
+                    ORDER BY created_at
+                """, (event_id,))
+                return [dict(row) for row in cursor.fetchall()]
 
-        return event_data
+            participants = get_event_users("participants")
+            reserve = get_event_users("reserve")
+            declined = get_event_users("declined")
+
+            # Формируем итоговый словарь
+            return {
+                **event,  # Распаковываем основные данные
+                "participants": participants,
+                "reserve": reserve,
+                "declined": declined,
+                "participants_count": len(participants)  # Добавляем счетчик участников
+            }
+
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка при получении мероприятия {event_id}: {e}")
+        return None
 
 def get_events_by_participant(db_path, user_id):
     """
