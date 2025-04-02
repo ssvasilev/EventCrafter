@@ -165,9 +165,9 @@ async def handle_participation(query, context, event_id, participate):
 
     # Форматируем имя пользователя
     user_display_name = (
-        f"{user.full_name} (@{user.username})"
+        f"{user.name} (@{user.username})"
         if user.username
-        else f"{user.full_name} (ID: {user.id})"
+        else f"{user.name} (ID: {user.id})"
     )
 
     if participate:

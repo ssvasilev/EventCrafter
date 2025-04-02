@@ -163,28 +163,26 @@ def is_user_in_declined(db_path, event_id, user_id):
 #Добавление в один из трёх списков
 
 
-def add_participant(db_path, event_id, user):
-    """Добавляет участника с форматированием имени"""
+def add_participant(db_path, event_id, user_id, user_name):
+    """
+    Добавляет участника мероприятия
+    :param db_path: Путь к базе данных
+    :param event_id: ID мероприятия
+    :param user_id: ID пользователя
+    :param user_name: Имя пользователя (уже отформатированное)
+    """
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Форматируем имя пользователя
-    user_name = (
-        f"{user.first_name} (@{user.username})"
-        if user.username
-        else f"{user.first_name} (ID: {user.id})"
-    )
-
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO participants 
-            (event_id, user_id, user_name, created_at, updated_at)
+            INSERT INTO participants (event_id, user_id, user_name, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (event_id, user.id, user_name, now, now),
+            (event_id, user_id, user_name, now, now),
         )
         conn.commit()
+        logger.info(f"Пользователь {user_name} добавлен в участники мероприятия {event_id}.")
 
 def add_to_reserve(db_path, event_id, user_id, user_name):
     """
@@ -226,7 +224,7 @@ def add_to_declined(db_path, event_id, user_id, user_name):
             (event_id, user_id, user_name, now, now),
         )
         conn.commit()
-        logger.info(f"Пользователь {user_name} добавлен в список отказавшихся мероприятия {event_id}.")
+        logger.info(f"Пользователь {user_name} добавлен в список отказавшихся от мероприятия {event_id}.")
 
 #Удаление из списков
 def remove_participant(db_path, event_id, user_id):
