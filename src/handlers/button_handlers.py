@@ -15,7 +15,7 @@ from src.database.db_operations import (
     is_user_in_declined,
     update_event_field
 )
-from src.database.db_draft_operations import add_draft, delete_draft, get_draft
+from src.database.db_draft_operations import add_draft, delete_draft, get_draft, get_user_chat_draft
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
@@ -32,12 +32,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parts = data.split('|')
         action = parts[0]
 
-        if action in ['join', 'leave', 'edit', 'cancel_edit'] and len(parts) >= 2:
+        # Унифицированная обработка всех типов отмены
+        if action in ['cancel_edit', 'cancel_input', 'menu_cancel_draft', 'cancel_draft']:
+            await handle_cancel_action(query, context, action, parts[1])
+            return
+
+        if action in ['join', 'leave', 'edit'] and len(parts) >= 2:
             await handle_basic_actions(query, context, action, parts[1])
         elif action == 'edit_field' and len(parts) >= 3:
             await handle_edit_field(query, context, parts[1], parts[2])
-        elif action == 'cancel_input' and len(parts) >= 2:
-            await handle_cancel_input(query, context, parts[1])
         else:
             logger.error(f"Неизвестный action или формат: {data}")
             await query.edit_message_text("⚠️ Ошибка: неверный формат запроса")
@@ -223,6 +226,76 @@ async def handle_cancel_input(query, context, draft_id_str):
     else:
         await query.edit_message_text("Сессия редактирования не найдена")
 
+
+async def handle_cancel_action(query, context, action, item_id_str):
+    """Универсальный обработчик всех типов отмены"""
+    try:
+        item_id = int(item_id_str)
+    except ValueError:
+        logger.error(f"Неверный ID для отмены: {item_id_str}")
+        await query.edit_message_text("⚠️ Ошибка: неверный ID")
+        return
+
+    try:
+        db_path = context.bot_data["db_path"]
+        drafts_db_path = context.bot_data["drafts_db_path"]
+
+        if action in ["menu_cancel_draft", "cancel_draft"]:
+            # Отмена создания нового мероприятия
+            draft = get_draft(drafts_db_path, item_id)
+            if draft:
+                try:
+                    await query.message.delete()
+                except Exception as e:
+                    logger.warning(f"Не удалось удалить сообщение: {e}")
+                finally:
+                    delete_draft(drafts_db_path, item_id)
+            return
+
+        # Для остальных типов отмены (cancel_edit, cancel_input)
+        draft = get_draft(drafts_db_path, item_id) if action == "cancel_input" else None
+
+        if not draft and action == "cancel_input":
+            draft = get_user_chat_draft(
+                drafts_db_path,
+                query.from_user.id,
+                query.message.chat_id
+            )
+            if draft:
+                item_id = draft["id"]
+
+        if draft:
+            event_id = draft.get("event_id")
+            original_message_id = draft.get("original_message_id")
+            delete_draft(drafts_db_path, item_id)
+
+            if event_id and original_message_id:
+                event = get_event(db_path, event_id)
+                if event:
+                    await send_event_message(
+                        event_id,
+                        context,
+                        query.message.chat_id,
+                        message_id=original_message_id
+                    )
+                    return
+
+        # Если это cancel_edit или не нашли черновик
+        if action == "cancel_edit":
+            event = get_event(db_path, item_id)
+            if event:
+                await send_event_message(
+                    item_id,
+                    context,
+                    query.message.chat_id,
+                    message_id=query.message.message_id
+                )
+
+    except Exception as e:
+        logger.error(f"Ошибка при обработке отмены: {e}")
+        await query.edit_message_text("⚠️ Не удалось выполнить отмену")
+
+
 async def update_event_message(context, event_id, message):
     """Обновление сообщения о мероприятии"""
     try:
@@ -239,6 +312,6 @@ def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             button_handler,
-            pattern=r"^(join|leave|edit|edit_field|cancel_edit|cancel_input)\|"
+            pattern=r"^(join|leave|edit|edit_field|cancel_edit|cancel_input|menu_cancel_draft|cancel_draft)\|"
         )
     )

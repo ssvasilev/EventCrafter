@@ -75,7 +75,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Отправляем первое сообщение формы
-    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
+    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"menu_cancel_draft|{draft_id}")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
