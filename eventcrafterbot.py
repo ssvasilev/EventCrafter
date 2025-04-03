@@ -1,7 +1,8 @@
 from telegram.ext import Application, CommandHandler
-from config import DB_PATH, tz, DB_DRAFT_PATH
+from config import DB_PATH, tz, DB_DRAFT_PATH, DB_SESSION_PATH
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
+from src.database.session_manager import SessionManager
 from src.handlers.draft_handlers import register_draft_handlers
 
 from src.handlers.message_handler import register_message_handlers
@@ -36,10 +37,12 @@ def main():
     application.bot_data.update({
         "db_path": DB_PATH,
         "drafts_db_path": DB_DRAFT_PATH,
+        "sessions_db_path": DB_SESSION_PATH,
         "tz": tz
     })
 
-
+    # Инициализация SessionManager
+    SessionManager(application.bot_data["sessions_db_path"])._init_db()
 
     # Регистрируем обработчики
     register_message_handlers(application)

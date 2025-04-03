@@ -19,3 +19,6 @@ DB_PATH = "../data/events.db"
 
 # Путь к базе данных черновиков
 DB_DRAFT_PATH = "../data/draft.db"
+
+# Путь к базе данных сессий
+DB_SESSION_PATH = "../data/sessions.db"

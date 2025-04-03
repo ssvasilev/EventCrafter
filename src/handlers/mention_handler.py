@@ -1,15 +1,9 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
 from telegram.ext import ContextTypes, MessageHandler, filters
-from telegram.error import BadRequest
-
-from src.database.db_draft_operations import add_draft, get_user_chat_draft, update_draft
-from src.handlers.draft_handlers import handle_draft_message
+from src.database.db_draft_operations import add_draft
 from src.logger.logger import logger
 
 async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Логируем входящее сообщение для отладки
-    logger.debug(f"Получено сообщение: {update.message.text}")
-
     if not update.message or not update.message.entities:
         return
 
@@ -19,10 +13,9 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for entity in update.message.entities:
         if entity.type == MessageEntity.MENTION:
-            mentioned_text = update.message.text[entity.offset:entity.offset + entity.length].lower()
+            mentioned_text = update.message.text[entity.offset:entity.offset+entity.length].lower()
             if mentioned_text == f"@{bot_username}":
-                # Получаем текст после упоминания
-                mention_text = update.message.text[entity.offset + entity.length:].strip()
+                mention_text = update.message.text[entity.offset+entity.length:].strip()
                 break
 
     creator_id = update.message.from_user.id
