@@ -209,20 +209,21 @@ async def handle_edit_field(query, context, draft_id_str, field, user_id, chat_i
         raise ValueError(f"Edit field error: {str(e)}")
 
 async def handle_cancel(query, context, draft_id_str, user_id, chat_id, session_manager):
-    """Обработка отмены действий"""
+    """Обработка отмены действий с защитой от ошибок"""
     try:
         draft_id = int(draft_id_str)
         db_path = context.bot_data["db_path"]
         drafts_db_path = context.bot_data["drafts_db_path"]
 
-        # Проверка сессии
-        active_draft_id = session_manager.get_active_session(user_id, chat_id)
-        if active_draft_id != draft_id:
-            raise ValueError("Invalid session for cancel")
+        # Получаем черновик как словарь
+        draft = dict(get_draft(drafts_db_path, draft_id))
 
-        draft = get_draft(drafts_db_path, draft_id)
         if not draft:
-            raise ValueError("Draft not found")
+            raise ValueError("Черновик не найден")
+
+        # Проверяем принадлежность черновика
+        if draft["creator_id"] != user_id or draft["chat_id"] != chat_id:
+            raise ValueError("Черновик не принадлежит пользователю")
 
         # Очищаем сессию в любом случае
         session_manager.clear_session(user_id, chat_id)
@@ -230,7 +231,7 @@ async def handle_cancel(query, context, draft_id_str, user_id, chat_id, session_
 
         if draft.get("event_id"):  # Редактирование существующего
             event = get_event(db_path, draft["event_id"])
-            if event and draft.get("original_message_id"):
+            if event and "original_message_id" in draft:
                 await send_event_message(
                     event["id"],
                     context,
@@ -238,10 +239,23 @@ async def handle_cancel(query, context, draft_id_str, user_id, chat_id, session_
                     message_id=draft["original_message_id"]
                 )
         else:  # Создание нового
-            await query.message.delete()
+            try:
+                await context.bot.delete_message(
+                    chat_id=chat_id,
+                    message_id=draft["bot_message_id"]
+                )
+            except BadRequest as e:
+                if "Message to delete not found" not in str(e):
+                    raise
 
+        await query.answer("Действие отменено")
+
+    except ValueError as e:
+        logger.warning(f"Ошибка отмены: {str(e)}")
+        await query.answer("⚠️ Не удалось отменить действие")
     except Exception as e:
-        raise ValueError(f"Cancel error: {str(e)}")
+        logger.error(f"Критическая ошибка при отмене: {str(e)}")
+        await query.answer("⚠️ Произошла ошибка")
 
 async def update_event_message(context, event_id, message):
     """Безопасное обновление сообщения о мероприятии"""

@@ -38,10 +38,14 @@ class SessionManager:
             result = cursor.fetchone()
             return result[0] if result else None
 
-    def clear_session(self, user_id, chat_id):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                "DELETE FROM sessions WHERE user_id = ? AND chat_id = ?",
-                (user_id, chat_id)
-            )
-            conn.commit()
+    def clear_session(self, user_id: int, chat_id: int):
+        """Безопасная очистка сессии"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "DELETE FROM sessions WHERE user_id = ? AND chat_id = ?",
+                    (user_id, chat_id)
+                )
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Ошибка очистки сессии: {str(e)}")
