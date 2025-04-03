@@ -2,6 +2,7 @@ from datetime import datetime
 
 import telegram
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from config import DB_PATH
@@ -111,3 +112,21 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
         except Exception as e:
             logger.error(f"Ошибка при отправке сообщения: {e}")
             raise e
+
+async def safe_edit_message(bot, chat_id, message_id, text, reply_markup=None):
+    """Безопасное редактирование сообщения с обработкой ошибок"""
+    try:
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            reply_markup=reply_markup
+        )
+        return True
+    except BadRequest as e:
+        if "Message is not modified" not in str(e):
+            logger.warning(f"Ошибка редактирования: {str(e)}")
+        return False
+    except Exception as e:
+        logger.error(f"Критическая ошибка при редактировании: {str(e)}")
+        return False

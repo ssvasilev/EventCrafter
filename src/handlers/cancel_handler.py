@@ -1,9 +1,10 @@
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from src.database.db_draft_operations import delete_draft, get_draft
 from src.database.db_operations import get_event
 from src.message.send_message import send_event_message
-from src.session_manager import SessionManager
+from src.database.session_manager import SessionManager
 from src.logger.logger import logger
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -59,8 +60,3 @@ async def restore_original_message(context, draft):
             message_id=draft["original_message_id"]
         )
 
-async def safe_edit_message(query, text):
-    try:
-        await query.edit_message_text(text)
-    except:
-        pass
