@@ -16,9 +16,10 @@ from src.database.db_operations import (
     is_user_in_participants,
     is_user_in_reserve
 )
-from src.database.db_draft_operations import add_draft, get_draft
+from src.database.db_draft_operations import add_draft, get_draft, delete_draft
+from src.database.session_manager import SessionManager
 from src.message.send_message import send_event_message
-from src.session_manager import SessionManager
+
 from src.logger.logger import logger
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
