@@ -1,4 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from src.database.db_operations import (
     get_event,
@@ -207,6 +208,7 @@ async def handle_edit_field(query, context, draft_id_str, field, user_id, chat_i
 
     except Exception as e:
         raise ValueError(f"Edit field error: {str(e)}")
+
 
 async def handle_cancel(query, context, draft_id_str, user_id, chat_id, session_manager):
     """Обработка отмены действий с защитой от ошибок"""
