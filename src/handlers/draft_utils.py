@@ -108,7 +108,7 @@ async def _process_description(context, draft, description, chat_id):
         description=description
     )
 
-    keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data=f"cancel|{draft['id']}")]]
+    keyboard = [[{"text": "❌ Отмена", "callback_data": f"cancel|{draft['id']}"}]]
     await _edit_draft_message(
         context,
         chat_id,
@@ -132,7 +132,7 @@ async def _process_date(context, draft, date_input, chat_id):
         date=date_input
     )
 
-    keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data=f"cancel|{draft['id']}")]]
+    keyboard = [[{"text": "❌ Отмена", "callback_data": f"cancel|{draft['id']}"}]]
     await _edit_draft_message(
         context,
         chat_id,
@@ -156,7 +156,7 @@ async def _process_time(context, draft, time_input, chat_id):
         time=time_input
     )
 
-    keyboard = [[InlineKeyboardButton("❌ Отмена", callback_data=f"cancel|{draft['id']}")]]
+    keyboard = [[{"text": "❌ Отмена", "callback_data": f"cancel|{draft['id']}"}]]
     await _edit_draft_message(
         context,
         chat_id,
@@ -230,7 +230,7 @@ async def _handle_validation_error(context, draft, chat_id, error_msg):
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"❌ {error_msg}",
-            reply_to_message_id=draft.get("bot_message_id")
+            reply_to_message_id=draft["bot_message_id"] if "bot_message_id" in draft else None
         )
     except Exception as e:
         logger.error(f"Не удалось отправить сообщение об ошибке: {str(e)}")
@@ -241,7 +241,7 @@ async def _handle_processing_error(context, draft, chat_id):
         await context.bot.send_message(
             chat_id=chat_id,
             text="⚠️ Произошла ошибка при обработке вашего ввода",
-            reply_to_message_id=draft.get("bot_message_id")
+            reply_to_message_id=draft["bot_message_id"] if "bot_message_id" in draft else None
         )
     except Exception as e:
         logger.error(f"Не удалось отправить сообщение об ошибке: {str(e)}")
