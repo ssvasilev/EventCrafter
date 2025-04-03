@@ -2,49 +2,81 @@ from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from src.handlers.create_event_handler import create_event_button
 from src.buttons.my_events_button import my_events_button
-from src.handlers.cancel_handler import cancel_draft
-from src.handlers.cancel_utils import cancel_input
+from src.database.db_draft_operations import delete_draft, get_draft
+from src.database.db_operations import get_event
+from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
 async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    data = query.data
 
     try:
-        if data.startswith("menu_"):
-            action = data[5:]  # Убираем префикс "menu_"
+        data = query.data
+        if not data or '_' not in data:
+            raise ValueError("Invalid callback data format")
 
-            if action == "create_event":
-                await create_event_button(update, context)
-            elif action == "my_events":
-                await my_events_button(update, context)
-            else:
-                logger.warning(f"Unknown menu action: {action}")
-                await query.edit_message_text("Неизвестная команда меню.")
+        prefix, action = data.split('_', 1)  # Разделяем по первому символу _
 
-        elif data.startswith("cancel_"):
-            action = data[7:]  # Убираем префикс "cancel_"
+        if prefix == "menu":
+            await handle_menu_action(query, context, action)
+        elif prefix == "cancel":
+            await handle_cancel_action(query, context, action)
+        else:
+            raise ValueError(f"Unknown prefix: {prefix}")
 
-            if action.startswith("draft|"):
-                await cancel_draft(update, context)
-            elif action.startswith("input|"):
-                await cancel_input(update, context)
-            else:
-                logger.warning(f"Unknown cancel action: {action}")
-                await query.edit_message_text("Неизвестная команда отмены.")
+    except ValueError as e:
+        logger.warning(f"Invalid menu button action: {str(e)}")
+        await query.edit_message_text("⚠️ Неверный формат команды")
+    except Exception as e:
+        logger.error(f"Menu handler error: {str(e)}")
+        await query.edit_message_text("⚠️ Ошибка обработки команды")
+
+async def handle_menu_action(query, context, action):
+    """Обработка действий из меню"""
+    if action == "create_event":
+        await create_event_button(query, context)
+    elif action == "my_events":
+        await my_events_button(query, context)
+    else:
+        logger.warning(f"Unknown menu action: {action}")
+        await query.edit_message_text("Неизвестная команда меню")
+
+async def handle_cancel_action(query, context, action_data):
+    """Унифицированный обработчик отмены"""
+    try:
+        if not action_data or '|' not in action_data:
+            raise ValueError("Invalid cancel action format")
+
+        action_type, item_id = action_data.split('|', 1)
+        item_id = int(item_id)
+
+        if action_type == "draft":
+            # Отмена черновика
+            delete_draft(context.bot_data["drafts_db_path"], item_id)
+            await query.message.delete()
+        elif action_type == "input":
+            # Отмена ввода при редактировании
+            draft = get_draft(context.bot_data["drafts_db_path"], item_id)
+            if draft and draft.get("event_id"):
+                await send_event_message(
+                    draft["event_id"],
+                    context,
+                    query.message.chat_id,
+                    message_id=draft.get("original_message_id")
+                )
+                delete_draft(context.bot_data["drafts_db_path"], item_id)
+        else:
+            raise ValueError(f"Unknown cancel type: {action_type}")
 
     except Exception as e:
-        logger.error(f"Ошибка в обработчике кнопок меню: {e}")
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text="⚠️ Произошла ошибка при обработке команды меню"
-        )
+        logger.error(f"Cancel action failed: {str(e)}")
+        await query.edit_message_text("⚠️ Не удалось выполнить отмену")
 
 def register_menu_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             menu_button_handler,
-            pattern=r"^(menu_|cancel_)"  # Обрабатываем только menu_* и cancel_*
+            pattern=r"^(menu|cancel)_"  # Четкое разделение префиксов
         )
     )
