@@ -26,27 +26,33 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         data = query.data
         if not data or '|' not in data:
-            logger.error(f"Неверный формат callback_data: {data}")
+            logger.error(f"Invalid callback_data format: {data}")
             return
 
         parts = data.split('|')
         action = parts[0]
 
-        # Унифицированная обработка всех типов отмены
+        # Обработка команд редактирования
+        if action == 'edit' and len(parts) >= 2:
+            await handle_edit_event(query, context, parts[1])
+            return
+
+        # Обработка команд отмены
         if action in ['cancel_edit', 'cancel_input', 'menu_cancel_draft', 'cancel_draft']:
             await handle_cancel_action(query, context, action, parts[1])
             return
 
-        if action in ['join', 'leave', 'edit'] and len(parts) >= 2:
+        # Остальные действия
+        if action in ['join', 'leave'] and len(parts) >= 2:
             await handle_basic_actions(query, context, action, parts[1])
         elif action == 'edit_field' and len(parts) >= 3:
             await handle_edit_field(query, context, parts[1], parts[2])
         else:
-            logger.error(f"Неизвестный action или формат: {data}")
-            await query.edit_message_text("⚠️ Ошибка: неверный формат запроса")
+            logger.warning(f"Unknown button action: {query.data}")
+            await query.edit_message_text("⚠️ Неизвестная команда")
 
     except Exception as e:
-        logger.error(f"Ошибка обработки callback: {e}", exc_info=True)
+        logger.error(f"Error in button handler: {e}", exc_info=True)
         await query.edit_message_text("⚠️ Произошла ошибка при обработке запроса")
 
 async def handle_basic_actions(query, context, action, event_id_str):
