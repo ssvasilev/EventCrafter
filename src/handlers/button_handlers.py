@@ -234,59 +234,18 @@ async def handle_cancel_input(query, context, draft_id_str):
 
 
 async def handle_cancel_action(query, context, action, item_id_str):
-    """Универсальный обработчик всех типов отмены"""
+    """Универсальный обработчик отмены с восстановлением старой логики"""
     try:
         item_id = int(item_id_str)
-    except ValueError:
-        logger.error(f"Неверный ID для отмены: {item_id_str}")
-        await query.edit_message_text("⚠️ Ошибка: неверный ID")
-        return
-
-    try:
         db_path = context.bot_data["db_path"]
         drafts_db_path = context.bot_data["drafts_db_path"]
 
-        if action in ["menu_cancel_draft", "cancel_draft"]:
-            # Отмена создания нового мероприятия
-            draft = get_draft(drafts_db_path, item_id)
-            if draft:
-                try:
-                    await query.message.delete()
-                except Exception as e:
-                    logger.warning(f"Не удалось удалить сообщение: {e}")
-                finally:
-                    delete_draft(drafts_db_path, item_id)
-            return
-
-        # Для остальных типов отмены (cancel_edit, cancel_input)
-        draft = get_draft(drafts_db_path, item_id) if action == "cancel_input" else None
-
-        if not draft and action == "cancel_input":
-            draft = get_user_chat_draft(
-                drafts_db_path,
-                query.from_user.id,
-                query.message.chat_id
-            )
-            if draft:
-                item_id = draft["id"]
-
+        # 1. Удаляем черновик, если он есть
+        draft = get_draft(drafts_db_path, item_id)
         if draft:
-            event_id = draft.get("event_id")
-            original_message_id = draft.get("original_message_id")
             delete_draft(drafts_db_path, item_id)
 
-            if event_id and original_message_id:
-                event = get_event(db_path, event_id)
-                if event:
-                    await send_event_message(
-                        event_id,
-                        context,
-                        query.message.chat_id,
-                        message_id=original_message_id
-                    )
-                    return
-
-        # Если это cancel_edit или не нашли черновик
+        # 2. Для cancel_edit - просто обновляем сообщение мероприятия
         if action == "cancel_edit":
             event = get_event(db_path, item_id)
             if event:
@@ -296,11 +255,35 @@ async def handle_cancel_action(query, context, action, item_id_str):
                     query.message.chat_id,
                     message_id=query.message.message_id
                 )
+            return
+
+        # 3. Для cancel_input - восстанавливаем оригинальное сообщение
+        if action == "cancel_input" and draft:
+            if draft.get("event_id") and draft.get("original_message_id"):
+                event = get_event(db_path, draft["event_id"])
+                if event:
+                    try:
+                        await context.bot.delete_message(
+                            chat_id=query.message.chat_id,
+                            message_id=query.message.message_id
+                        )
+                    except Exception as e:
+                        logger.warning(f"Не удалось удалить сообщение редактирования: {e}")
+
+                    await send_event_message(
+                        draft["event_id"],
+                        context,
+                        draft["chat_id"],
+                        message_id=draft["original_message_id"]
+                    )
+            return
 
     except Exception as e:
-        logger.error(f"Ошибка при обработке отмены: {e}")
-        await query.edit_message_text("⚠️ Не удалось выполнить отмену")
-
+        logger.error(f"Ошибка при обработке отмены: {str(e)}")
+        try:
+            await query.edit_message_text("⚠️ Не удалось выполнить отмену")
+        except:
+            pass
 
 async def update_event_message(context, event_id, message):
     """Обновление сообщения о мероприятии"""
@@ -318,6 +301,6 @@ def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             button_handler,
-            pattern=r"^(join|leave|edit|edit_field|cancel_edit|cancel_input|menu_cancel_draft|cancel_draft)\|"
+            pattern=r"^(join|leave|edit|edit_field|cancel_edit|cancel_input)\|"
         )
     )
