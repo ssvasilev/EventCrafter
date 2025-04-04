@@ -9,7 +9,7 @@ from src.handlers.handler import (
     conv_handler_create_mention, button_handler,
     start, version
 )
-from src.handlers.restore_state import restore_user_state
+from src.handlers.restore_state import restore_and_get_state
 from src.jobs.notification_jobs import restore_scheduled_jobs
 from src.handlers.other_handlers import setup_other_handlers
 import os
@@ -24,16 +24,27 @@ if not BOT_TOKEN:
     raise ValueError("Токен бота не найден в .env файле.")
 
 
-async def restore_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Специальный обработчик для восстановления состояния"""
-    if update.message:
-        state = await restore_user_state(
-            update.message.from_user.id,
-            update.message.chat_id,
-            context
-        )
-        return state
-    return None
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Основной обработчик входящих сообщений"""
+    if not update.message:
+        return None
+
+    # Проверяем, ожидаем ли мы ввод от пользователя
+    if context.user_data.get('expecting_input'):
+        return None  # Пропускаем, пусть ConversationHandler обрабатывает
+
+    # Пытаемся восстановить состояние
+    state = await restore_and_get_state(update, context)
+    return state
+
+
+def setup_handlers(application):
+    """Настройка обработчиков"""
+    # Обработчик восстановления состояния (высокий приоритет)
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler),
+        group=1
+    )
 
 
 def main():
@@ -53,7 +64,7 @@ def main():
     setup_other_handlers(application)  # Добавить эту строку
     # Добавляем общий обработчик сообщений первым
     application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, restore_handler),
+        MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler),
         group=1  # Высокий приоритет
     )
 
@@ -61,7 +72,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
     application.add_handler(CallbackQueryHandler(my_events_button, pattern="^my_events$"))
-    application.add_handler(conv_handler_create)
+    application.add_handler(conv_handler_create, group=2)
     application.add_handler(conv_handler_create_mention)
     application.add_handler(conv_handler_edit_event)
     application.add_handler(CallbackQueryHandler(button_handler))

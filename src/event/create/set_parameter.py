@@ -24,6 +24,11 @@ from src.handlers.conversation_handler_states import (
 
 
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик ввода описания с поддержкой восстановления"""
+    # Сбрасываем флаги восстановления
+    if context.user_data.get('state_restored'):
+        context.user_data.pop('state_restored', None)
+        context.user_data.pop('expecting_input', None)
     """
     Обработка ввода описания мероприятия.
     Сохраняет описание в черновик и переводит в состояние ожидания даты.
@@ -58,7 +63,7 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.delete()
         except BadRequest:
             pass
-
+        context.user_data['expecting_input'] = True
         return SET_DATE
 
     except Exception as e:
