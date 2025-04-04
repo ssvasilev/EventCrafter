@@ -25,5 +25,19 @@ def init_drafts_db(db_path):
         )
         """
     )
+
+    # Таблица для сессий
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            session_key TEXT PRIMARY KEY,
+            creator_id INTEGER NOT NULL,
+            chat_id INTEGER NOT NULL,
+            bot_message_id INTEGER NOT NULL,
+            draft_id INTEGER,
+            event_id INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (draft_id) REFERENCES drafts(id)
+        )
+    """)
     conn.commit()
     conn.close()

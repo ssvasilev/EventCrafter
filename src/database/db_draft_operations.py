@@ -175,3 +175,28 @@ def delete_draft(db_path: str, draft_id: int):
             logger.info(f"Черновик с ID {draft_id} удалён.")
     except sqlite3.Error as e:
         logger.error(f"Ошибка при удалении черновика: {e}")
+
+
+def get_session_for_user(self, user_id: int, chat_id: int) -> Optional[Session]:
+    """Находит активную сессию для пользователя в указанном чате"""
+    # Сначала проверяем в памяти
+    for session in self.active_sessions.values():
+        if session.creator_id == user_id and session.chat_id == chat_id:
+            return session
+
+    # Если нет в памяти, проверяем БД
+    with sqlite3.connect(self.db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT creator_id, chat_id, bot_message_id, draft_id, event_id 
+            FROM sessions 
+            WHERE creator_id = ? AND chat_id = ?
+        """, (user_id, chat_id))
+
+        row = cursor.fetchone()
+        if row:
+            session = Session(*row)
+            self.active_sessions[session.key] = session
+            return session
+
+    return None

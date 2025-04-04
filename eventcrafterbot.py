@@ -2,6 +2,7 @@ from telegram.ext import Application, CommandHandler
 from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
+from src.database.session_manager import SessionManager
 from src.handlers.draft_handlers import register_draft_handlers
 
 from src.handlers.message_handler import register_message_handlers
@@ -31,6 +32,13 @@ def main():
     # Инициализация баз данных
     init_db(DB_PATH)
     init_drafts_db(DB_DRAFT_PATH)
+
+    # Инициализация менеджера сессий
+    session_manager = SessionManager(DB_DRAFT_PATH)
+    application.bot_data["session_manager"] = session_manager
+
+    # Восстанавливаем сессии при старте
+    session_manager.restore_sessions()
 
     # Сохраняем данные в context.bot_data
     application.bot_data.update({
