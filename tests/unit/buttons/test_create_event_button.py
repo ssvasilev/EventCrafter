@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes
 async def test_create_event_button_success(mock_update, mock_context):
     # Патчим модуль с состояниями перед импортом тестируемой функции
     with patch('src.buttons.create_event_button.SET_DESCRIPTION', new='SET_DESCRIPTION'):
-        from src.buttons.create_event_button import create_event_button
+        from src.buttons.buttons import create_event_button
 
         # Настройка mock объектов
         mock_update.callback_query = MagicMock(spec=CallbackQuery)

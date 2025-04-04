@@ -1,39 +1,19 @@
 import os
 import sqlite3
 from datetime import datetime
-
 from src.logger.logger import logger
 
 def get_db_connection(db_path):
-    """
-    Устанавливает соединение с базой данных SQLite.
-    :param db_path: Путь к файлу базы данных.
-    :return: Объект соединения с базой данных.
-    """
-    # Проверяем и создаём директорию, если её нет
+    """Устанавливает соединение с базой данных SQLite."""
     directory = os.path.dirname(db_path)
     if not os.path.exists(directory):
         os.makedirs(directory)
-
-    # Устанавливаем соединение с базой данных
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
-
 def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id=None):
-    """
-    Добавляет мероприятие в базу данных.
-    :param db_path: Путь к базе данных.
-    :param description: Описание мероприятия.
-    :param date: Дата мероприятия в формате "дд-мм-гггг".
-    :param time: Время мероприятия в формате "чч:мм".
-    :param limit: Лимит участников (0 означает неограниченный лимит).
-    :param creator_id: ID создателя мероприятия.
-    :param chat_id: ID чата, в котором создано мероприятие.
-    :param message_id: ID сообщения в Telegram (опционально).
-    :return: ID добавленного мероприятия.
-    """
+    """Добавляет мероприятие в базу данных."""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with sqlite3.connect(db_path) as conn:
@@ -50,7 +30,7 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
             logger.info(f"Мероприятие добавлено с ID: {event_id}")
             return event_id
     except sqlite3.Error as e:
-        logger.error(f"Ошибка при добавлении мероприятия в базу данных: {e}")
+        logger.error(f"Ошибка при добавлении мероприятия: {e}")
         return None
 
 def get_event(db_path, event_id):
@@ -58,46 +38,14 @@ def get_event(db_path, event_id):
     with get_db_connection(db_path) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-
-        # Получаем основную информацию о мероприятии
         cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
         event = cursor.fetchone()
-
         if not event:
             return None
-
-        # Получаем участников
-        cursor.execute("SELECT user_id, user_name FROM participants WHERE event_id = ?", (event_id,))
-        participants = [{"user_id": row["user_id"], "name": row["user_name"]} for row in cursor.fetchall()]
-
-        # Получаем резерв
-        cursor.execute("SELECT user_id, user_name FROM reserve WHERE event_id = ?", (event_id,))
-        reserve = [{"user_id": row["user_id"], "name": row["user_name"]} for row in cursor.fetchall()]
-
-        # Получаем отказавшихся
-        cursor.execute("SELECT user_id, user_name FROM declined WHERE event_id = ?", (event_id,))
-        declined = [{"user_id": row["user_id"], "name": row["user_name"]} for row in cursor.fetchall()]
-
-        event_data = {
-            "id": event["id"],
-            "description": event["description"],
-            "date": event["date"],
-            "time": event["time"],
-            "participant_limit": event["participant_limit"],  # Переименовано с "limit" на "participant_limit"
-            "creator_id": event["creator_id"],
-            "chat_id": event["chat_id"],  # Добавлено поле chat_id
-            "message_id": event["message_id"],
-            "participants": participants,
-            "reserve": reserve,
-            "declined": declined,
-        }
-
-        return event_data
+        return dict(event)
 
 def get_events_by_participant(db_path, user_id):
-    """
-    Возвращает список мероприятий, в которых участвует пользователь.
-    """
+    """Возвращает список мероприятий, в которых участвует пользователь."""
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -109,7 +57,7 @@ def get_events_by_participant(db_path, user_id):
             """,
             (user_id,),
         )
-        return cursor.fetchall()
+        return [dict(row) for row in cursor.fetchall()]
 
 def get_all_events(db_path):
     conn = get_db_connection(db_path)

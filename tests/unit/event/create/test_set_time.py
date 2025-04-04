@@ -1,8 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
-from telegram import Update, Message, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler
+from telegram import Message, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ConversationHandler
 from telegram.error import BadRequest
 
 
@@ -10,7 +9,7 @@ from telegram.error import BadRequest
 async def test_set_time_success(mock_update, mock_context):
     """Тест успешной обработки корректного времени"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new='SET_LIMIT'):
-        from src.event.create.set_time import set_time
+        from temp.set_time import set_time
 
         # Настройка тестовых данных
         test_time = "14:30"
@@ -69,7 +68,7 @@ async def test_set_time_success(mock_update, mock_context):
 async def test_set_time_invalid_format(mock_update, mock_context):
     """Тест обработки неверного формата времени"""
     with patch('src.handlers.conversation_handler_states.SET_TIME', new=2):
-        from src.event.create.set_time import set_time
+        from temp.set_time import set_time
 
         # Настройка неверного времени
         mock_update.message = MagicMock(spec=Message)
@@ -104,7 +103,7 @@ async def test_set_time_invalid_format(mock_update, mock_context):
 async def test_set_time_draft_not_found(mock_update, mock_context):
     """Тест случая, когда черновик не найден"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new='SET_LIMIT'):
-        from src.event.create.set_time import set_time
+        from temp.set_time import set_time
 
         # Настройка тестовых данных
         test_time = "14:30"
@@ -142,7 +141,7 @@ async def test_set_time_draft_not_found(mock_update, mock_context):
 async def test_set_time_delete_message_error(mock_update, mock_context):
     """Тест обработки ошибки при удалении сообщения"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new='SET_LIMIT'):
-        from src.event.create.set_time import set_time
+        from temp.set_time import set_time
 
         # Настройка тестовых данных
         test_time = "14:30"
@@ -184,8 +183,8 @@ async def test_set_time_delete_message_error(mock_update, mock_context):
 async def test_set_time_keyboard_structure(mock_update, mock_context):
     """Тест структуры клавиатуры"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new='SET_LIMIT'):
-        from src.event.create.set_time import set_time
-        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+        from temp.set_time import set_time
+        from telegram import InlineKeyboardMarkup
 
         # Настройка тестовых данных
         test_time = "14:30"

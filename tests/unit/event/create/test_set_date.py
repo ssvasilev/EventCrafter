@@ -1,8 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
-from telegram import Update, Message, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler
+from telegram import Message, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ConversationHandler
 from telegram.error import BadRequest
 
 
@@ -10,7 +9,7 @@ from telegram.error import BadRequest
 async def test_set_date_success(mock_update, mock_context):
     """Тест успешной обработки корректной даты"""
     with patch('src.handlers.conversation_handler_states.SET_TIME', new='SET_TIME'):
-        from src.event.create.set_date import set_date
+        from temp.set_date import set_date
 
         # Настройка тестовых данных
         test_date = "15.12.2023"
@@ -67,7 +66,7 @@ async def test_set_date_success(mock_update, mock_context):
 async def test_set_date_invalid_format(mock_update, mock_context):
     """Тест обработки неверного формата даты"""
     with patch('src.handlers.conversation_handler_states.SET_DATE', new=1):
-        from src.event.create.set_date import set_date
+        from temp.set_date import set_date
 
         # Настройка неверной даты
         mock_update.message = MagicMock(spec=Message)
@@ -102,7 +101,7 @@ async def test_set_date_invalid_format(mock_update, mock_context):
 async def test_set_date_draft_not_found(mock_update, mock_context):
     """Тест случая, когда черновик не найден"""
     with patch('src.handlers.conversation_handler_states.SET_TIME', new='SET_TIME'):
-        from src.event.create.set_date import set_date
+        from temp.set_date import set_date
 
         # Настройка тестовых данных
         test_date = "15.12.2023"
@@ -140,7 +139,7 @@ async def test_set_date_draft_not_found(mock_update, mock_context):
 async def test_set_date_delete_message_error(mock_update, mock_context):
     """Тест обработки ошибки при удалении сообщения"""
     with patch('src.handlers.conversation_handler_states.SET_TIME', new='SET_TIME'):
-        from src.event.create.set_date import set_date
+        from temp.set_date import set_date
 
         # Настройка тестовых данных
         test_date = "15.12.2023"

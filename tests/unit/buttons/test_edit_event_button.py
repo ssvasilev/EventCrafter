@@ -1,13 +1,13 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from telegram import Update, CallbackQuery, Message, User, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+from telegram import CallbackQuery, Message, User, InlineKeyboardMarkup
+
 
 @pytest.mark.asyncio
 async def test_edit_event_button_success(mock_update, mock_context):
     # Патчим модуль с состояниями перед импортом тестируемой функции
     with patch('src.buttons.edit_event_button.EDIT_EVENT', new='EDIT_EVENT'):
-        from src.buttons.edit_event_button import edit_event_button
+        from temp.edit_event_button import edit_event_button
 
         # Настройка mock объектов
         mock_update.callback_query = MagicMock(spec=CallbackQuery)
@@ -91,7 +91,7 @@ async def test_edit_event_button_success(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_edit_event_button_not_author(mock_update, mock_context):
-    from src.buttons.edit_event_button import edit_event_button
+    from temp.edit_event_button import edit_event_button
 
     # Настройка mock объектов
     mock_update.callback_query = MagicMock(spec=CallbackQuery)
@@ -125,7 +125,7 @@ async def test_edit_event_button_not_author(mock_update, mock_context):
 
 @pytest.mark.asyncio
 async def test_edit_event_button_not_found(mock_update, mock_context):
-    from src.buttons.edit_event_button import edit_event_button
+    from temp.edit_event_button import edit_event_button
 
     # Настройка mock объектов
     mock_update.callback_query = MagicMock(spec=CallbackQuery)

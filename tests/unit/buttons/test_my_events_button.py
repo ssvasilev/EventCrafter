@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from telegram import Update, CallbackQuery, User, Chat
-from telegram.ext import ContextTypes
+from telegram import CallbackQuery, User
+
 
 @pytest.mark.asyncio
 async def test_my_events_button_no_events(mock_update, mock_context):

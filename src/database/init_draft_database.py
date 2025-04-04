@@ -4,8 +4,7 @@ def init_drafts_db(db_path):
     """Инициализирует базу данных для черновиков."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS drafts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             creator_id INTEGER NOT NULL,
@@ -20,7 +19,6 @@ def init_drafts_db(db_path):
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-        """
-    )
+    """)
     conn.commit()
     conn.close()

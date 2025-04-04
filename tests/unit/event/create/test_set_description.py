@@ -8,7 +8,7 @@ from telegram.error import BadRequest
 async def test_set_description_success(mock_update, mock_context):
     # Патчим модуль с состояниями перед импортом тестируемой функции
     with patch('src.handlers.conversation_handler_states.SET_DATE', new='SET_DATE'):
-        from src.event.create.set_description import set_description
+        from src.event.create.set_parameter import set_description
         from telegram import InlineKeyboardMarkup
 
         # Настройка mock объектов
@@ -73,7 +73,7 @@ async def test_set_description_success(mock_update, mock_context):
 async def test_set_description_with_delete_error(mock_update, mock_context):
     # Патчим модуль с состояниями перед импортом тестируемой функции
     with patch('src.handlers.conversation_handler_states.SET_DATE', new='SET_DATE'):
-        from src.event.create.set_description import set_description
+        from src.event.create.set_parameter import set_description
 
         # Настройка mock объектов
         mock_update.message = MagicMock(spec=Message)
@@ -110,7 +110,7 @@ async def test_set_description_with_delete_error(mock_update, mock_context):
 async def test_set_description_keyboard_structure(mock_update, mock_context):
     # Патчим модуль с состояниями перед импортом тестируемой функции
     with patch('src.handlers.conversation_handler_states.SET_DATE', new='SET_DATE'):
-        from src.event.create.set_description import set_description
+        from src.event.create.set_parameter import set_description
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
         # Настройка mock объектов

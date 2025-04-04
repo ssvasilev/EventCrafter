@@ -1,14 +1,14 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta, timezone
-from telegram import Update, Message, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler
+from datetime import timedelta, timezone
+from telegram import Message, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ConversationHandler
 
 @pytest.mark.asyncio
 async def test_set_limit_success(mock_update, mock_context, mock_config, mock_logger):
     """Тест успешной обработки корректного лимита"""
     # Импортируем тестируемый модуль после всех моков
-    from src.event.create.set_limit import set_limit
+    from temp.set_limit import set_limit
 
     # Настройка тестовых данных
     test_limit = "10"
@@ -108,7 +108,7 @@ async def test_set_limit_success(mock_update, mock_context, mock_config, mock_lo
 async def test_set_limit_unlimited(mock_update, mock_context):
     """Тест обработки неограниченного лимита (0)"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new='SET_LIMIT'):
-        from src.event.create.set_limit import set_limit
+        from temp.set_limit import set_limit
 
         # Настройка тестовых данных
         test_limit = "0"
@@ -152,7 +152,7 @@ async def test_set_limit_unlimited(mock_update, mock_context):
 async def test_set_limit_invalid_format(mock_update, mock_context):
     """Тест обработки неверного формата лимита"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new=3):
-        from src.event.create.set_limit import set_limit
+        from temp.set_limit import set_limit
 
         # Настройка неверного лимита
         mock_update.message = MagicMock(spec=Message)
@@ -187,7 +187,7 @@ async def test_set_limit_invalid_format(mock_update, mock_context):
 async def test_set_limit_negative(mock_update, mock_context):
     """Тест обработки отрицательного лимита"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new=3):
-        from src.event.create.set_limit import set_limit
+        from temp.set_limit import set_limit
 
         # Настройка отрицательного лимита
         mock_update.message = MagicMock(spec=Message)
@@ -222,7 +222,7 @@ async def test_set_limit_negative(mock_update, mock_context):
 async def test_set_limit_draft_not_found(mock_update, mock_context):
     """Тест случая, когда черновик не найден"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new='SET_LIMIT'):
-        from src.event.create.set_limit import set_limit
+        from temp.set_limit import set_limit
 
         # Настройка тестовых данных
         test_limit = "10"
@@ -259,7 +259,7 @@ async def test_set_limit_draft_not_found(mock_update, mock_context):
 async def test_set_limit_event_creation_failed(mock_update, mock_context):
     """Тест случая, когда не удалось создать мероприятие"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new='SET_LIMIT'):
-        from src.event.create.set_limit import set_limit
+        from temp.set_limit import set_limit
 
         # Настройка тестовых данных
         test_limit = "10"
@@ -304,7 +304,7 @@ async def test_set_limit_event_creation_failed(mock_update, mock_context):
 async def test_set_limit_message_send_failed(mock_update, mock_context):
     """Тест случая, когда не удалось отправить сообщение о мероприятии"""
     with patch('src.handlers.conversation_handler_states.SET_LIMIT', new='SET_LIMIT'):
-        from src.event.create.set_limit import set_limit
+        from temp.set_limit import set_limit
 
         # Настройка тестовых данных
         test_limit = "10"
