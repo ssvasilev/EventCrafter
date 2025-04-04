@@ -1,7 +1,10 @@
 import os
 import sqlite3
 from datetime import datetime
+
+from src.database.session_manager import Session
 from src.logger.logger import logger
+from typing import Optional
 
 
 def get_db_connection(db_path):

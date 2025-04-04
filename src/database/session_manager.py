@@ -2,6 +2,12 @@ import sqlite3
 
 from src.logger.logger import logger
 
+class Session:
+    def __init__(self, creator_id: int, chat_id: int, bot_message_id: int):
+        self.creator_id = creator_id
+        self.chat_id = chat_id
+        self.bot_message_id = bot_message_id
+
 
 class SessionManager:
     def __init__(self, db_path: str):
