@@ -219,13 +219,23 @@ async def handle_cancel_input(query, context, draft_id):
 
 async def update_event_message(context, event_id, message):
     """Обновляет сообщение о мероприятии"""
-    await send_event_message(
-        event_id=event_id,
-        context=context,
-        chat_id=message.chat_id,
-        message_id=message.message_id
-    )
+    try:
+        # Получаем актуальный message_id из базы данных
+        db_path = context.bot_data["db_path"]
+        event = get_event(db_path, event_id)
+        if not event:
+            logger.error(f"Мероприятие {event_id} не найдено")
+            return
 
+        # Используем message_id из базы данных, а не из сообщения
+        await send_event_message(
+            event_id=event_id,
+            context=context,
+            chat_id=message.chat_id,
+            message_id=event.get("message_id")
+        )
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении сообщения: {e}")
 def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
