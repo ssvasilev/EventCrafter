@@ -2,6 +2,7 @@ from telegram.ext import Application, CommandHandler
 from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
+from src.handlers.cancel_handler import register_cancel_handlers
 from src.handlers.draft_handlers import register_draft_handlers
 
 from src.handlers.message_handler import register_message_handlers
@@ -55,6 +56,9 @@ def main():
 
     # Восстанавливаем запланированные задачи
     restore_scheduled_jobs(application)
+
+    #Обработчики отмены
+    register_cancel_handlers(application)
 
     application.run_polling()
 

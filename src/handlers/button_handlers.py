@@ -159,6 +159,7 @@ async def handle_edit_event(query, context, event_id):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+
 async def handle_edit_field(query, context, event_id, field):
     """Обработка выбора поля для редактирования"""
     event = get_event(context.bot_data["db_path"], event_id)
