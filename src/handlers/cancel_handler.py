@@ -44,18 +44,14 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Получаем event_id из callback_data
         event_id = int(query.data.split('|')[1])
 
-        # Получаем черновик как словарь
+        # Получаем черновик
         draft = get_user_chat_draft(
             context.bot_data["drafts_db_path"],
             query.from_user.id,
             query.message.chat_id
         )
 
-        if draft:
-            logger.info(f"Удаляем черновик: {draft}")
-            delete_draft(context.bot_data["drafts_db_path"], draft["id"])
-
-        # Восстанавливаем сообщение
+        # Восстанавливаем оригинальное сообщение ДО удаления черновика
         event = get_event(context.bot_data["db_path"], event_id)
         if event:
             try:
@@ -63,41 +59,83 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     event["id"],
                     context,
                     query.message.chat_id,
-                    message_id=query.message.message_id
+                    message_id=draft["original_message_id"] if draft else query.message.message_id
                 )
             except Exception as e:
-                logger.error(f"Ошибка при восстановлении сообщения: {str(e)}")
-                # Альтернативный вариант восстановления
+                logger.error(f"Ошибка при восстановлении сообщения: {e}")
                 await restore_event_message_fallback(event, context, query)
 
+        # Удаляем черновик если он существует
+        if draft:
+            delete_draft(context.bot_data["drafts_db_path"], draft["id"])
+
+        # Удаляем только сообщение с формой редактирования
+        try:
+            await context.bot.delete_message(
+                chat_id=query.message.chat_id,
+                message_id=query.message.message_id  # Удаляем текущее сообщение с формой
+            )
+        except BadRequest:
+            pass
+
     except Exception as e:
-        logger.error(f"Ошибка при отмене редактирования: {str(e)}", exc_info=True)
+        logger.error(f"Ошибка при отмене редактирования: {e}")
         await query.edit_message_text("⚠️ Не удалось отменить редактирование")
 
 async def restore_event_message_fallback(event, context, query):
-    """Альтернативный способ восстановления сообщения о мероприятии"""
+    """
+    Альтернативный способ восстановления сообщения о мероприятии
+    Используется при ошибках в основном методе send_event_message
+    """
     try:
+        # Получаем базовую информацию о мероприятии
+        db_path = context.bot_data.get("db_path", DB_PATH)
+        participants = get_participants(db_path, event["id"])
+        participants_text = format_users_list(participants, EMPTY_PARTICIPANTS_TEXT)
+
+        # Формируем клавиатуру
         keyboard = [
             [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event['id']}")],
             [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event['id']}")],
             [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event['id']}")]
         ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
+        # Форматируем дату
+        date = datetime.strptime(event["date"], "%d.%m.%Y").date()
+        formatted_date = date.strftime("%d.%m.%Y (%A)")
+
+        # Формируем текст сообщения (упрощенная версия)
         message_text = (
-            f"📢 {event['description']}\n"
-            f"📅 Дата: {event['date']}\n"
-            f"🕒 Время: {event['time']}\n"
-            f"👥 Лимит: {event['participant_limit'] or '∞'}"
+            f"📢 <b>{event['description']}</b>\n"
+            f"📅 <i>Дата: </i> {formatted_date}\n"
+            f"🕒 <i>Время: </i> {event['time']}\n"
+            f"👥 <i>Лимит участников: </i> {event['participant_limit'] or '∞'}\n\n"
+            f"✅ <i>Участники: </i>\n{participants_text}"
         )
 
+        # Редактируем текущее сообщение (не удаляем его)
         await query.edit_message_text(
             text=message_text,
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=reply_markup,
+            parse_mode="HTML"
         )
-    except Exception as e:
-        logger.error(f"Ошибка при альтернативном восстановлении: {str(e)}")
-        await query.edit_message_text("⚠️ Не удалось полностью восстановить мероприятие")
+        logger.info("Сообщение восстановлено в упрощенном формате")
 
+    except Exception as e:
+        logger.error(f"Ошибка в restore_event_message_fallback: {e}")
+        try:
+            # Последняя попытка - просто текст без форматирования
+            await query.edit_message_text(
+                text=f"📢 {event['description']}\n"
+                     f"📅 Дата: {event['date']}\n"
+                     f"🕒 Время: {event['time']}\n"
+                     f"👥 Лимит: {event['participant_limit'] or '∞'}",
+                reply_markup=InlineKeyboardMarkup(keyboard) if 'keyboard' in locals() else None
+            )
+        except Exception as e:
+            logger.error(f"Критическая ошибка восстановления сообщения: {e}")
+            # Не удаляем сообщение вообще, оставляем как есть
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отмена ввода при редактировании поля"""
     query = update.callback_query
