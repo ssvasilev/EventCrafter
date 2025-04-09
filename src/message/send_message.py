@@ -2,6 +2,7 @@ from datetime import datetime
 
 import telegram
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from config import DB_PATH
