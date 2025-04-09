@@ -2,8 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from src.handlers.create_event_handler import create_event_button
 from src.buttons.my_events_button import my_events_button
-from src.handlers.cancel_handler import cancel_draft, cancel_input
-
+from src.handlers.cancel_handler import cancel_draft, cancel_input, cancel_edit
 from src.logger.logger import logger
 
 async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -23,12 +22,17 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 logger.warning(f"Unknown menu action: {action}")
                 await query.edit_message_text("Неизвестная команда меню.")
 
-        elif data.startswith("cancel_draft|"):
-            await cancel_draft(update, context)
-        elif data.startswith("cancel_input|"):
-            await cancel_input(update, context)
-        elif data.startswith("cancel_edit|"):
-            await cancel_edit(update, context)
+        elif data.startswith("cancel_"):
+            # Обрабатываем все cancel_* команды централизованно
+            if data.startswith("cancel_draft|"):
+                await cancel_draft(update, context)
+            elif data.startswith("cancel_input|"):
+                await cancel_input(update, context)
+            elif data.startswith("cancel_edit|"):
+                await cancel_edit(update, context)
+            else:
+                logger.warning(f"Unknown cancel action: {data}")
+                await query.edit_message_text("Неизвестная команда отмены.")
 
     except Exception as e:
         logger.error(f"Ошибка в обработчике кнопок меню: {e}")
@@ -41,6 +45,6 @@ def register_menu_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             menu_button_handler,
-            pattern=r"^(menu_|cancel_draft\||cancel_input\||cancel_edit\|)"
+            pattern=r"^(menu_|cancel_)"  # Обрабатываем menu_* и cancel_*
         )
     )

@@ -145,7 +145,7 @@ async def handle_edit_event(query, context, event_id):
         [InlineKeyboardButton("📅 Дата", callback_data=f"edit_field|{event_id}|date")],
         [InlineKeyboardButton("🕒 Время", callback_data=f"edit_field|{event_id}|time")],
         [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_field|{event_id}|limit")],
-        [InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_edit|{event_id}")]
+        [InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_edit|{event_id}")]  # Оставляем cancel_edit
     ]
 
     await query.edit_message_text(
