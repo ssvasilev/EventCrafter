@@ -29,7 +29,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parts = query.data.split('|')
             action = parts[0]
 
-            if action in ['join', 'leave', 'edit', 'cancel_edit']:
+            if action in ['join', 'leave', 'edit']:
                 event_id = int(parts[1])
                 if action == 'join':
                     await handle_join(query, context, event_id)
@@ -37,17 +37,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await handle_leave(query, context, event_id)
                 elif action == 'edit':
                     await handle_edit_event(query, context, event_id)
-                elif action == 'cancel_edit':
-                    await handle_cancel_edit(query, context, event_id)
 
             elif action == 'edit_field':
                 event_id = int(parts[1])
                 field = parts[2]
                 await handle_edit_field(query, context, event_id, field)
-
-            elif action == 'cancel_input':
-                draft_id = int(parts[1])
-                await handle_cancel_input(query, context, draft_id)
         else:
             await query.edit_message_text("⚠️ Неизвестный формат запроса")
 
@@ -236,6 +230,6 @@ def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             button_handler,
-            pattern=r"^(join|leave|edit|edit_field|cancel_edit|cancel_input)\|"
+            pattern=r"^(join|leave|edit|edit_field)\|"
         )
     )
