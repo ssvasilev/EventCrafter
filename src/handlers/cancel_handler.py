@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from telegram.error import BadRequest
 from src.database.db_draft_operations import delete_draft, get_user_drafts, get_draft, get_user_chat_draft
@@ -43,32 +43,54 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Получаем event_id из callback_data
         event_id = int(query.data.split('|')[1])
+
+        # Проверяем существование черновика
         draft = get_user_chat_draft(
             context.bot_data["drafts_db_path"],
             query.from_user.id,
             query.message.chat_id
         )
 
-        # Если есть черновик - удаляем его
+        # Удаляем черновик если существует
         if draft:
             delete_draft(context.bot_data["drafts_db_path"], draft["id"])
 
-        # Восстанавливаем оригинальное сообщение мероприятия
+        # Всегда пытаемся восстановить сообщение, даже если черновика нет
         event = get_event(context.bot_data["db_path"], event_id)
         if event:
-            await send_event_message(
-                event["id"],
-                context,
-                query.message.chat_id,
-                message_id=query.message.message_id
-            )
+            try:
+                await send_event_message(
+                    event["id"],
+                    context,
+                    query.message.chat_id,
+                    message_id=query.message.message_id
+                )
+            except Exception as e:
+                logger.error(f"Ошибка при восстановлении сообщения: {e}")
+                await query.edit_message_text("Мероприятие восстановлено в простом формате")
+
+                # Формируем минимальное сообщение если не удалось восстановить полностью
+                keyboard = [
+                    [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
+                    [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
+                    [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")]
+                ]
+
+                message_text = (
+                    f"📢 {event['description']}\n"
+                    f"📅 Дата: {event['date']}\n"
+                    f"🕒 Время: {event['time']}\n"
+                    f"👥 Лимит: {event['participant_limit'] or '∞'}"
+                )
+
+                await query.edit_message_text(
+                    text=message_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
 
     except Exception as e:
         logger.error(f"Ошибка при отмене редактирования: {e}")
-        try:
-            await query.edit_message_text("⚠️ Не удалось отменить редактирование")
-        except:
-            pass
+        await query.edit_message_text("⚠️ Не удалось отменить редактирование")
 
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отмена ввода при редактировании поля"""
