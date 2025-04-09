@@ -44,18 +44,18 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Получаем event_id из callback_data
         event_id = int(query.data.split('|')[1])
 
-        # Проверяем существование черновика
+        # Получаем черновик как словарь
         draft = get_user_chat_draft(
             context.bot_data["drafts_db_path"],
             query.from_user.id,
             query.message.chat_id
         )
 
-        # Удаляем черновик если существует
         if draft:
+            logger.info(f"Удаляем черновик: {draft}")
             delete_draft(context.bot_data["drafts_db_path"], draft["id"])
 
-        # Всегда пытаемся восстановить сообщение, даже если черновика нет
+        # Восстанавливаем сообщение
         event = get_event(context.bot_data["db_path"], event_id)
         if event:
             try:
@@ -66,31 +66,37 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     message_id=query.message.message_id
                 )
             except Exception as e:
-                logger.error(f"Ошибка при восстановлении сообщения: {e}")
-                await query.edit_message_text("Мероприятие восстановлено в простом формате")
-
-                # Формируем минимальное сообщение если не удалось восстановить полностью
-                keyboard = [
-                    [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
-                    [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
-                    [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")]
-                ]
-
-                message_text = (
-                    f"📢 {event['description']}\n"
-                    f"📅 Дата: {event['date']}\n"
-                    f"🕒 Время: {event['time']}\n"
-                    f"👥 Лимит: {event['participant_limit'] or '∞'}"
-                )
-
-                await query.edit_message_text(
-                    text=message_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
+                logger.error(f"Ошибка при восстановлении сообщения: {str(e)}")
+                # Альтернативный вариант восстановления
+                await restore_event_message_fallback(event, context, query)
 
     except Exception as e:
-        logger.error(f"Ошибка при отмене редактирования: {e}")
+        logger.error(f"Ошибка при отмене редактирования: {str(e)}", exc_info=True)
         await query.edit_message_text("⚠️ Не удалось отменить редактирование")
+
+async def restore_event_message_fallback(event, context, query):
+    """Альтернативный способ восстановления сообщения о мероприятии"""
+    try:
+        keyboard = [
+            [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event['id']}")],
+            [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event['id']}")],
+            [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event['id']}")]
+        ]
+
+        message_text = (
+            f"📢 {event['description']}\n"
+            f"📅 Дата: {event['date']}\n"
+            f"🕒 Время: {event['time']}\n"
+            f"👥 Лимит: {event['participant_limit'] or '∞'}"
+        )
+
+        await query.edit_message_text(
+            text=message_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except Exception as e:
+        logger.error(f"Ошибка при альтернативном восстановлении: {str(e)}")
+        await query.edit_message_text("⚠️ Не удалось полностью восстановить мероприятие")
 
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отмена ввода при редактировании поля"""
@@ -104,15 +110,36 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not draft:
             raise Exception("Черновик не найден")
 
-        # Если это редактирование существующего мероприятия
-        if draft.get("event_id"):
-            await cancel_edit(update, context)
-        else:
-            # Если это создание нового мероприятия
-            await cancel_draft(update, context)
+        # Логируем содержимое черновика для отладки
+        logger.info(f"Черновик для отмены: {dict(draft)}")
+
+        # Используем доступ через индекс вместо .get()
+        event_id = draft["event_id"] if "event_id" in draft.keys() else None
+        original_message_id = draft["original_message_id"] if "original_message_id" in draft.keys() else None
+
+        if event_id and original_message_id:
+            event = get_event(context.bot_data["db_path"], event_id)
+            if event:
+                await send_event_message(
+                    event["id"],
+                    context,
+                    query.message.chat_id,
+                    message_id=original_message_id
+                )
+
+        delete_draft(context.bot_data["drafts_db_path"], draft_id)
+
+        # Пытаемся удалить сообщение с формой редактирования
+        try:
+            await context.bot.delete_message(
+                chat_id=query.message.chat_id,
+                message_id=query.message.message_id
+            )
+        except BadRequest:
+            pass
 
     except Exception as e:
-        logger.error(f"Ошибка при отмене ввода: {e}")
+        logger.error(f"Ошибка при отмене ввода: {str(e)}", exc_info=True)
         await query.edit_message_text("⚠️ Не удалось отменить ввод")
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):

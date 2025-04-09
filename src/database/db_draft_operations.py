@@ -106,12 +106,15 @@ def get_draft(db_path, draft_id):
     Возвращает черновик мероприятия по его ID.
     :param db_path: Путь к базе данных.
     :param draft_id: ID черновика.
-    :return: Черновик мероприятия.
+    :return: Черновик мероприятия в виде словаря.
     """
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
-        return cursor.fetchone()
+        draft = cursor.fetchone()
+        if draft:
+            return dict(draft)  # Конвертируем Row в dict
+        return None
 
 def get_user_chat_draft(db_path, creator_id, chat_id):
     """
@@ -175,3 +178,13 @@ def delete_draft(db_path: str, draft_id: int):
             logger.info(f"Черновик с ID {draft_id} удалён.")
     except sqlite3.Error as e:
         logger.error(f"Ошибка при удалении черновика: {e}")
+
+def log_draft_contents(draft):
+    """Логирует содержимое черновика для отладки"""
+    if draft:
+        draft_dict = dict(draft)
+        logger.info("Содержимое черновика:")
+        for key, value in draft_dict.items():
+            logger.info(f"{key}: {value}")
+    else:
+        logger.info("Черновик не найден")
