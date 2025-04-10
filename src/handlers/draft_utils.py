@@ -197,6 +197,7 @@ async def _process_limit(update, context, draft, limit_input):
                 chat_id_link = chat_id  # Для обычных групп и личных чатов
 
             # Формируем ссылку на мероприятие
+            message_id = draft["bot_message_id"]
             event_link = f"https://t.me/c/{chat_id_link}/{message_id}"
 
             # Формируем текст уведомления с кликабельным названием мероприятия
