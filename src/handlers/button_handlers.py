@@ -220,22 +220,33 @@ async def handle_cancel_input(query, context, draft_id):
 async def update_event_message(context, event_id, message):
     """Обновляет сообщение о мероприятии"""
     try:
-        # Получаем актуальный message_id из базы данных
         db_path = context.bot_data["db_path"]
         event = get_event(db_path, event_id)
         if not event:
             logger.error(f"Мероприятие {event_id} не найдено")
             return
 
-        # Используем message_id из базы данных, а не из сообщения
-        await send_event_message(
-            event_id=event_id,
-            context=context,
-            chat_id=message.chat_id,
-            message_id=event.get("message_id")
-        )
+        # Используем механизм повторных попыток
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                await send_event_message(
+                    event_id=event_id,
+                    context=context,
+                    chat_id=message.chat_id,
+                    message_id=event.get("message_id")
+                )
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Не удалось обновить сообщение после {max_retries} попыток: {e}")
+                else:
+                    logger.warning(f"Попытка {attempt + 1} не удалась, повторяем...")
+                    await asyncio.sleep(1)  # Задержка между попытками
     except Exception as e:
-        logger.error(f"Ошибка при обновлении сообщения: {e}")
+        logger.error(f"Критическая ошибка при обновлении сообщения: {e}")
+
+
 def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(

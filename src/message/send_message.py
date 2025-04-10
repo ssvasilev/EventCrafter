@@ -28,52 +28,51 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.error(f"Мероприятие с ID {event_id} не найдено.")
             return None
 
-        # Получаем данные мероприятия
-        participants = get_participants(db_path, event_id)
-        reserve = get_reserve(db_path, event_id)
-        declined = get_declined(db_path, event_id)
+        # Форматируем сообщение
+        message_text, reply_markup = await format_event_message(event, context)
 
-        # Форматируем текст сообщения
-        message_text, reply_markup = await format_event_message(event, participants, reserve, declined, context)
-
+        # Пытаемся редактировать существующее сообщение
         if message_id:
             try:
-                # Проверяем существование сообщения другим способом
-                try:
-                    msg = await context.bot.get_updates(limit=1)
-                    # Если нет ошибок, пробуем редактировать
-                    await context.bot.edit_message_text(
-                        chat_id=chat_id,
-                        message_id=message_id,
-                        text=message_text,
-                        reply_markup=reply_markup,
-                        parse_mode="HTML"
-                    )
-                    logger.info(f"Сообщение {message_id} отредактировано.")
-                    return message_id
-                except Exception as e:
-                    logger.warning(f"Не удалось проверить/редактировать сообщение {message_id}: {e}")
-                    message_id = None  # Создадим новое сообщение
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=message_text,
+                    reply_markup=reply_markup,
+                    parse_mode="HTML",
+                    read_timeout=20,  # Увеличиваем таймаут
+                    write_timeout=20,
+                    connect_timeout=20,
+                    pool_timeout=20
+                )
+                logger.info(f"Сообщение {message_id} отредактировано.")
+                return message_id
+            except Exception as edit_error:
+                logger.warning(f"Не удалось отредактировать сообщение {message_id}: {edit_error}")
+                # Продолжаем с отправкой нового сообщения
 
-            except Exception as e:
-                logger.error(f"Ошибка при редактировании сообщения: {e}")
-                message_id = None
+        # Отправляем новое сообщение
+        try:
+            message = await context.bot.send_message(
+                chat_id=chat_id,
+                text=message_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML",
+                read_timeout=20,
+                write_timeout=20,
+                connect_timeout=20,
+                pool_timeout=20
+            )
+            new_message_id = message.message_id
+            logger.info(f"Новое сообщение отправлено с ID: {new_message_id}")
 
-        # Если message_id=None или редактирование не удалось, отправляем новое сообщение
-        message = await context.bot.send_message(
-            chat_id=chat_id,
-            text=message_text,
-            reply_markup=reply_markup,
-            parse_mode="HTML"
-        )
-        logger.info(f"Новое сообщение отправлено с ID: {message.message_id}")
+            # Обновляем message_id в базе данных
+            update_message_id(db_path, event_id, new_message_id)
+            return new_message_id
 
-        # Закрепляем сообщение в чате
-        await pin_message(context, chat_id, message.message_id)
-
-        # Обновляем message_id в базе данных
-        update_message_id(db_path, event_id, message.message_id)
-        return message.message_id
+        except Exception as send_error:
+            logger.error(f"Ошибка при отправке сообщения: {send_error}")
+            raise
 
     except Exception as e:
         logger.error(f"Ошибка в send_event_message: {e}")
