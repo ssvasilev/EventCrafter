@@ -145,36 +145,38 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not draft:
             raise Exception("Черновик не найден")
 
-        # Логируем содержимое черновика для отладки
-        logger.info(f"Черновик для отмены: {dict(draft)}")
+        event_id = draft.get("event_id")
+        original_message_id = draft.get("original_message_id")
 
-        # Используем доступ через индекс вместо .get()
-        event_id = draft["event_id"] if "event_id" in draft.keys() else None
-        original_message_id = draft["original_message_id"] if "original_message_id" in draft.keys() else None
-
-        if event_id and original_message_id:
-            event = get_event(context.bot_data["db_path"], event_id)
-            if event:
-                await send_event_message(
-                    event["id"],
-                    context,
-                    query.message.chat_id,
-                    message_id=original_message_id
-                )
-
+        # Удаляем черновик перед восстановлением сообщения
         delete_draft(context.bot_data["drafts_db_path"], draft_id)
 
-        # Пытаемся удалить сообщение с формой редактирования
+        if event_id and original_message_id:
+            # Восстанавливаем оригинальное сообщение
+            event = get_event(context.bot_data["db_path"], event_id)
+            if event:
+                try:
+                    await send_event_message(
+                        event_id=event["id"],
+                        context=context,
+                        chat_id=query.message.chat_id,
+                        message_id=original_message_id
+                    )
+                except Exception as e:
+                    logger.error(f"Ошибка при восстановлении сообщения: {e}")
+                    await restore_event_message_fallback(event, context, query)
+
+        # Редактируем текущее сообщение с формой в пустое
         try:
-            await context.bot.delete_message(
-                chat_id=query.message.chat_id,
-                message_id=query.message.message_id
+            await query.edit_message_text(
+                text="Редактирование отменено",
+                reply_markup=None
             )
-        except BadRequest:
-            pass
+        except Exception as e:
+            logger.info(f"Не удалось обновить сообщение с формой: {e}")
 
     except Exception as e:
-        logger.error(f"Ошибка при отмене ввода: {str(e)}", exc_info=True)
+        logger.error(f"Ошибка при отмене ввода: {e}")
         await query.edit_message_text("⚠️ Не удалось отменить ввод")
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -188,6 +190,25 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         delete_draft(context.bot_data["drafts_db_path"], draft["id"])
 
     await update.message.reply_text("Все активные действия отменены")
+
+
+async def safe_restore_event(event_id, context, chat_id, message_id):
+    """Безопасное восстановление сообщения о мероприятии"""
+    try:
+        event = get_event(context.bot_data["db_path"], event_id)
+        if not event:
+            return False
+
+        await send_event_message(
+            event_id=event_id,
+            context=context,
+            chat_id=chat_id,
+            message_id=message_id
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка восстановления сообщения {message_id}: {e}")
+        return False
 
 def register_cancel_handlers(application):
     """Регистрирует обработчики отмены"""

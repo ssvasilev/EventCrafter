@@ -159,19 +159,18 @@ async def handle_edit_event(query, context, event_id):
 async def handle_edit_field(query, context, event_id, field):
     """Обработка выбора поля для редактирования"""
     event = get_event(context.bot_data["db_path"], event_id)
-
     if not event:
         await query.edit_message_text("Мероприятие не найдено")
         return
 
-    # Создаем черновик для редактирования
+    # Создаем черновик с сохранением original_message_id из текущего сообщения
     draft_id = add_draft(
         db_path=context.bot_data["drafts_db_path"],
         creator_id=query.from_user.id,
         chat_id=query.message.chat_id,
         status=f"EDIT_{field}",
         event_id=event_id,
-        original_message_id=query.message.message_id,
+        original_message_id=query.message.message_id,  # Сохраняем ID текущего сообщения
         description=event["description"],
         date=event["date"],
         time=event["time"],
