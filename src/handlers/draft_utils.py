@@ -187,12 +187,34 @@ async def _process_limit(update, context, draft, limit_input):
         except BadRequest as e:
             logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
 
-        # Уведомление о успешном создании можно отправить как reply к отредактированному сообщению
-        await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text="✅ Мероприятие успешно создано!",
-            reply_to_message_id=draft["bot_message_id"]
-        )
+        # Уведомляем создателя об успешном создании мероприятия
+        try:
+            # Преобразуем chat_id для ссылки
+            chat_id = draft["chat_id"]
+            if str(chat_id).startswith("-100"):  # Для супергрупп и каналов
+                chat_id_link = int(str(chat_id)[4:])  # Убираем "-100" в начале
+            else:
+                chat_id_link = chat_id  # Для обычных групп и личных чатов
+
+            # Формируем ссылку на мероприятие
+            event_link = f"https://t.me/c/{chat_id_link}/{message_id}"
+
+            # Формируем текст уведомления с кликабельным названием мероприятия
+            message = (
+                f"✅ Мероприятие успешно создано!\n\n"
+                f"📢 <a href='{event_link}'>{draft['description']}</a>\n"
+                f"📅 Дата: {draft['date']}\n"
+                f"🕒 Время: {draft['time']}"
+            )
+
+            # Отправляем уведомление создателю
+            await context.bot.send_message(
+                chat_id=draft["creator_id"],
+                text=message,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при отправке уведомления создателю: {e}")
 
     except ValueError:
         await context.bot.send_message(
