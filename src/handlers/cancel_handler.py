@@ -30,6 +30,7 @@ async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 chat_id=query.message.chat_id,
                 message_id=query.message.message_id
             )
+            logger.warning(f"Зачем-то удаляем при редактировании: {e}")
         except BadRequest as e:
             logger.warning(f"Не удалось удалить сообщение: {e}")
 
