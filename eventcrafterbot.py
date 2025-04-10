@@ -1,4 +1,7 @@
-from telegram.ext import Application, CommandHandler
+import logging
+
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
@@ -17,6 +20,8 @@ import os
 from dotenv import load_dotenv
 import locale
 
+from src.utils.pin_message import pin_message_safe
+
 locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
 load_dotenv("data/.env")
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -26,6 +31,11 @@ if not BOT_TOKEN:
     raise ValueError("Токен бота не найден в .env файле.")
 
 def main():
+    # Добавьте в начало main()
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
     # Создаём приложение и передаём токен
     application = Application.builder().token(BOT_TOKEN).build()
 
@@ -40,7 +50,11 @@ def main():
         "tz": tz
     })
 
-
+    @app.command("testpin")
+    async def test_pin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        msg = await update.message.reply_text("Тестовое сообщение для закрепления")
+        success = await pin_message_safe(context, update.effective_chat.id, msg.message_id)
+        await msg.reply_text(f"Результат закрепления: {success}")
 
     # Регистрируем обработчики
     register_message_handlers(application)
