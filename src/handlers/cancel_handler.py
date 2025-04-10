@@ -81,58 +81,54 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def restore_event_message_fallback(event, context, query):
     """
-    Альтернативный способ восстановления сообщения о мероприятии
-    Используется при ошибках в основном методе send_event_message
+    Упрощенное восстановление сообщения при ошибках основного метода.
+    Не удаляет сообщения, только редактирует существующее.
     """
     try:
-        # Получаем базовую информацию о мероприятии
+        # Получаем базовые данные
         db_path = context.bot_data.get("db_path", DB_PATH)
         participants = get_participants(db_path, event["id"])
-        participants_text = format_users_list(participants, EMPTY_PARTICIPANTS_TEXT)
 
-        # Формируем клавиатуру
-        keyboard = [
+        # Формируем упрощенное сообщение
+        message_text = (
+            f"📢 <b>{event['description']}</b>\n"
+            f"📅 <i>Дата:</i> {event['date']}\n"
+            f"🕒 <i>Время:</i> {event['time']}\n"
+            f"👥 <i>Лимит:</i> {'∞' if event['participant_limit'] is None else event['participant_limit']}\n\n"
+            f"✅ <i>Участники:</i>\n{format_users_list(participants, EMPTY_PARTICIPANTS_TEXT)}"
+        )
+
+        reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event['id']}")],
             [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event['id']}")],
             [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event['id']}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        ])
 
-        # Форматируем дату
-        date = datetime.strptime(event["date"], "%d.%m.%Y").date()
-        formatted_date = date.strftime("%d.%m.%Y (%A)")
-
-        # Формируем текст сообщения (упрощенная версия)
-        message_text = (
-            f"📢 <b>{event['description']}</b>\n"
-            f"📅 <i>Дата: </i> {formatted_date}\n"
-            f"🕒 <i>Время: </i> {event['time']}\n"
-            f"👥 <i>Лимит участников: </i> {event['participant_limit'] or '∞'}\n\n"
-            f"✅ <i>Участники: </i>\n{participants_text}"
-        )
-
-        # Редактируем текущее сообщение (не удаляем его)
+        # Редактируем текущее сообщение
         await query.edit_message_text(
             text=message_text,
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
-        logger.info("Сообщение восстановлено в упрощенном формате")
+
+        # Пытаемся закрепить (если это новое сообщение)
+        if not event.get("message_id"):
+            await pin_message_safe(context, query.message.chat_id, query.message.message_id)
 
     except Exception as e:
-        logger.error(f"Ошибка в restore_event_message_fallback: {e}")
+        logger.error(f"Критическая ошибка в restore_event_message_fallback: {e}")
+        # Последняя попытка - минимальное сообщение
         try:
-            # Последняя попытка - просто текст без форматирования
             await query.edit_message_text(
                 text=f"📢 {event['description']}\n"
                      f"📅 Дата: {event['date']}\n"
-                     f"🕒 Время: {event['time']}\n"
-                     f"👥 Лимит: {event['participant_limit'] or '∞'}",
-                reply_markup=InlineKeyboardMarkup(keyboard) if 'keyboard' in locals() else None
+                     f"🕒 Время: {event['time']}",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event['id']}")]
+                ])
             )
-        except Exception as e:
-            logger.error(f"Критическая ошибка восстановления сообщения: {e}")
-            # Не удаляем сообщение вообще, оставляем как есть
+        except:
+            pass  # Сохраняем текущее состояние чата
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отмены ввода при редактировании поля мероприятия"""
     query = update.callback_query

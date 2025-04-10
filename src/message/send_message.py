@@ -8,7 +8,7 @@ from telegram.ext import ContextTypes
 from config import DB_PATH
 from src.database.db_operations import get_event, get_participants, get_reserve, get_declined, update_message_id
 from src.logger.logger import logger
-from src.utils.pin_message import pin_message
+from src.utils.pin_message import pin_message, pin_message_safe
 from src.utils.utils import time_until_event, format_users_list
 
 # Константы для текстов пустых списков
@@ -19,7 +19,8 @@ EMPTY_DECLINED_TEXT = "Отказавшихся нет."
 
 async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
     """
-    Отправляет или редактирует сообщение с информацией о мероприятии.
+    Отправляет или редактирует сообщение с информацией о мероприятии и закрепляет его.
+    Возвращает ID сообщения.
     """
     try:
         db_path = context.bot_data.get("db_path", DB_PATH)
@@ -28,21 +29,30 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             logger.error(f"Мероприятие с ID {event_id} не найдено.")
             return None
 
-        # Получаем все необходимые данные
+        # Получаем данные для сообщения
         participants = get_participants(db_path, event_id)
         reserve = get_reserve(db_path, event_id)
         declined = get_declined(db_path, event_id)
 
-        # Форматируем сообщение со всеми необходимыми аргументами
-        message_text, reply_markup = await format_event_message(
-            event=event,
-            participants=participants,
-            reserve=reserve,
-            declined=declined,
-            context=context
+        # Форматируем текст и клавиатуру
+        message_text = (
+            f"📢 <b>{event['description']}</b>\n"
+            f"📅 <i>Дата:</i> {datetime.strptime(event['date'], '%d.%m.%Y').strftime('%d.%m.%Y (%A)')}\n"
+            f"🕒 <i>Время:</i> {event['time']}\n"
+            f"⏳ <i>До мероприятия:</i> {time_until_event(event['date'], event['time'], context.bot_data.get('tz'))}\n"
+            f"👥 <i>Лимит:</i> {'∞' if event['participant_limit'] is None else event['participant_limit']}\n\n"
+            f"✅ <i>Участники:</i>\n{format_users_list(participants, EMPTY_PARTICIPANTS_TEXT)}\n\n"
+            f"⏳ <i>Резерв:</i>\n{format_users_list(reserve, EMPTY_RESERVE_TEXT)}\n\n"
+            f"❌ <i>Отказавшиеся:</i>\n{format_users_list(declined, EMPTY_DECLINED_TEXT)}"
         )
 
-        # Пытаемся редактировать существующее сообщение
+        reply_markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
+            [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
+            [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")]
+        ])
+
+        # Редактирование существующего сообщения
         if message_id:
             try:
                 await context.bot.edit_message_text(
@@ -50,43 +60,27 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
                     message_id=message_id,
                     text=message_text,
                     reply_markup=reply_markup,
-                    parse_mode="HTML",
-                    read_timeout=20,
-                    write_timeout=20,
-                    connect_timeout=20,
-                    pool_timeout=20
+                    parse_mode="HTML"
                 )
-                logger.info(f"Сообщение {message_id} отредактировано.")
                 return message_id
-            except Exception as edit_error:
-                logger.warning(f"Не удалось отредактировать сообщение {message_id}: {edit_error}")
-                # Продолжаем с отправкой нового сообщения
+            except Exception as e:
+                logger.warning(f"Не удалось отредактировать сообщение {message_id}: {e}")
+                message_id = None  # Переключимся на создание нового
 
-        # Отправляем новое сообщение
-        try:
-            message = await context.bot.send_message(
-                chat_id=chat_id,
-                text=message_text,
-                reply_markup=reply_markup,
-                parse_mode="HTML",
-                read_timeout=20,
-                write_timeout=20,
-                connect_timeout=20,
-                pool_timeout=20
-            )
-            new_message_id = message.message_id
-            logger.info(f"Новое сообщение отправлено с ID: {new_message_id}")
+        # Создание нового сообщения
+        message = await context.bot.send_message(
+            chat_id=chat_id,
+            text=message_text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
+        new_message_id = message.message_id
 
-            # Закрепляем сообщение в чате
-            await pin_message(context, chat_id, message.message_id)
+        # Обновляем ID сообщения в БД и закрепляем
+        update_message_id(db_path, event_id, new_message_id)
+        await pin_message_safe(context, chat_id, new_message_id)
 
-            # Обновляем message_id в базе данных
-            update_message_id(db_path, event_id, new_message_id)
-            return new_message_id
-
-        except Exception as send_error:
-            logger.error(f"Ошибка при отправке сообщения: {send_error}")
-            raise
+        return new_message_id
 
     except Exception as e:
         logger.error(f"Ошибка в send_event_message: {e}")
