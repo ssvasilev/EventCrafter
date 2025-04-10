@@ -9,6 +9,7 @@ from src.database.db_draft_operations import delete_draft, get_user_drafts, get_
 from src.database.db_operations import get_event, get_participants
 from src.logger import logger
 from src.message.send_message import send_event_message, EMPTY_PARTICIPANTS_TEXT
+from src.utils.pin_message import pin_message_safe
 from src.utils.utils import format_users_list
 
 
