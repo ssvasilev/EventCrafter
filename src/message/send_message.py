@@ -62,6 +62,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
                     reply_markup=reply_markup,
                     parse_mode="HTML"
                 )
+                await pin_message_safe(context, chat_id, message_id)
                 return message_id
             except Exception as e:
                 logger.warning(f"Не удалось отредактировать сообщение {message_id}: {e}")
