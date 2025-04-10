@@ -75,7 +75,7 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             parse_mode="HTML"
         )
         new_message_id = message.message_id
-        logger.warning(f"Начинаем закреплять сообщение  {message_id} в чате {chat_id}")
+        logger.info(f"Начинаем закреплять сообщение  {message_id} в чате {chat_id}")
         await pin_message_safe(context, chat_id, new_message_id)
         # Обновляем ID сообщения в БД и закрепляем
         update_message_id(db_path, event_id, new_message_id)
