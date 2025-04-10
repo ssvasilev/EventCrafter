@@ -1,6 +1,5 @@
 import logging
 
-from start_pythonwin import app
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from config import DB_PATH, tz, DB_DRAFT_PATH
@@ -51,7 +50,6 @@ def main():
         "tz": tz
     })
 
-    @app.command("testpin")
     async def test_pin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await update.message.reply_text("Тестовое сообщение для закрепления")
         success = await pin_message_safe(context, update.effective_chat.id, msg.message_id)
@@ -68,6 +66,7 @@ def main():
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("version", version))
+    application.add_handler(CommandHandler("test_pin", test_pin))
 
     # Восстанавливаем запланированные задачи
     restore_scheduled_jobs(application)
