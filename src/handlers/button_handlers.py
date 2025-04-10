@@ -214,10 +214,29 @@ async def handle_cancel_edit(query, context, event_id):
 
 async def handle_cancel_input(query, context, draft_id):
     """Обработка отмены ввода при редактировании"""
-    draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
-    if draft:
-        delete_draft(context.bot_data["drafts_db_path"], draft_id)
-        await handle_cancel_edit(query, context, draft["event_id"])
+    try:
+        draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
+        if draft:
+            # Редактируем текущее сообщение вместо удаления
+            if draft.get("event_id"):  # Если это редактирование существующего мероприятия
+                event = get_event(context.bot_data["db_path"], draft["event_id"])
+                if event:
+                    await send_event_message(
+                        event_id=event["id"],
+                        context=context,
+                        chat_id=query.message.chat_id,
+                        message_id=query.message.message_id  # Редактируем текущее сообщение
+                    )
+            else:  # Если это создание нового мероприятия
+                await query.edit_message_text(
+                    text="Создание мероприятия отменено",
+                    reply_markup=None
+                )
+
+            delete_draft(context.bot_data["drafts_db_path"], draft_id)
+    except Exception as e:
+        logger.error(f"Ошибка при отмене ввода: {e}")
+        await query.edit_message_text("⚠️ Не удалось отменить ввод")
 
 async def update_event_message(context, event_id, message):
     """Обновляет сообщение о мероприятии"""

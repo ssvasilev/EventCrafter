@@ -1,10 +1,15 @@
+from datetime import datetime
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from telegram.error import BadRequest
+
+from config import DB_PATH
 from src.database.db_draft_operations import delete_draft, get_user_drafts, get_draft, get_user_chat_draft
-from src.database.db_operations import get_event
+from src.database.db_operations import get_event, get_participants
 from src.logger import logger
-from src.message.send_message import send_event_message
+from src.message.send_message import send_event_message, EMPTY_PARTICIPANTS_TEXT
+from src.utils.utils import format_users_list
 
 
 async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,22 +49,23 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Получаем event_id из callback_data
         event_id = int(query.data.split('|')[1])
 
-        # Получаем черновик
+        # Получаем черновик (если есть)
         draft = get_user_chat_draft(
             context.bot_data["drafts_db_path"],
             query.from_user.id,
             query.message.chat_id
         )
 
-        # Восстанавливаем оригинальное сообщение ДО удаления черновика
+        # Восстанавливаем оригинальное сообщение
         event = get_event(context.bot_data["db_path"], event_id)
         if event:
             try:
+                # Редактируем текущее сообщение вместо удаления
                 await send_event_message(
-                    event["id"],
-                    context,
-                    query.message.chat_id,
-                    message_id=draft["original_message_id"] if draft else query.message.message_id
+                    event_id=event["id"],
+                    context=context,
+                    chat_id=query.message.chat_id,
+                    message_id=query.message.message_id  # Редактируем текущее сообщение
                 )
             except Exception as e:
                 logger.error(f"Ошибка при восстановлении сообщения: {e}")
@@ -68,15 +74,6 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Удаляем черновик если он существует
         if draft:
             delete_draft(context.bot_data["drafts_db_path"], draft["id"])
-
-        # Удаляем только сообщение с формой редактирования
-        try:
-            await context.bot.delete_message(
-                chat_id=query.message.chat_id,
-                message_id=query.message.message_id  # Удаляем текущее сообщение с формой
-            )
-        except BadRequest:
-            pass
 
     except Exception as e:
         logger.error(f"Ошибка при отмене редактирования: {e}")

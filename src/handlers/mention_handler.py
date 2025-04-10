@@ -93,11 +93,11 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bot_message_id=sent_message.message_id
         )
 
-        # Пытаемся удалить сообщение с упоминанием
+        # Пытаемся удалить сообщение с упоминанием, но не критично если не получится
         try:
             await update.message.delete()
-        except BadRequest as e:
-            logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
+        except Exception as e:
+            logger.info(f"Не удалось удалить сообщение с упоминанием: {e}")
 
     except Exception as e:
         logger.error(f"Ошибка при обработке упоминания: {e}")
