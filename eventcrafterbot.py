@@ -1,5 +1,6 @@
 import logging
 
+from start_pythonwin import app
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from config import DB_PATH, tz, DB_DRAFT_PATH
