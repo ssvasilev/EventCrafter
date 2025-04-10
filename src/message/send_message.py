@@ -77,6 +77,9 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
             new_message_id = message.message_id
             logger.info(f"Новое сообщение отправлено с ID: {new_message_id}")
 
+            # Закрепляем сообщение в чате
+            await pin_message(context, chat_id, message.message_id)
+
             # Обновляем message_id в базе данных
             update_message_id(db_path, event_id, new_message_id)
             return new_message_id
