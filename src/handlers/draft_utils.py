@@ -3,8 +3,11 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, MessageHandler, filters
 from telegram.error import BadRequest
 
+from config import tz
 from src.database.db_draft_operations import update_draft, delete_draft, get_user_chat_draft, add_draft
 from src.database.db_operations import add_event, get_event
+from src.jobs.notification_jobs import schedule_notifications, schedule_unpin_and_delete, \
+    remove_existing_notification_jobs, remove_existing_job
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
@@ -178,6 +181,25 @@ async def _process_limit(update, context, draft, limit_input):
             message_id=draft["bot_message_id"]
         )
 
+        # После создания мероприятия (после add_event)
+        event_datetime = datetime.strptime(f"{draft['date']} {draft['time']}", "%d.%m.%Y %H:%M")
+        event_datetime = event_datetime.replace(tzinfo=tz)  # Установите часовой пояс
+
+        # Создаем задачи уведомлений
+        await schedule_notifications(
+            event_id=event_id,
+            context=context,
+            event_datetime=event_datetime,
+            chat_id=update.message.chat_id
+        )
+
+        # Создаем задачу открепления
+        await schedule_unpin_and_delete(
+            event_id=event_id,
+            context=context,
+            chat_id=update.message.chat_id
+        )
+
         # Удаляем черновик
         delete_draft(context.bot_data["drafts_db_path"], draft["id"])
 
@@ -257,12 +279,45 @@ async def _update_event_field(context, draft, field, value):
     """Обновляет поле мероприятия"""
     from src.database.db_operations import update_event_field
 
+    # Обновляем поле в базе данных
     update_event_field(
         db_path=context.bot_data["db_path"],
         event_id=draft["event_id"],
         field=field,
         value=value
     )
+
+    # Если обновляется дата или время, пересоздаем задачи уведомлений
+    if field in ["date", "time"]:
+        # Удаляем старые задачи
+        remove_existing_notification_jobs(draft["event_id"], context)
+        remove_existing_job(draft["event_id"], context)  # Для задачи открепления
+
+        # Получаем новые дату и время
+        event = get_event(context.bot_data["db_path"], draft["event_id"])
+        if event:
+            try:
+                event_datetime = datetime.strptime(
+                    f"{event['date']} {event['time']}",
+                    "%d.%m.%Y %H:%M"
+                ).replace(tzinfo=tz)
+
+                # Создаем новые задачи
+                await schedule_notifications(
+                    event_id=draft["event_id"],
+                    context=context,
+                    event_datetime=event_datetime,
+                    chat_id=draft["chat_id"]
+                )
+
+                await schedule_unpin_and_delete(
+                    event_id=draft["event_id"],
+                    context=context,
+                    chat_id=draft["chat_id"]
+                )
+            except ValueError as e:
+                logger.error(f"Ошибка при обработке новой даты/времени: {e}")
+
     await _finalize_edit(context, draft)
 
 
