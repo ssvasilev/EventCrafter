@@ -57,7 +57,7 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Проверяем авторство
         if query.from_user.id != event["creator_id"]:
-            await query.answer("Мероприятие может редактировать только автор")
+            await query.answer("Мероприятие может редактировать только автор", show_alert=True)
             return
 
         # Получаем черновик (если есть)
@@ -74,7 +74,7 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 event_id=event["id"],
                 context=context,
                 chat_id=query.message.chat_id,
-                message_id=query.message.message_id  # Редактируем текущее сообщение
+                message_id=query.message.message_id
             )
         except Exception as e:
             logger.error(f"Ошибка при восстановлении сообщения: {e}")
