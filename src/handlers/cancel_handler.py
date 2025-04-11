@@ -141,7 +141,7 @@ async def restore_event_message_fallback(event, context, query):
 async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отмены ввода при редактировании поля мероприятия"""
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     try:
         draft_id = int(query.data.split('|')[1])
