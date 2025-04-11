@@ -7,7 +7,6 @@ from src.logger.logger import logger
 
 async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     data = query.data
 
     try:
@@ -23,13 +22,65 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await query.edit_message_text("Неизвестная команда меню.")
 
         elif data.startswith("cancel_"):
-            # Обрабатываем все cancel_* команды централизованно
             if data.startswith("cancel_draft|"):
+                draft_id = int(data.split('|')[1])
+                draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
+
+                if not draft:
+                    await query.answer("Черновик не найден", show_alert=True)
+                    return
+
+                # Для черновиков редактирования проверяем авторство мероприятия
+                if draft.get("event_id"):
+                    event = get_event(context.bot_data["db_path"], draft["event_id"])
+                    if event and query.from_user.id != event["creator_id"]:
+                        await query.answer("❌ Только автор может отменить редактирование", show_alert=True)
+                        return
+
+                # Для новых черновиков проверяем, что отменяет создатель
+                elif query.from_user.id != draft["creator_id"]:
+                    await query.answer("❌ Только создатель может отменить черновик", show_alert=True)
+                    return
+
                 await cancel_draft(update, context)
-            elif data.startswith("cancel_input|"):
-                await cancel_input(update, context)
+
             elif data.startswith("cancel_edit|"):
+                event_id = int(data.split('|')[1])
+                event = get_event(context.bot_data["db_path"], event_id)
+
+                if not event:
+                    await query.answer("Мероприятие не найдено", show_alert=True)
+                    return
+
+                if query.from_user.id != event["creator_id"]:
+                    await query.answer("❌ Только автор может отменить редактирование", show_alert=True)
+                    return
+
+                # Если проверка пройдена, вызываем cancel_edit
                 await cancel_edit(update, context)
+
+            elif data.startswith("cancel_input|"):
+                draft_id = int(data.split('|')[1])
+                draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
+
+                if not draft:
+                    await query.answer("Черновик не найден", show_alert=True)
+                    return
+
+                # Для черновиков редактирования проверяем авторство
+                if draft.get("event_id"):
+                    event = get_event(context.bot_data["db_path"], draft["event_id"])
+                    if event and query.from_user.id != event["creator_id"]:
+                        await query.answer("❌ Только автор может отменить ввод", show_alert=True)
+                        return
+
+                # Для новых черновиков проверяем создателя
+                elif query.from_user.id != draft["creator_id"]:
+                    await query.answer("❌ Только создатель может отменить ввод", show_alert=True)
+                    return
+
+                await cancel_input(update, context)
+
             else:
                 logger.warning(f"Unknown cancel action: {data}")
                 await query.edit_message_text("Неизвестная команда отмены.")

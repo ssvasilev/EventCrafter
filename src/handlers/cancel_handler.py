@@ -14,15 +14,12 @@ from src.utils.utils import format_users_list
 
 
 async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Отмена создания нового мероприятия"""
+    """Упрощенный обработчик отмены черновика (авторство уже проверено)"""
     query = update.callback_query
-    #await query.answer()
+    draft_id = int(query.data.split('|')[1])
 
     try:
-        # Получаем ID черновика
-        draft_id = int(query.data.split('|')[1])
-
-        # Удаляем черновик
+        # Удаляем черновик (проверка авторства уже выполнена)
         delete_draft(context.bot_data["drafts_db_path"], draft_id)
 
         # Удаляем сообщение с формой
@@ -36,10 +33,7 @@ async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Ошибка при отмене черновика: {e}")
-        try:
-            await query.edit_message_text("⚠️ Не удалось отменить создание")
-        except:
-            pass
+        await query.answer("⚠️ Не удалось отменить создание", show_alert=True)
 
 async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отмены редактирования мероприятия"""
