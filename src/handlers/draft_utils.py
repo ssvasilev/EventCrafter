@@ -14,42 +14,70 @@ from src.logger.logger import logger
 
 
 async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, event_id, field_name):
-    """Начинает редактирование поля мероприятия"""
+    """Начинает редактирование поля мероприятия с обработкой ошибок"""
     query = update.callback_query
-    #await query.answer()
 
-    event = get_event(context.bot_data["db_path"], event_id)
-    if not event:
-        await query.edit_message_text("Мероприятие не найдено")
-        return
+    try:
+        await query.answer()  # Обязательно отвечаем на callback_query
 
-    # Создаем черновик для редактирования
-    draft_id = add_draft(
-        db_path=context.bot_data["drafts_db_path"],
-        creator_id=query.from_user.id,
-        chat_id=query.message.chat_id,
-        status=f"EDIT_{field_name}",
-        event_id=event_id,
-        original_message_id=query.message.message_id,
-        description=event["description"],
-        date=event["date"],
-        time=event["time"],
-        participant_limit=event["participant_limit"]
-    )
+        event = get_event(context.bot_data["db_path"], event_id)
+        if not event:
+            await _show_input_error(
+                update, context,
+                "❌ Мероприятие не найдено"
+            )
+            return
 
-    # Запрашиваем новое значение
-    field_prompts = {
-        "description": "Введите новое описание мероприятия:",
-        "date": "Введите новую дату (ДД.ММ.ГГГГ):",
-        "time": "Введите новое время (ЧЧ:ММ):",
-        "limit": "Введите новый лимит участников (0 - без лимита):"
-    }
+        # Проверяем авторство
+        if query.from_user.id != event["creator_id"]:
+            await _show_input_error(
+                update, context,
+                "❌ Только автор может редактировать мероприятие"
+            )
+            return
 
-    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_input|{draft_id}")]]
-    await query.edit_message_text(
-        text=field_prompts[field_name],
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+        # Создаем черновик для редактирования
+        draft_id = add_draft(
+            db_path=context.bot_data["drafts_db_path"],
+            creator_id=query.from_user.id,
+            chat_id=query.message.chat_id,
+            status=f"EDIT_{field_name}",
+            event_id=event_id,
+            original_message_id=query.message.message_id,
+            description=event["description"],
+            date=event["date"],
+            time=event["time"],
+            participant_limit=event["participant_limit"]
+        )
+
+        # Запрашиваем новое значение
+        field_prompts = {
+            "description": "✏️ Введите новое описание мероприятия:",
+            "date": "📅 Введите новую дату (ДД.ММ.ГГГГ):",
+            "time": "🕒 Введите новое время (ЧЧ:ММ):",
+            "limit": "👥 Введите новый лимит участников (0 - без лимита):"
+        }
+
+        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_input|{draft_id}")]]
+
+        try:
+            await query.edit_message_text(
+                text=field_prompts[field_name],
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except BadRequest as e:
+            logger.warning(f"Не удалось обновить сообщение: {e}")
+            await _show_input_error(
+                update, context,
+                "⚠️ Не удалось начать редактирование"
+            )
+
+    except Exception as e:
+        logger.error(f"Ошибка при начале редактирования поля {field_name}: {e}")
+        await _show_input_error(
+            update, context,
+            "⚠️ Произошла ошибка при начале редактирования"
+        )
 
 async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE, draft):
     """Обрабатывает текущий шаг черновика на основе его статуса"""
@@ -254,20 +282,17 @@ async def _process_limit(update, context, draft, limit_input):
 
 
 async def process_edit_step(update: Update, context: ContextTypes.DEFAULT_TYPE, draft):
-    """Обрабатывает шаг редактирования"""
-    # Получаем пользователя из сообщения или callback
+    """Обрабатывает шаг редактирования с унифицированным выводом ошибок"""
     user = update.message.from_user if update.message else update.callback_query.from_user
 
     # Проверяем авторство
     event = get_event(context.bot_data["db_path"], draft["event_id"])
     if user.id != event["creator_id"]:
-        if update.message:  # Если это текстовое сообщение
-            await update.message.reply_text("❌ Только автор может редактировать мероприятие")
-            try:
-                await update.message.delete()
-            except BadRequest:
-                pass
-        return  # Прерываем выполнение
+        await _show_input_error(
+            update, context,
+            "❌ Только автор может редактировать мероприятие"
+        )
+        return
 
     field = draft["status"].split("_")[1]  # Получаем поле из статуса
     user_input = update.message.text if update.message else None
@@ -336,26 +361,19 @@ async def _update_event_field(context, draft, field, value):
 
 
 async def _validate_and_update(update, context, draft, field, value, fmt, error_hint):
-    """Проверяет формат и обновляет поле с всплывающими ошибками"""
-    from datetime import datetime
+    """Проверяет формат и обновляет поле с унифицированным выводом ошибок"""
     try:
         datetime.strptime(value, fmt)  # Валидация формата
         await _update_event_field(context, draft, field, value)
     except ValueError:
-        try:
-            await update.message.delete()
-        except BadRequest:
-            pass
-
-        await context.bot.answer_callback_query(
-            callback_query_id=update.message.message_id,
-            text=f"❌ Неверный формат. Используйте {error_hint}",
-            show_alert=True
+        await _show_input_error(
+            update, context,
+            f"❌ Неверный формат {field}. Используйте {error_hint}"
         )
 
 
 async def _update_participant_limit(update, context, draft, value):
-    """Обновляет лимит участников"""
+    """Обновляет лимит участников с унифицированным выводом ошибок"""
     try:
         limit = int(value)
         if limit < 0:
@@ -366,9 +384,9 @@ async def _update_participant_limit(update, context, draft, value):
             limit if limit != 0 else None
         )
     except ValueError:
-        await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text="❌ Лимит должен быть целым числом ≥ 0"
+        await _show_input_error(
+            update, context,
+            "❌ Лимит должен быть целым числом ≥ 0 (0 - без лимита)"
         )
 
 
