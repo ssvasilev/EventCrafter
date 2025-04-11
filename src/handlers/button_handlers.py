@@ -144,7 +144,7 @@ async def handle_edit_event(query, context, event_id):
 
     # Проверяем, является ли пользователь автором
     if query.from_user.id != event["creator_id"]:
-        await query.answer("Мероприятие может редактировать только автор")
+        await query.answer("Только автор может редактировать мероприятие", show_alert=True)
         return
 
     # Показываем меню редактирования только автору

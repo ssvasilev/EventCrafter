@@ -57,7 +57,7 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Проверяем авторство
         if query.from_user.id != event["creator_id"]:
-            await query.answer("Мероприятие может редактировать только автор", show_alert=True)
+            await query.answer("Только автор может отменить редактирование", show_alert=True)
             return
 
         # Получаем черновик (если есть)
@@ -150,6 +150,12 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not draft:
             raise Exception("Черновик не найден")
 
+        # Проверяем авторство для редактирования существующего мероприятия
+        if draft.get("event_id"):
+            event = get_event(context.bot_data["db_path"], draft["event_id"])
+            if event and query.from_user.id != event["creator_id"]:
+                await query.answer("Только автор может отменить редактирование", show_alert=True)
+                return
         # Сохраняем необходимые данные перед удалением черновика
         event_id = draft.get("event_id")
         original_message_id = draft.get("original_message_id")
