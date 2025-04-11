@@ -142,12 +142,18 @@ async def handle_edit_event(query, context, event_id):
         await query.edit_message_text("Мероприятие не найдено")
         return
 
+    # Проверяем, является ли пользователь автором
+    if query.from_user.id != event["creator_id"]:
+        await query.answer("Мероприятие может редактировать только автор")
+        return
+
+    # Показываем меню редактирования только автору
     keyboard = [
         [InlineKeyboardButton("📝 Описание", callback_data=f"edit_field|{event_id}|description")],
         [InlineKeyboardButton("📅 Дата", callback_data=f"edit_field|{event_id}|date")],
         [InlineKeyboardButton("🕒 Время", callback_data=f"edit_field|{event_id}|time")],
         [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_field|{event_id}|limit")],
-        [InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_edit|{event_id}")]  # Оставляем cancel_edit
+        [InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_edit|{event_id}")]
     ]
 
     await query.edit_message_text(
@@ -161,6 +167,11 @@ async def handle_edit_field(query, context, event_id, field):
     event = get_event(context.bot_data["db_path"], event_id)
     if not event:
         await query.edit_message_text("Мероприятие не найдено")
+        return
+
+    # Проверяем авторство
+    if query.from_user.id != event["creator_id"]:
+        await query.answer("Мероприятие может редактировать только автор")
         return
 
     # Создаем черновик с сохранением original_message_id из текущего сообщения

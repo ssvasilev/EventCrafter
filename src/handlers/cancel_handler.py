@@ -49,6 +49,16 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Получаем event_id из callback_data
         event_id = int(query.data.split('|')[1])
+        event = get_event(context.bot_data["db_path"], event_id)
+
+        if not event:
+            await query.edit_message_text("Мероприятие не найдено")
+            return
+
+        # Проверяем авторство
+        if query.from_user.id != event["creator_id"]:
+            await query.answer("Мероприятие может редактировать только автор")
+            return
 
         # Получаем черновик (если есть)
         draft = get_user_chat_draft(
@@ -58,19 +68,17 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Восстанавливаем оригинальное сообщение
-        event = get_event(context.bot_data["db_path"], event_id)
-        if event:
-            try:
-                # Редактируем текущее сообщение вместо удаления
-                await send_event_message(
-                    event_id=event["id"],
-                    context=context,
-                    chat_id=query.message.chat_id,
-                    message_id=query.message.message_id  # Редактируем текущее сообщение
-                )
-            except Exception as e:
-                logger.error(f"Ошибка при восстановлении сообщения: {e}")
-                await restore_event_message_fallback(event, context, query)
+        try:
+            # Редактируем текущее сообщение вместо удаления
+            await send_event_message(
+                event_id=event["id"],
+                context=context,
+                chat_id=query.message.chat_id,
+                message_id=query.message.message_id  # Редактируем текущее сообщение
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при восстановлении сообщения: {e}")
+            await restore_event_message_fallback(event, context, query)
 
         # Удаляем черновик если он существует
         if draft:

@@ -256,6 +256,14 @@ async def _process_limit(update, context, draft, limit_input):
 
 async def process_edit_step(update: Update, context: ContextTypes.DEFAULT_TYPE, draft):
     """Обрабатывает шаг редактирования"""
+    # Проверяем авторство
+    event = get_event(context.bot_data["db_path"], draft["event_id"])
+    if not event or update.message.from_user.id != event["creator_id"]:
+        await context.bot.send_message(
+            chat_id=update.message.chat_id,
+            text="Мероприятие может редактировать только автор"
+        )
+        return
     field = draft["status"].split("_")[1]  # Получаем поле из статуса (EDIT_description -> description)
     user_input = update.message.text
 
