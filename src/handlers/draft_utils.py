@@ -413,7 +413,7 @@ async def _show_input_error(update, context, error_text):
             await context.bot.answer_callback_query(
                 callback_query_id=update.message.message_id,
                 text=error_text,
-                show_alert=True
+                show_alert=False
             )
         # Затем удаляем сообщение (если это текстовый ввод)
         if update.message:

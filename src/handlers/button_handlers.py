@@ -144,7 +144,7 @@ async def handle_edit_event(query, context, event_id):
 
     # Проверяем, является ли пользователь автором
     if query.from_user.id != event["creator_id"]:
-        await query.answer("❌ Только автор может редактировать мероприятие", show_alert=True)
+        await query.answer("❌ Только автор может редактировать мероприятие", show_alert=False)
         return
 
     # Показываем меню редактирования только автору
@@ -318,41 +318,62 @@ async def handle_delete_event(query, context, event_id):
 
         # Двойная проверка авторства (на всякий случай)
         if query.from_user.id != event["creator_id"]:
-            await query.answer("❌ Только автор может удалить мероприятие", show_alert=True)
+            await query.answer("❌ Только автор может удалить мероприятие", show_alert=False)
             return
 
-        #Удаляем задачи на уведомления
+        # Сохраняем данные для уведомлений перед удалением
+        event_description = event["description"]
+        participants = get_participants(context.bot_data["db_path"], event_id)
+        chat_id = event["chat_id"]
+        message_id = event["message_id"]
+
+        # 1. Удаляем задачи на уведомления
         remove_existing_notification_jobs(event_id, context)
 
-        # Удаляем мероприятие из базы данных
+        # 2. Удаляем мероприятие из базы данных
         delete_event(context.bot_data["db_path"], event_id)
 
-        # Удаляем сообщение о мероприятии из чата
+        # 3. Удаляем сообщение о мероприятии из чата
         try:
             await context.bot.delete_message(
-                chat_id=event["chat_id"],
-                message_id=event["message_id"]
+                chat_id=chat_id,
+                message_id=message_id
             )
         except BadRequest as e:
             logger.warning(f"Не удалось удалить сообщение: {e}")
 
-        # Уведомляем пользователя
-        await query.edit_message_text(
-            text=f"✅ Мероприятие '{event['description']}' успешно удалено",
-            reply_markup=None
-        )
+        # 4. Отправляем подтверждение удаления в новом сообщении
+        try:
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=f"✅ Мероприятие '{event_description}' успешно удалено"
+            )
+        except Exception as e:
+            logger.error(f"Не удалось отправить подтверждение: {e}")
 
-        participants = get_participants(context.bot_data["db_path"], event_id)
+        # 5. Уведомляем участников
         for participant in participants:
             try:
                 await context.bot.send_message(
                     chat_id=participant["user_id"],
-                    text=f"Мероприятие '{event['description']}' было отменено"
+                    text=(
+                        f"🚫 Мероприятие отменено\n\n"
+                        f"Название: {event_description}\n"
+                        f"Автор: {query.from_user.first_name}"
+                    )
                 )
             except Exception as e:
                 logger.warning(f"Не удалось уведомить участника {participant['user_id']}: {e}")
 
-        # Логируем действие
+        # 6. Удаляем сообщение с подтверждением удаления
+        try:
+            await context.bot.delete_message(
+                chat_id=query.message.chat_id,
+                message_id=query.message.message_id
+            )
+        except BadRequest as e:
+            logger.warning(f"Не удалось удалить сообщение подтверждения: {e}")
+
         logger.info(f"Пользователь {query.from_user.id} удалил мероприятие {event_id}")
 
     except Exception as e:
