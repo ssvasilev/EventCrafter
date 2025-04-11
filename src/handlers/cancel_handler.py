@@ -16,7 +16,7 @@ from src.utils.utils import format_users_list
 async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отмена создания нового мероприятия"""
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     try:
         # Получаем ID черновика
@@ -44,7 +44,7 @@ async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отмены редактирования мероприятия"""
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     try:
         # Получаем event_id из callback_data
