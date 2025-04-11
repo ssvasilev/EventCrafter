@@ -294,11 +294,11 @@ async def handle_delete_event(query, context, event_id):
     event = get_event(context.bot_data["db_path"], event_id)
 
     if not event:
-        await query.answer("Мероприятие не найдено", show_alert=True)
+        await query.answer("Мероприятие не найдено", show_alert=False)
         return
 
     if query.from_user.id != event["creator_id"]:
-        await query.answer("❌ Только автор может удалить мероприятие", show_alert=True)
+        await query.answer("❌ Только автор может удалить мероприятие", show_alert=False)
         return
 
     try:
@@ -322,16 +322,33 @@ async def handle_delete_event(query, context, event_id):
 
     except Exception as e:
         logger.error(f"Ошибка при удалении мероприятия: {e}")
-        await query.answer("⚠️ Не удалось удалить мероприятие", show_alert=True)
+        await query.answer("⚠️ Не удалось удалить мероприятие", show_alert=False)
+
 
 async def handle_cancel_delete(query, context, event_id):
-    # Возвращаем пользователя в меню редактирования
-    await handle_edit_event(query, context, event_id)
+    """Обработчик отмены удаления мероприятия"""
+    try:
+        event = get_event(context.bot_data["db_path"], event_id)
+        if not event:
+            await query.answer("Мероприятие не найдено", show_alert=True)
+            return
+
+        # Возвращаем пользователя к просмотру мероприятия
+        await send_event_message(
+            event_id=event_id,
+            context=context,
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при отмене удаления: {e}")
+        await query.answer("⚠️ Не удалось отменить удаление", show_alert=True)
 
 def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             button_handler,
-            pattern=r"^(join|leave|edit|edit_field|confirm_delete|delete_event|cancel_delete)\|"
+            pattern=r"^(join|leave|edit|edit_field|confirm_delete|delete_event)\|"
         )
     )
