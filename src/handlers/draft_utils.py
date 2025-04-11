@@ -99,7 +99,7 @@ async def _process_description(update, context, draft, description):
     )
 
 async def _process_date(update, context, draft, date_input):
-    """Обработка шага ввода даты"""
+    """Обработка шага ввода даты с всплывающими ошибками"""
     try:
         datetime.strptime(date_input, "%d.%m.%Y").date()
 
@@ -118,16 +118,23 @@ async def _process_date(update, context, draft, date_input):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     except ValueError:
-        await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text="❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ"
+        # Удаляем неверное сообщение пользователя
+        try:
+            await update.message.delete()
+        except BadRequest:
+            pass
+
+        # Показываем всплывающее окно
+        await context.bot.answer_callback_query(
+            callback_query_id=update.message.message_id,
+            text="❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ",
+            show_alert=False
         )
 
 async def _process_time(update, context, draft, time_input):
-    """Обработка шага ввода времени"""
+    """Обработка шага ввода времени с всплывающими ошибками"""
     try:
         datetime.strptime(time_input, "%H:%M").time()
-
         update_draft(
             db_path=context.bot_data["drafts_db_path"],
             draft_id=draft["id"],
@@ -146,9 +153,15 @@ async def _process_time(update, context, draft, time_input):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     except ValueError:
-        await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text="❌ Неверный формат времени. Используйте ЧЧ:ММ"
+        try:
+            await update.message.delete()
+        except BadRequest:
+            pass
+
+        await context.bot.answer_callback_query(
+            callback_query_id=update.message.message_id,
+            text="❌ Неверный формат времени. Используйте ЧЧ:ММ",
+            show_alert=True
         )
 
 async def _process_limit(update, context, draft, limit_input):
@@ -240,10 +253,15 @@ async def _process_limit(update, context, draft, limit_input):
             logger.error(f"Ошибка при отправке уведомления создателю: {e}")
 
     except ValueError:
-        await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text="❌ Неверный формат лимита. Введите целое число (0 - без лимита)",
-            reply_to_message_id=draft["bot_message_id"]
+        try:
+            await update.message.delete()
+        except BadRequest:
+            pass
+
+        await context.bot.answer_callback_query(
+            callback_query_id=update.message.message_id,
+            text="❌ Лимит должен быть целым числом ≥ 0 (0 - без лимита)",
+            show_alert=True
         )
     except Exception as e:
         logger.error(f"Ошибка создания мероприятия: {e}")
@@ -337,15 +355,21 @@ async def _update_event_field(context, draft, field, value):
 
 
 async def _validate_and_update(update, context, draft, field, value, fmt, error_hint):
-    """Проверяет формат и обновляет поле"""
+    """Проверяет формат и обновляет поле с всплывающими ошибками"""
     from datetime import datetime
     try:
         datetime.strptime(value, fmt)  # Валидация формата
         await _update_event_field(context, draft, field, value)
     except ValueError:
-        await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text=f"❌ Неверный формат. Используйте {error_hint}"
+        try:
+            await update.message.delete()
+        except BadRequest:
+            pass
+
+        await context.bot.answer_callback_query(
+            callback_query_id=update.message.message_id,
+            text=f"❌ Неверный формат. Используйте {error_hint}",
+            show_alert=True
         )
 
 
