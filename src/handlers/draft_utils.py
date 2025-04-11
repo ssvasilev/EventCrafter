@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, MessageHandler, filters
@@ -118,17 +119,9 @@ async def _process_date(update, context, draft, date_input):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     except ValueError:
-        # Удаляем неверное сообщение пользователя
-        try:
-            await update.message.delete()
-        except BadRequest:
-            pass
-
-        # Показываем всплывающее окно
-        await context.bot.answer_callback_query(
-            callback_query_id=update.message.message_id,
-            text="❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ",
-            show_alert=False
+        await _show_input_error(
+            update, context,
+            "❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ"
         )
 
 async def _process_time(update, context, draft, time_input):
@@ -153,15 +146,9 @@ async def _process_time(update, context, draft, time_input):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     except ValueError:
-        try:
-            await update.message.delete()
-        except BadRequest:
-            pass
-
-        await context.bot.answer_callback_query(
-            callback_query_id=update.message.message_id,
-            text="❌ Неверный формат времени. Используйте ЧЧ:ММ",
-            show_alert=True
+        await _show_input_error(
+            update, context,
+            "❌ Неверный формат времени. Используйте ЧЧ:ММ"
         )
 
 async def _process_limit(update, context, draft, limit_input):
@@ -253,15 +240,9 @@ async def _process_limit(update, context, draft, limit_input):
             logger.error(f"Ошибка при отправке уведомления создателю: {e}")
 
     except ValueError:
-        try:
-            await update.message.delete()
-        except BadRequest:
-            pass
-
-        await context.bot.answer_callback_query(
-            callback_query_id=update.message.message_id,
-            text="❌ Лимит должен быть целым числом ≥ 0 (0 - без лимита)",
-            show_alert=True
+        await _show_input_error(
+            update, context,
+            "❌ Лимит должен быть целым числом ≥ 0 (0 - без лимита)"
         )
     except Exception as e:
         logger.error(f"Ошибка создания мероприятия: {e}")
@@ -405,3 +386,32 @@ async def _finalize_edit(context, draft):
 
     # Удаляем черновик
     delete_draft(context.bot_data["drafts_db_path"], draft["id"])
+
+async def _show_input_error(update, context, error_text):
+    """Универсальный метод показа ошибок ввода"""
+    try:
+        # Сначала показываем всплывающее окно
+        if update.message:
+            await context.bot.answer_callback_query(
+                callback_query_id=update.message.message_id,
+                text=error_text,
+                show_alert=True
+            )
+        # Затем удаляем сообщение (если это текстовый ввод)
+        if update.message:
+            try:
+                await update.message.delete()
+            except BadRequest:
+                pass
+    except Exception as e:
+        logger.warning(f"Не удалось показать ошибку: {e}")
+        # Фолбэк: отправляем временное сообщение
+        try:
+            msg = await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=error_text
+            )
+            await asyncio.sleep(5)
+            await msg.delete()
+        except Exception as fallback_error:
+            logger.error(f"Не удалось отправить сообщение об ошибке: {fallback_error}")
