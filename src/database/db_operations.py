@@ -434,7 +434,10 @@ def delete_scheduled_job(db_path: str, event_id: int, job_id: str = None, job_ty
         logger.info(f"Задачи для мероприятия {event_id} удалены из базы данных.")
 
 def delete_event(db_path: str, event_id: int):
+    """Удаляет мероприятие и все связанные данные"""
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
+        # Удаляем связанные записи (благодаря ON DELETE CASCADE)
         cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
         conn.commit()
+        logger.info(f"Мероприятие {event_id} удалено из базы данных")

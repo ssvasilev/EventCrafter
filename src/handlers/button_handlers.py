@@ -1,6 +1,7 @@
 import asyncio
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from src.database.db_operations import (
     get_event,
@@ -15,7 +16,7 @@ from src.database.db_operations import (
     add_to_reserve,
     get_reserve,
     is_user_in_declined,
-    update_event_field
+    update_event_field, delete_event
 )
 from src.database.db_draft_operations import add_draft, delete_draft, get_draft
 from src.message.send_message import send_event_message
@@ -31,22 +32,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parts = query.data.split('|')
             action = parts[0]
 
-            if action in ['join', 'leave', 'edit']:
-                event_id = int(parts[1])
-                if action == 'join':
-                    await handle_join(query, context, event_id)
-                elif action == 'leave':
-                    await handle_leave(query, context, event_id)
-                elif action == 'edit':
-                    await handle_edit_event(query, context, event_id)
-
+            if action == 'join':
+                await handle_join(query, context, int(parts[1]))
+            elif action == 'leave':
+                await handle_leave(query, context, int(parts[1]))
+            elif action == 'edit':
+                await handle_edit_event(query, context, int(parts[1]))
             elif action == 'edit_field':
-                event_id = int(parts[1])
-                field = parts[2]
-                await handle_edit_field(query, context, event_id, field)
-        else:
-            await query.edit_message_text("⚠️ Неизвестный формат запроса")
-
+                await handle_edit_field(query, context, int(parts[1]), parts[2])
+            elif action == 'confirm_delete':
+                await handle_confirm_delete(query, context, int(parts[1]))
+            elif action == 'delete_event':
+                await handle_delete_event(query, context, int(parts[1]))
+            elif action == 'cancel_delete':
+                await handle_cancel_delete(query, context, int(parts[1]))
     except Exception as e:
         logger.error(f"Ошибка обработки callback: {e}")
         await query.edit_message_text("⚠️ Произошла ошибка при обработке запроса")
@@ -139,12 +138,12 @@ async def handle_edit_event(query, context, event_id):
     event = get_event(context.bot_data["db_path"], event_id)
 
     if not event:
-        await query.edit_message_text("Мероприятие не найдено")
+        await query.answer("Мероприятие не найдено", show_alert=True)
         return
 
     # Проверяем, является ли пользователь автором
     if query.from_user.id != event["creator_id"]:
-        await query.answer("❌ Только автор может редактировать мероприятие", show_alert=False)
+        await query.answer("❌ Только автор может редактировать мероприятие", show_alert=True)
         return
 
     # Показываем меню редактирования только автору
@@ -153,6 +152,7 @@ async def handle_edit_event(query, context, event_id):
         [InlineKeyboardButton("📅 Дата", callback_data=f"edit_field|{event_id}|date")],
         [InlineKeyboardButton("🕒 Время", callback_data=f"edit_field|{event_id}|time")],
         [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_field|{event_id}|limit")],
+        [InlineKeyboardButton("🗑️ Удалить мероприятие", callback_data=f"confirm_delete|{event_id}")],
         [InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_edit|{event_id}")]
     ]
 
@@ -278,10 +278,60 @@ async def update_event_message(context, event_id, message):
         logger.error(f"Критическая ошибка при обновлении сообщения: {e}")
 
 
+async def handle_confirm_delete(query, context, event_id):
+    keyboard = [
+        [InlineKeyboardButton("✅ Да, удалить", callback_data=f"delete_event|{event_id}")],
+        [InlineKeyboardButton("❌ Нет, отменить", callback_data=f"cancel_delete|{event_id}")]
+    ]
+
+    await query.edit_message_text(
+        text="❌ Вы уверены, что хотите удалить мероприятие?",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def handle_delete_event(query, context, event_id):
+    event = get_event(context.bot_data["db_path"], event_id)
+
+    if not event:
+        await query.answer("Мероприятие не найдено", show_alert=True)
+        return
+
+    if query.from_user.id != event["creator_id"]:
+        await query.answer("❌ Только автор может удалить мероприятие", show_alert=True)
+        return
+
+    try:
+        # Удаляем мероприятие из базы данных
+        delete_event(context.bot_data["db_path"], event_id)
+
+        # Удаляем сообщение о мероприятии из чата
+        try:
+            await context.bot.delete_message(
+                chat_id=event["chat_id"],
+                message_id=event["message_id"]
+            )
+        except BadRequest:
+            pass
+
+        # Отправляем подтверждение удаления
+        await query.edit_message_text(
+            text="✅ Мероприятие успешно удалено",
+            reply_markup=None
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при удалении мероприятия: {e}")
+        await query.answer("⚠️ Не удалось удалить мероприятие", show_alert=True)
+
+async def handle_cancel_delete(query, context, event_id):
+    # Возвращаем пользователя в меню редактирования
+    await handle_edit_event(query, context, event_id)
+
 def register_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             button_handler,
-            pattern=r"^(join|leave|edit|edit_field)\|"
+            pattern=r"^(join|leave|edit|edit_field|confirm_delete|delete_event|cancel_delete)\|"
         )
     )
