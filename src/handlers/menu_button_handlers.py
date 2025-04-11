@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, CallbackQueryHandler
 
 from src.database.db_draft_operations import get_draft
 from src.database.db_operations import get_event
-from src.handlers.button_handlers import handle_cancel_delete
+from src.handlers.button_handlers import handle_cancel_delete, handle_confirm_delete
 from src.handlers.create_event_handler import create_event_button
 from src.buttons.my_events_button import my_events_button
 from src.handlers.cancel_handler import cancel_draft, cancel_input, cancel_edit
@@ -62,6 +62,20 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
                 # Если проверка пройдена, вызываем cancel_edit
                 await cancel_edit(update, context)
+
+            elif data.startswith("confirm_delete|"):
+                event_id = int(data.split('|')[1])
+                event = get_event(context.bot_data["db_path"], event_id)
+
+                if not event:
+                    await query.answer("Мероприятие не найдено", show_alert=True)
+                    return
+
+                if query.from_user.id != event["creator_id"]:
+                    await query.answer("❌ Только автор может удалить мероприятие", show_alert=True)
+                    return
+
+                await handle_confirm_delete(query, context, event_id)
 
             elif data.startswith("cancel_delete|"):
                 event_id = int(data.split('|')[1])

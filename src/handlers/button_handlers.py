@@ -16,9 +16,10 @@ from src.database.db_operations import (
     add_to_reserve,
     get_reserve,
     is_user_in_declined,
-    update_event_field, delete_event
+    update_event_field, delete_event, get_participants
 )
 from src.database.db_draft_operations import add_draft, delete_draft, get_draft
+from src.jobs.notification_jobs import remove_existing_notification_jobs
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
@@ -279,29 +280,50 @@ async def update_event_message(context, event_id, message):
 
 
 async def handle_confirm_delete(query, context, event_id):
-    keyboard = [
-        [InlineKeyboardButton("✅ Да, удалить", callback_data=f"delete_event|{event_id}")],
-        [InlineKeyboardButton("❌ Нет, отменить", callback_data=f"cancel_delete|{event_id}")]
-    ]
+    """Показывает подтверждение удаления с проверкой авторства"""
+    try:
+        event = get_event(context.bot_data["db_path"], event_id)
 
-    await query.edit_message_text(
-        text="❌ Вы уверены, что хотите удалить мероприятие?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+        if not event:
+            await query.answer("Мероприятие не найдено", show_alert=True)
+            return
+
+        # Проверяем авторство
+        if query.from_user.id != event["creator_id"]:
+            await query.answer("❌ Только автор может удалить мероприятие", show_alert=True)
+            return
+
+        keyboard = [
+            [InlineKeyboardButton("🗑️ Да, удалить", callback_data=f"delete_event|{event_id}")],
+            [InlineKeyboardButton("⛔ Нет, отменить", callback_data=f"cancel_delete|{event_id}")]
+        ]
+
+        await query.edit_message_text(
+            text="⚠️ Вы уверены, что хотите удалить мероприятие?",
+            reply_markup=InlineKeyboardMarkup(keyboard))
+
+    except Exception as e:
+        logger.error(f"Ошибка при подтверждении удаления: {e}")
+        await query.answer("⚠️ Произошла ошибка", show_alert=True)
 
 
 async def handle_delete_event(query, context, event_id):
-    event = get_event(context.bot_data["db_path"], event_id)
-
-    if not event:
-        await query.answer("Мероприятие не найдено", show_alert=False)
-        return
-
-    if query.from_user.id != event["creator_id"]:
-        await query.answer("❌ Только автор может удалить мероприятие", show_alert=False)
-        return
-
+    """Обработчик удаления мероприятия с двойной проверкой авторства"""
     try:
+        event = get_event(context.bot_data["db_path"], event_id)
+
+        if not event:
+            await query.answer("Мероприятие не найдено", show_alert=True)
+            return
+
+        # Двойная проверка авторства (на всякий случай)
+        if query.from_user.id != event["creator_id"]:
+            await query.answer("❌ Только автор может удалить мероприятие", show_alert=True)
+            return
+
+        #Удаляем задачи на уведомления
+        remove_existing_notification_jobs(event_id, context)
+
         # Удаляем мероприятие из базы данных
         delete_event(context.bot_data["db_path"], event_id)
 
@@ -311,18 +333,31 @@ async def handle_delete_event(query, context, event_id):
                 chat_id=event["chat_id"],
                 message_id=event["message_id"]
             )
-        except BadRequest:
-            pass
+        except BadRequest as e:
+            logger.warning(f"Не удалось удалить сообщение: {e}")
 
-        # Отправляем подтверждение удаления
+        # Уведомляем пользователя
         await query.edit_message_text(
-            text="✅ Мероприятие успешно удалено",
+            text=f"✅ Мероприятие '{event['description']}' успешно удалено",
             reply_markup=None
         )
 
+        participants = get_participants(context.bot_data["db_path"], event_id)
+        for participant in participants:
+            try:
+                await context.bot.send_message(
+                    chat_id=participant["user_id"],
+                    text=f"Мероприятие '{event['description']}' было отменено"
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось уведомить участника {participant['user_id']}: {e}")
+
+        # Логируем действие
+        logger.info(f"Пользователь {query.from_user.id} удалил мероприятие {event_id}")
+
     except Exception as e:
         logger.error(f"Ошибка при удалении мероприятия: {e}")
-        await query.answer("⚠️ Не удалось удалить мероприятие", show_alert=False)
+        await query.answer("⚠️ Не удалось удалить мероприятие", show_alert=True)
 
 
 async def handle_cancel_delete(query, context, event_id):
