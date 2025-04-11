@@ -72,13 +72,30 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     return
 
                 if query.from_user.id != event["creator_id"]:
-                    await query.answer("❌ Только автор может удалить мероприятие", show_alert=True)
+                    await query.answer("❌ Только автор может удалить мероприятие", show_alert=False)
                     return
 
                 await handle_confirm_delete(query, context, event_id)
 
+
             elif data.startswith("cancel_delete|"):
+
                 event_id = int(data.split('|')[1])
+
+                event = get_event(context.bot_data["db_path"], event_id)
+
+                if not event:
+                    await query.answer("Мероприятие не найдено", show_alert=True)
+
+                    return
+
+                # Проверяем авторство
+
+                if query.from_user.id != event["creator_id"]:
+                    await query.answer("❌ Только автор может отменить удаление", show_alert=False)
+
+                    return
+
                 await handle_cancel_delete(query, context, event_id)
 
             elif data.startswith("cancel_input|"):

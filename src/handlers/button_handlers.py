@@ -361,11 +361,16 @@ async def handle_delete_event(query, context, event_id):
 
 
 async def handle_cancel_delete(query, context, event_id):
-    """Обработчик отмены удаления мероприятия"""
+    """Обработчик отмены удаления с проверкой авторства"""
     try:
         event = get_event(context.bot_data["db_path"], event_id)
         if not event:
             await query.answer("Мероприятие не найдено", show_alert=True)
+            return
+
+        # Дополнительная проверка авторства (для надежности)
+        if query.from_user.id != event["creator_id"]:
+            await query.answer("❌ Только автор может отменить удаление", show_alert=False)
             return
 
         # Возвращаем пользователя к просмотру мероприятия
@@ -375,6 +380,9 @@ async def handle_cancel_delete(query, context, event_id):
             chat_id=query.message.chat_id,
             message_id=query.message.message_id
         )
+
+        # Логируем действие
+        logger.info(f"Пользователь {query.from_user.id} отменил удаление мероприятия {event_id}")
 
     except Exception as e:
         logger.error(f"Ошибка при отмене удаления: {e}")
