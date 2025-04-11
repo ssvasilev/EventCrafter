@@ -393,7 +393,7 @@ async def _show_input_error(update, context, error_text):
         # Сначала показываем всплывающее окно
         if update.message:
             await context.bot.answer_callback_query(
-                callback_query_id=update.message.message_id,
+                #callback_query_id=update.message.message_id,
                 text=error_text,
                 show_alert=True
             )
