@@ -15,7 +15,14 @@ async def handle_draft_message(update, context):
     )
 
     if draft:
-        await process_draft_step(update, context, draft)
+        try:
+            await process_draft_step(update, context, draft)
+        except Exception as e:
+            logger.error(f"Ошибка обработки черновика: {e}")
+            await context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text="⚠️ Произошла ошибка при обработке вашего ввода"
+            )
 
 
 def register_draft_handlers(application):

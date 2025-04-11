@@ -256,14 +256,22 @@ async def _process_limit(update, context, draft, limit_input):
 
 async def process_edit_step(update: Update, context: ContextTypes.DEFAULT_TYPE, draft):
     """Обрабатывает шаг редактирования"""
+    # Получаем пользователя из сообщения или callback
+    user = update.message.from_user if update.message else update.callback_query.from_user
+
     # Проверяем авторство
     event = get_event(context.bot_data["db_path"], draft["event_id"])
-    query = update.callback_query
-    if query.from_user.id != event["creator_id"]:
-        await query.answer("Мероприятие может редактировать только автор", show_alert=True)
-        return
-    field = draft["status"].split("_")[1]  # Получаем поле из статуса (EDIT_description -> description)
-    user_input = update.message.text
+    if user.id != event["creator_id"]:
+        if update.message:  # Если это текстовое сообщение
+            await update.message.reply_text("❌ Только автор может редактировать мероприятие")
+            try:
+                await update.message.delete()
+            except BadRequest:
+                pass
+        return  # Прерываем выполнение
+
+    field = draft["status"].split("_")[1]  # Получаем поле из статуса
+    user_input = update.message.text if update.message else None
 
     if field == "description":
         await _update_event_field(context, draft, "description", user_input)
@@ -274,11 +282,12 @@ async def process_edit_step(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     elif field == "limit":
         await _update_participant_limit(update, context, draft, user_input)
 
-    # Удаляем сообщение пользователя
-    try:
-        await update.message.delete()
-    except BadRequest as e:
-        logger.warning(f"Не удалось удалить сообщение: {e}")
+    # Удаляем сообщение пользователя, если это текстовый ввод
+    if update.message:
+        try:
+            await update.message.delete()
+        except BadRequest as e:
+            logger.warning(f"Не удалось удалить сообщение: {e}")
 
 
 async def _update_event_field(context, draft, field, value):
