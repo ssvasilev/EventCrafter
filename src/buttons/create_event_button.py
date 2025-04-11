@@ -6,7 +6,7 @@ from src.database.db_draft_operations import add_draft
 
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     # Создаем черновик мероприятия
     creator_id = query.from_user.id

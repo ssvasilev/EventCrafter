@@ -7,7 +7,7 @@ from src.logger.logger import logger
 #Обработка нажатия на кнопку "Мои мероприятия"
 async def my_events_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     user_id = query.from_user.id
     db_path = context.bot_data["db_path"]

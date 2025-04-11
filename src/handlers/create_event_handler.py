@@ -6,7 +6,7 @@ from src.logger.logger import logger
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик кнопки 'Создать мероприятие'"""
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     creator_id = query.from_user.id
     chat_id = query.message.chat_id

@@ -16,7 +16,7 @@ from src.logger.logger import logger
 async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, event_id, field_name):
     """Начинает редактирование поля мероприятия"""
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     event = get_event(context.bot_data["db_path"], event_id)
     if not event:
