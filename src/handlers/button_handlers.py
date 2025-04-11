@@ -144,7 +144,7 @@ async def handle_edit_event(query, context, event_id):
 
     # Проверяем, является ли пользователь автором
     if query.from_user.id != event["creator_id"]:
-        await query.answer("Только автор может редактировать мероприятие", show_alert=True)
+        await query.answer("❌ Только автор может редактировать мероприятие", show_alert=False)
         return
 
     # Показываем меню редактирования только автору
@@ -171,7 +171,7 @@ async def handle_edit_field(query, context, event_id, field):
 
     # Проверяем авторство
     if query.from_user.id != event["creator_id"]:
-        await query.answer("Мероприятие может редактировать только автор")
+        await query.answer("❌ Только автор может редактировать мероприятие")
         return
 
     # Создаем черновик с сохранением original_message_id из текущего сообщения

@@ -30,19 +30,19 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
 
                 if not draft:
-                    await query.answer("Черновик не найден", show_alert=True)
+                    await query.answer("Черновик не найден", show_alert=False)
                     return
 
                 # Для черновиков редактирования проверяем авторство мероприятия
                 if draft.get("event_id"):
                     event = get_event(context.bot_data["db_path"], draft["event_id"])
                     if event and query.from_user.id != event["creator_id"]:
-                        await query.answer("❌ Только автор может отменить редактирование", show_alert=True)
+                        await query.answer("❌ Только автор может отменить редактирование", show_alert=False)
                         return
 
-                # Для новых черновиков проверяем, что отменяет создатель
+                # Для новых черновиков проверяем, что отменяет автор
                 elif query.from_user.id != draft["creator_id"]:
-                    await query.answer("❌ Только создатель может отменить черновик", show_alert=True)
+                    await query.answer("❌ Только автор может отменить черновик", show_alert=False)
                     return
 
                 await cancel_draft(update, context)
@@ -52,11 +52,11 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 event = get_event(context.bot_data["db_path"], event_id)
 
                 if not event:
-                    await query.answer("Мероприятие не найдено", show_alert=True)
+                    await query.answer("Мероприятие не найдено", show_alert=False)
                     return
 
                 if query.from_user.id != event["creator_id"]:
-                    await query.answer("❌ Только автор может отменить редактирование", show_alert=True)
+                    await query.answer("❌ Только автор может отменить редактирование", show_alert=False)
                     return
 
                 # Если проверка пройдена, вызываем cancel_edit
@@ -67,19 +67,19 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
 
                 if not draft:
-                    await query.answer("Черновик не найден", show_alert=True)
+                    await query.answer("Черновик не найден", show_alert=False)
                     return
 
                 # Для черновиков редактирования проверяем авторство
                 if draft.get("event_id"):
                     event = get_event(context.bot_data["db_path"], draft["event_id"])
                     if event and query.from_user.id != event["creator_id"]:
-                        await query.answer("❌ Только автор может отменить ввод", show_alert=True)
+                        await query.answer("❌ Только автор может отменить ввод", show_alert=False)
                         return
 
-                # Для новых черновиков проверяем создателя
+                # Для новых черновиков проверяем автор
                 elif query.from_user.id != draft["creator_id"]:
-                    await query.answer("❌ Только создатель может отменить ввод", show_alert=True)
+                    await query.answer("❌ Только автор может отменить ввод", show_alert=False)
                     return
 
                 await cancel_input(update, context)

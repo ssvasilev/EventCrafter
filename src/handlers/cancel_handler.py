@@ -33,7 +33,7 @@ async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Ошибка при отмене черновика: {e}")
-        await query.answer("⚠️ Не удалось отменить создание", show_alert=True)
+        await query.answer("⚠️ Не удалось отменить создание", show_alert=False)
 
 async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отмены редактирования мероприятия"""
@@ -51,7 +51,7 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Проверяем авторство
         if query.from_user.id != event["creator_id"]:
-            await query.answer("Только автор может отменить редактирование", show_alert=True)
+            await query.answer("Только автор может отменить редактирование", show_alert=False)
             return
 
         # Получаем черновик (если есть)
@@ -148,7 +148,7 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if draft.get("event_id"):
             event = get_event(context.bot_data["db_path"], draft["event_id"])
             if event and query.from_user.id != event["creator_id"]:
-                await query.answer("Только автор может отменить редактирование", show_alert=True)
+                await query.answer("❌ Только автор может отменить редактирование", show_alert=False)
                 return
         # Сохраняем необходимые данные перед удалением черновика
         event_id = draft.get("event_id")

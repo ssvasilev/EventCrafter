@@ -16,7 +16,7 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_path = context.bot_data["db_path"]
     event = get_event(db_path, event_id)
     if not event:
-        await query.answer("Мероприятие не найдено.", show_alert=True)
+        await query.answer("Мероприятие не найдено.", show_alert=False)
         return ConversationHandler.END
 
     # Проверяем, является ли пользователь автором мероприятия

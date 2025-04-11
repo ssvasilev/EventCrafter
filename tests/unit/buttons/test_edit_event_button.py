@@ -145,6 +145,6 @@ async def test_edit_event_button_not_found(mock_update, mock_context):
         # Проверки
         mock_update.callback_query.answer.assert_called_once_with(
             "Мероприятие не найдено.",
-            show_alert=True
+            show_alert=False
         )
         assert result == -1  # ConversationHandler.END
