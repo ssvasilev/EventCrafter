@@ -13,7 +13,7 @@ from src.message.send_message import send_event_message
 # Обработка редактирования даты
 async def edit_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [

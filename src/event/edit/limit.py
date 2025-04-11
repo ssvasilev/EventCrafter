@@ -10,7 +10,7 @@ from src.message.send_message import send_event_message
 # Обработка редактирования лимита участников
 async def edit_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    #await query.answer()
 
     # Создаем клавиатуру с кнопкой "Отмена"
     keyboard = [
