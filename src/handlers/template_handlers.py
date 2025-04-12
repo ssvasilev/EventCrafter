@@ -112,3 +112,21 @@ async def use_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Шаблон применён!\n\nОписание: {template['description']}\n"
         f"Время: {template['time']}\nЛимит: {template['participant_limit'] or 'нет'}"
     )
+
+async def save_user_middleware(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if user:
+        with sqlite3.connect(context.bot_data["db_path"]) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """INSERT OR REPLACE INTO users 
+                (id, first_name, last_name, username, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (user.id,
+                 user.first_name,
+                 user.last_name or "",
+                 user.username or "",
+                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            )
+            conn.commit()

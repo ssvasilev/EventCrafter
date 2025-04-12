@@ -1,7 +1,7 @@
 import logging
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes, TypeHandler
 from config import DB_PATH, tz, DB_DRAFT_PATH
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
@@ -10,6 +10,7 @@ from src.handlers.draft_handlers import register_draft_handlers
 
 from src.handlers.message_handler import register_message_handlers
 from src.handlers.start_handler import start
+from src.handlers.template_handlers import save_user_middleware
 from src.handlers.version_handler import version
 from src.handlers.mention_handler import register_mention_handler
 from src.handlers.menu_button_handlers import  register_menu_button_handler
@@ -62,6 +63,7 @@ def main():
     register_create_handlers(application)
     register_menu_button_handler(application)  # Обрабатывает menu_* и cancel_*
     register_button_handler(application)  # Обрабатывает join|*, leave|*, edit|*
+    application.add_handler(TypeHandler(Update, save_user_middleware), group=-1)
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
