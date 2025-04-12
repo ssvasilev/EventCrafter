@@ -8,40 +8,41 @@ from src.database.db_operations import get_event, get_user_templates
 from src.logger import logger
 
 
-async def handle_save_template(query, context, event_id):
+async def handle_my_templates(query, context):
+    """Показывает список шаблонов пользователя с обработкой ошибок"""
     try:
-        event = get_event(context.bot_data["db_path"], event_id)
+        templates = get_user_templates(context.bot_data["db_path"], query.from_user.id)
 
-        if not event:
-            await query.answer("Мероприятие не найдено", show_alert=True)
+        if not templates:
+            await query.answer("У вас нет сохранённых шаблонов", show_alert=True)
             return
 
-        if query.from_user.id != event["creator_id"]:
-            await query.answer("❌ Только автор может сохранять шаблоны", show_alert=True)
-            return
+        # Логируем для отладки
+        logger.debug(f"Найдены шаблоны: {templates}")
 
-        # Сохраняем в базу
-        with sqlite3.connect(context.bot_data["db_path"]) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """INSERT INTO event_templates 
-                (user_id, name, description, date, time, participant_limit, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (query.from_user.id,
-                 f"{event['description'][:30]}...",  # Обрезаем длинное описание
-                 event['description'],
-                 event['date'],
-                 event['time'],
-                 event['participant_limit'],
-                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            )
-            conn.commit()
+        keyboard = [
+            [InlineKeyboardButton(
+                f"{t['name']} ({t['time']})",
+                callback_data=f"use_template|{t['id']}"
+            )]
+            for t in templates[:5]  # Ограничиваем количество
+        ]
 
-        await query.answer("✅ Шаблон сохранён!", show_alert=True)
+        if len(templates) > 5:
+            keyboard.append([InlineKeyboardButton(
+                "Показать ещё...",
+                callback_data="more_templates|5"
+            )])
+
+        keyboard.append([InlineKeyboardButton("❌ Закрыть", callback_data="close_templates")])
+
+        await query.edit_message_text(
+            "📁 Ваши шаблоны мероприятий:",
+            reply_markup=InlineKeyboardMarkup(keyboard))
 
     except Exception as e:
-        logger.error(f"Ошибка сохранения шаблона: {e}")
-        await query.answer("⚠️ Не удалось сохранить шаблон", show_alert=True)
+        logger.error(f"Ошибка загрузки шаблонов: {str(e)}", exc_info=True)
+        await query.answer("⚠️ Ошибка загрузки шаблонов", show_alert=True)
 
 
 async def save_as_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
