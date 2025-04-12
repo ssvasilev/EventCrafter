@@ -229,6 +229,16 @@ async def _process_limit(update, context, draft, limit_input):
         if limit < 0:
             raise ValueError("Лимит не может быть отрицательным")
 
+        # Проверяем наличие bot_message_id в черновике
+        bot_message_id = draft.get("bot_message_id")
+        if not bot_message_id:
+            # Если нет, создаём новое сообщение
+            message = await context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text="Создание мероприятия..."
+            )
+            bot_message_id = message.message_id
+
         # Создаем мероприятие
         event_id = add_event(
             db_path=context.bot_data["db_path"],
@@ -238,18 +248,18 @@ async def _process_limit(update, context, draft, limit_input):
             limit=limit if limit != 0 else None,
             creator_id=update.message.from_user.id,
             chat_id=update.message.chat_id,
-            message_id=draft["bot_message_id"]
+            message_id=bot_message_id  # Используем существующее или новое сообщение
         )
 
         if not event_id:
             raise Exception("Не удалось создать мероприятие")
 
-        # Редактируем существующее сообщение
+        # Редактируем сообщение с информацией о мероприятии
         await send_event_message(
             event_id=event_id,
             context=context,
             chat_id=update.message.chat_id,
-            message_id=draft["bot_message_id"]
+            message_id=bot_message_id
         )
 
         # После создания мероприятия (после add_event)

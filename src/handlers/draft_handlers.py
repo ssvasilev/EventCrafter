@@ -6,7 +6,7 @@ from src.logger import logger
 
 
 async def handle_draft_message(update, context):
-    """Обработчик сообщений для черновиков с поддержкой шаблонов"""
+    """Обработчик сообщений для черновиков"""
     if not update.message:
         return
 
@@ -14,10 +14,7 @@ async def handle_draft_message(update, context):
         # Получаем черновик как словарь
         draft = None
         if 'current_draft_id' in context.user_data:
-            draft = get_draft(
-                context.bot_data["drafts_db_path"],
-                context.user_data['current_draft_id']
-            )
+            draft = get_draft(context.bot_data["drafts_db_path"], context.user_data['current_draft_id'])
 
         # 2. Если не нашли, проверяем обычные черновики
         if not draft:
@@ -30,23 +27,25 @@ async def handle_draft_message(update, context):
                 context.user_data['current_draft_id'] = draft['id']
 
         if draft:
-            # Обрабатываем ввод в зависимости от статуса черновика
-            await process_draft_step(update, context, draft)
+            # Если у черновика нет bot_message_id, создаём новое сообщение
+            if not draft.get("bot_message_id"):
+                message = await context.bot.send_message(
+                    chat_id=update.message.chat_id,
+                    text="Обработка вашего мероприятия..."
+                )
+                update_draft(
+                    db_path=context.bot_data["drafts_db_path"],
+                    draft_id=draft['id'],
+                    bot_message_id=message.message_id
+                )
+                draft["bot_message_id"] = message.message_id  # Обновляем локальный объект
 
-            # Удаляем сообщение пользователя после успешной обработки
-            try:
-                await update.message.delete()
-            except BadRequest:
-                pass
+            await process_draft_step(update, context, draft)
+            await update.message.delete()  # Удаляем сообщение пользователя
 
     except Exception as e:
         logger.error(f"Ошибка обработки черновика: {e}", exc_info=True)
-
-        # Показываем пользователю ошибку
-        await _show_input_error(
-            update, context,
-            "⚠️ Произошла ошибка при обработке вашего ввода"
-        )
+        await _show_input_error(update, context, "⚠️ Произошла ошибка при обработке вашего ввода")
 
         # Пытаемся удалить исходное сообщение пользователя
         try:
