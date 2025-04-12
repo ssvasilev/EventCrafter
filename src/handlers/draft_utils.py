@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 from telegram.error import BadRequest
 
 from config import tz
-from src.database.db_draft_operations import update_draft, delete_draft, get_user_chat_draft, add_draft
+from src.database.db_draft_operations import update_draft, delete_draft, get_user_chat_draft, add_draft, get_draft
 from src.database.db_operations import add_event, get_event
 from src.jobs.notification_jobs import schedule_notifications, schedule_unpin_and_delete, \
     remove_existing_notification_jobs, remove_existing_job
@@ -117,20 +117,52 @@ async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
 async def _process_description(update, context, draft, description):
     """Обработка шага ввода описания"""
-    update_draft(
-        db_path=context.bot_data["drafts_db_path"],
-        draft_id=draft["id"],
-        status="AWAIT_DATE",
-        description=description
-    )
+    try:
+        # Обновляем черновик
+        update_draft(
+            db_path=context.bot_data["drafts_db_path"],
+            draft_id=draft["id"],
+            status="AWAIT_DATE",
+            description=description
+        )
 
-    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft['id']}")]]
-    await context.bot.edit_message_text(
-        chat_id=update.message.chat_id,
-        message_id=draft["bot_message_id"],
-        text=f"📢 {description}\n\nВведите дату в формате ДД.ММ.ГГГГ",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+        # Получаем актуальный черновик с обновленными данными
+        updated_draft = get_draft(context.bot_data["drafts_db_path"], draft["id"])
+
+        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft['id']}")]]
+
+        try:
+            # Пытаемся редактировать существующее сообщение
+            await context.bot.edit_message_text(
+                chat_id=update.message.chat_id,
+                message_id=updated_draft["bot_message_id"],
+                text=f"📢 {description}\n\nВведите дату в формате ДД.ММ.ГГГГ",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except (BadRequest, KeyError) as e:
+            logger.warning(f"Не удалось отредактировать сообщение: {e}. Создаем новое.")
+            # Создаем новое сообщение, если редактирование не удалось
+            message = await context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text=f"📢 {description}\n\nВведите дату в формате ДД.ММ.ГГГГ",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            # Обновляем bot_message_id в черновике
+            update_draft(
+                db_path=context.bot_data["drafts_db_path"],
+                draft_id=draft["id"],
+                bot_message_id=message.message_id
+            )
+
+        # Удаляем сообщение пользователя
+        try:
+            await update.message.delete()
+        except BadRequest:
+            pass
+
+    except Exception as e:
+        logger.error(f"Ошибка в _process_description: {e}")
+        await _show_input_error(update, context, "⚠️ Произошла ошибка при обработке вашего ввода")
 
 async def _process_date(update, context, draft, date_input):
     """Обработка шага ввода даты с учётом шаблонов"""

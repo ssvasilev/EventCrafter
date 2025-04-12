@@ -1,7 +1,7 @@
 from telegram.error import BadRequest
 from telegram.ext import MessageHandler, filters
 from src.handlers.draft_utils import process_draft_step, _show_input_error
-from src.database.db_draft_operations import get_user_chat_draft, get_draft
+from src.database.db_draft_operations import get_user_chat_draft, get_draft, update_draft
 from src.logger import logger
 
 
