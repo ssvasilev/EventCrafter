@@ -1,4 +1,5 @@
 import asyncio
+import sqlite3
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, MessageHandler, filters
@@ -177,37 +178,64 @@ async def _process_date(update, context, draft, date_input):
         logger.error("ОШИБКА: bot_message_id=None!")
     """Обработка шага ввода даты с учётом шаблонов"""
     try:
-        # Валидация даты
+        # 1. Валидация даты
         datetime.strptime(date_input, "%d.%m.%Y").date()
 
-        # Для шаблонов - особый сценарий
-        if draft.get('is_from_template'):
-            # Создаем мероприятие
+        # 2. Явная езагрузка черновика из БД
+        with sqlite3.connect(context.bot_data["drafts_db_path"]) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft['id'],))
+            fresh_draft = cursor.fetchone()
+
+            if not fresh_draft:
+                raise ValueError("Черновик не найден после перезагрузки")
+
+            fresh_draft = dict(fresh_draft)  # Конвертируем в dict для удобства
+
+        # 3. Проверка критических полей
+        required_fields = ['description', 'time', 'participant_limit', 'bot_message_id']
+        for field in required_fields:
+            if fresh_draft.get(field) is None:
+                raise ValueError(f"Обязательное поле {field} равно None")
+
+        logger.info(f"Перезагруженный черновик: {fresh_draft}")
+
+        # 4. Для шаблонов - особый сценарий
+        if fresh_draft.get('is_from_template'):
+            # 5. Создаем мероприятие с явно заданным bot_message_id
             event_id = add_event(
                 db_path=context.bot_data["db_path"],
-                description=draft['description'],
+                description=fresh_draft['description'],
                 date=date_input,
-                time=draft['time'],
-                limit=draft['participant_limit'],
+                time=fresh_draft['time'],
+                limit=fresh_draft['participant_limit'],
                 creator_id=update.message.from_user.id,
                 chat_id=update.message.chat_id,
-                message_id=draft.get("bot_message_id")  # Используем сохраненный ID
+                message_id=fresh_draft['bot_message_id']  # Используем сохраненный ID
             )
 
-            # Отправляем сообщение (редактируем существующее)
-            await send_event_message(
-                event_id=event_id,
-                context=context,
-                chat_id=update.message.chat_id,
-                message_id=draft.get("bot_message_id")
-            )
+            if not event_id:
+                raise ValueError("Не удалось создать мероприятие")
 
-            # Удаляем черновик
-            delete_draft(context.bot_data["drafts_db_path"], draft['id'])
+            # 6. Отправляем сообщение (редактируем существующее)
+            try:
+                await send_event_message(
+                    event_id=event_id,
+                    context=context,
+                    chat_id=update.message.chat_id,
+                    message_id=fresh_draft['bot_message_id']
+                )
+            except Exception as e:
+                logger.error(f"Ошибка send_event_message: {e}")
+                raise
+
+            # 7. Удаляем черновик только после успешного создания
+            delete_draft(context.bot_data["drafts_db_path"], fresh_draft['id'])
             if 'current_draft_id' in context.user_data:
                 del context.user_data['current_draft_id']
 
-            # Удаляем сообщение пользователя
+            # 8. Удаляем сообщение пользователя
             try:
                 await update.message.delete()
             except BadRequest:
