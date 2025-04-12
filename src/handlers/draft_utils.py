@@ -95,9 +95,9 @@ async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE,
             if draft["status"] == "AWAIT_DESCRIPTION":
                 await _process_description(update, context, draft, user_input)
             elif draft.get('is_from_template') and draft['status'] == 'AWAIT_DATE':
-                await _process_date(update, context, draft, user_input)
+                await _process_template_date(update, context, draft, user_input)
             elif draft["status"] == "AWAIT_DATE":
-                await _process_date(update, context, draft, user_input)
+                await _process_regular_date(update, context, draft, user_input)
             elif draft["status"] == "AWAIT_TIME":
                 await _process_time(update, context, draft, user_input)
             elif draft["status"] == "AWAIT_LIMIT":
@@ -172,78 +172,60 @@ async def _process_description(update, context, draft, description):
         logger.error(f"Ошибка обработки описания: {e}", exc_info=True)
         await _show_input_error(update, context, "⚠️ Ошибка обработки ввода")
 
-async def _process_date(update, context, draft, date_input):
-    bot_message_id = draft.get("bot_message_id")
-    if not bot_message_id:
-        logger.error("ОШИБКА: bot_message_id=None!")
-    """Обработка шага ввода даты с учётом шаблонов"""
+async def _process_template_date(update, context, draft, date_input):
+    """Обработка даты только для мероприятий из шаблонов"""
     try:
         # 1. Валидация даты
         datetime.strptime(date_input, "%d.%m.%Y").date()
 
-        # 2. Явная езагрузка черновика из БД
-        with sqlite3.connect(context.bot_data["drafts_db_path"]) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft['id'],))
-            fresh_draft = cursor.fetchone()
+        # 2. Явная загрузка свежих данных
+        fresh_draft = get_draft(context.bot_data["drafts_db_path"], draft['id'])
+        if not fresh_draft:
+            raise ValueError("Черновик не найден")
 
-            if not fresh_draft:
-                raise ValueError("Черновик не найден после перезагрузки")
+        # 3. Проверка bot_message_id
+        if not fresh_draft.get('bot_message_id'):
+            logger.error("Отсутствует bot_message_id в черновике из шаблона")
+            raise ValueError("Не найден ID сообщения")
 
-            fresh_draft = dict(fresh_draft)  # Конвертируем в dict для удобства
+        # 4. Создание мероприятия
+        event_id = add_event(
+            db_path=context.bot_data["db_path"],
+            description=fresh_draft['description'],
+            date=date_input,
+            time=fresh_draft['time'],
+            limit=fresh_draft['participant_limit'],
+            creator_id=update.message.from_user.id,
+            chat_id=update.message.chat_id,
+            message_id=fresh_draft['bot_message_id']
+        )
 
-        # 3. Проверка критических полей
-        required_fields = ['description', 'time', 'participant_limit', 'bot_message_id']
-        for field in required_fields:
-            if fresh_draft.get(field) is None:
-                raise ValueError(f"Обязательное поле {field} равно None")
+        # 5. Отправка/редактирование сообщения
+        await send_event_message(
+            event_id=event_id,
+            context=context,
+            chat_id=update.message.chat_id,
+            message_id=fresh_draft['bot_message_id']
+        )
 
-        logger.info(f"Перезагруженный черновик: {fresh_draft}")
+        # 6. Очистка
+        delete_draft(context.bot_data["drafts_db_path"], fresh_draft['id'])
+        await update.message.delete()
 
-        # 4. Для шаблонов - особый сценарий
-        if fresh_draft.get('is_from_template'):
-            # 5. Создаем мероприятие с явно заданным bot_message_id
-            event_id = add_event(
-                db_path=context.bot_data["db_path"],
-                description=fresh_draft['description'],
-                date=date_input,
-                time=fresh_draft['time'],
-                limit=fresh_draft['participant_limit'],
-                creator_id=update.message.from_user.id,
-                chat_id=update.message.chat_id,
-                message_id=fresh_draft['bot_message_id']  # Используем сохраненный ID
-            )
+    except ValueError as e:
+        logger.error(f"Ошибка в шаблонном сценарии: {e}")
+        await _show_input_error(update, context, f"❌ Ошибка: {str(e)}")
+    except Exception as e:
+        logger.error(f"Критическая ошибка в шаблонном сценарии: {e}")
+        await _show_input_error(update, context, "⚠️ Ошибка создания мероприятия")
 
-            if not event_id:
-                raise ValueError("Не удалось создать мероприятие")
+async def _process_regular_date(update, context, draft, date_input):
+    """Обработка даты для обычного сценария"""
+    try:
+        # 1. Валидация даты
+        datetime.strptime(date_input, "%d.%m.%Y").date()
 
-            # 6. Отправляем сообщение (редактируем существующее)
-            try:
-                await send_event_message(
-                    event_id=event_id,
-                    context=context,
-                    chat_id=update.message.chat_id,
-                    message_id=fresh_draft['bot_message_id']
-                )
-            except Exception as e:
-                logger.error(f"Ошибка send_event_message: {e}")
-                raise
-
-            # 7. Удаляем черновик только после успешного создания
-            delete_draft(context.bot_data["drafts_db_path"], fresh_draft['id'])
-            if 'current_draft_id' in context.user_data:
-                del context.user_data['current_draft_id']
-
-            # 8. Удаляем сообщение пользователя
-            try:
-                await update.message.delete()
-            except BadRequest:
-                pass
-
-            return
-
-        # Обычный сценарий (не шаблон)
+        # 2. Обновление черновика
         update_draft(
             db_path=context.bot_data["drafts_db_path"],
             draft_id=draft["id"],
@@ -251,27 +233,21 @@ async def _process_date(update, context, draft, date_input):
             date=date_input
         )
 
-        # Обновляем сообщение через универсальную функцию
+        # 3. Обновление сообщения
         new_text = f"📢 {draft['description']}\n\n📅 Дата: {date_input}\n\nВведите время (ЧЧ:ММ)"
         await _update_draft_message(context, draft["id"], new_text, update.message.chat_id)
 
-        # Удаляем сообщение пользователя
+        # 4. Удаление сообщения пользователя
         try:
             await update.message.delete()
         except BadRequest:
             pass
 
     except ValueError:
-        await _show_input_error(
-            update, context,
-            "❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ"
-        )
+        await _show_input_error(update, context, "❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ")
     except Exception as e:
-        logger.error(f"Ошибка обработки даты: {e}", exc_info=True)
-        await _show_input_error(
-            update, context,
-            "⚠️ Произошла ошибка при обработке даты"
-        )
+        logger.error(f"Ошибка обработки даты: {e}")
+        await _show_input_error(update, context, "⚠️ Ошибка обработки ввода")
 
 
 async def _process_time(update, context, draft, time_input):
