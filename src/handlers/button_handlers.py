@@ -471,5 +471,5 @@ async def handle_cancel_delete(query, context, event_id):
 def register_button_handler(application):
     application.add_handler(CallbackQueryHandler(
         button_handler,
-        pattern=r"^(join|leave|edit|edit_field|confirm_delete|delete_event|cancel_delete|save_template|use_template)"
+        pattern=r"^(join|leave|edit|edit_field|confirm_delete|delete_event|cancel_delete|save_template|use_template|delete_template)"
     ))
