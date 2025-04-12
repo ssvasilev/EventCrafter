@@ -178,7 +178,7 @@ async def _process_date(update, context, draft, date_input):
         datetime.strptime(date_input, "%d.%m.%Y").date()
 
         # Для шаблонов - особый сценарий
-        if isinstance(draft, dict) and draft.get('is_from_template'):
+        if draft.get('is_from_template'):
             # Создаем мероприятие
             event_id = add_event(
                 db_path=context.bot_data["db_path"],
@@ -215,29 +215,39 @@ async def _process_date(update, context, draft, date_input):
         # Обычный сценарий (не шаблон)
         update_draft(
             db_path=context.bot_data["drafts_db_path"],
-            draft_id=draft['id'],
+            draft_id=draft["id"],
             status="AWAIT_TIME",
             date=date_input
         )
 
-        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft['id']}")]]
-        await context.bot.edit_message_text(
-            chat_id=update.message.chat_id,
-            message_id=draft["bot_message_id"],
-            text=f"📢 {draft['description']}\n\n📅 Дата: {date_input}\n\nВведите время (ЧЧ:ММ)",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        # Обновляем сообщение через универсальную функцию
+        new_text = f"📢 {draft['description']}\n\n📅 Дата: {date_input}\n\nВведите время (ЧЧ:ММ)"
+        await _update_draft_message(context, draft["id"], new_text, update.message.chat_id)
+
+        # Удаляем сообщение пользователя
+        try:
+            await update.message.delete()
+        except BadRequest:
+            pass
 
     except ValueError:
         await _show_input_error(
             update, context,
             "❌ Неверный формат даты. Используйте ДД.ММ.ГГГГ"
         )
+    except Exception as e:
+        logger.error(f"Ошибка обработки даты: {e}", exc_info=True)
+        await _show_input_error(
+            update, context,
+            "⚠️ Произошла ошибка при обработке даты"
+        )
+
 
 async def _process_time(update, context, draft, time_input):
-    """Обработка шага ввода времени с всплывающими ошибками"""
+    """Обработка шага ввода времени"""
     try:
         datetime.strptime(time_input, "%H:%M").time()
+
         update_draft(
             db_path=context.bot_data["drafts_db_path"],
             draft_id=draft["id"],
@@ -245,21 +255,32 @@ async def _process_time(update, context, draft, time_input):
             time=time_input
         )
 
-        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft['id']}")]]
-        await context.bot.edit_message_text(
-            chat_id=update.message.chat_id,
-            message_id=draft["bot_message_id"],
-            text=f"📢 {draft['description']}\n\n"
-                 f"📅 Дата: {draft['date']}\n"
-                 f"🕒 Время: {time_input}\n\n"
-                 f"Введите лимит участников (0 - без лимита):",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        # Обновляем сообщение через универсальную функцию
+        new_text = (f"📢 {draft['description']}\n\n"
+                    f"📅 Дата: {draft['date']}\n"
+                    f"🕒 Время: {time_input}\n\n"
+                    f"Введите лимит участников (0 - без лимита):")
+
+        await _update_draft_message(context, draft["id"], new_text, update.message.chat_id)
+
+        # Удаляем сообщение пользователя
+        try:
+            await update.message.delete()
+        except BadRequest:
+            pass
+
     except ValueError:
         await _show_input_error(
             update, context,
             "❌ Неверный формат времени. Используйте ЧЧ:ММ"
         )
+    except Exception as e:
+        logger.error(f"Ошибка обработки времени: {e}", exc_info=True)
+        await _show_input_error(
+            update, context,
+            "⚠️ Произошла ошибка при обработке времени"
+        )
+
 
 async def _process_limit(update, context, draft, limit_input):
     """Обработка шага ввода лимита участников"""
@@ -268,15 +289,9 @@ async def _process_limit(update, context, draft, limit_input):
         if limit < 0:
             raise ValueError("Лимит не может быть отрицательным")
 
-        # Проверяем наличие bot_message_id в черновике
-        bot_message_id = draft.get("bot_message_id")
-        if not bot_message_id:
-            # Если нет, создаём новое сообщение
-            message = await context.bot.send_message(
-                chat_id=update.message.chat_id,
-                text="Создание мероприятия..."
-            )
-            bot_message_id = message.message_id
+        # Получаем актуальный bot_message_id
+        updated_draft = get_draft(context.bot_data["drafts_db_path"], draft["id"])
+        bot_message_id = updated_draft.get("bot_message_id") if updated_draft else None
 
         # Создаем мероприятие
         event_id = add_event(
@@ -287,7 +302,7 @@ async def _process_limit(update, context, draft, limit_input):
             limit=limit if limit != 0 else None,
             creator_id=update.message.from_user.id,
             chat_id=update.message.chat_id,
-            message_id=bot_message_id  # Используем существующее или новое сообщение
+            message_id=bot_message_id
         )
 
         if not event_id:
@@ -301,11 +316,10 @@ async def _process_limit(update, context, draft, limit_input):
             message_id=bot_message_id
         )
 
-        # После создания мероприятия (после add_event)
+        # Планируем уведомления
         event_datetime = datetime.strptime(f"{draft['date']} {draft['time']}", "%d.%m.%Y %H:%M")
-        event_datetime = event_datetime.replace(tzinfo=tz)  # Установите часовой пояс
+        event_datetime = event_datetime.replace(tzinfo=tz)
 
-        # Создаем задачи уведомлений
         await schedule_notifications(
             event_id=event_id,
             context=context,
@@ -313,7 +327,6 @@ async def _process_limit(update, context, draft, limit_input):
             chat_id=update.message.chat_id
         )
 
-        # Создаем задачу открепления
         await schedule_unpin_and_delete(
             event_id=event_id,
             context=context,
@@ -323,41 +336,25 @@ async def _process_limit(update, context, draft, limit_input):
         # Удаляем черновик
         delete_draft(context.bot_data["drafts_db_path"], draft["id"])
 
-        # Удаляем сообщение пользователя с вводом лимита
+        # Удаляем сообщение пользователя
         try:
             await update.message.delete()
         except BadRequest as e:
             logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
 
-        # Уведомляем создателя об успешном создании мероприятия
+        # Отправляем уведомление создателю
         try:
-            # Преобразуем chat_id для ссылки
-            chat_id = draft["chat_id"]
-            if str(chat_id).startswith("-100"):  # Для супергрупп и каналов
-                chat_id_link = int(str(chat_id)[4:])  # Убираем "-100" в начале
-            else:
-                chat_id_link = chat_id  # Для обычных групп и личных чатов
+            chat_id_link = str(draft["chat_id"]).replace("-100", "") if str(draft["chat_id"]).startswith("-100") else \
+            draft["chat_id"]
+            event_link = f"https://t.me/c/{chat_id_link}/{bot_message_id}"
 
-            # Формируем ссылку на мероприятие
-            message_id = draft["bot_message_id"]
-            event_link = f"https://t.me/c/{chat_id_link}/{message_id}"
-
-            # Формируем текст уведомления с кликабельным названием мероприятия
-            message = (
-                f"✅ Мероприятие успешно создано!\n\n"
-                f"📢 <a href='{event_link}'>{draft['description']}</a>\n"
-                f"📅 Дата: {draft['date']}\n"
-                f"🕒 Время: {draft['time']}"
-            )
-
-            # Отправляем уведомление создателю
             await context.bot.send_message(
                 chat_id=draft["creator_id"],
-                text=message,
+                text=f"✅ Мероприятие создано!\n\n📢 <a href='{event_link}'>{draft['description']}</a>",
                 parse_mode="HTML"
             )
         except Exception as e:
-            logger.error(f"Ошибка при отправке уведомления создателю: {e}")
+            logger.error(f"Ошибка уведомления создателя: {e}")
 
     except ValueError:
         await _show_input_error(
@@ -366,11 +363,48 @@ async def _process_limit(update, context, draft, limit_input):
         )
     except Exception as e:
         logger.error(f"Ошибка создания мероприятия: {e}")
-        await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text="⚠️ Произошла ошибка при создании мероприятия",
-            reply_to_message_id=draft["bot_message_id"]
+        await _show_input_error(
+            update, context,
+            "⚠️ Произошла ошибка при создании мероприятия"
         )
+
+
+async def _update_draft_message(context, draft_id, new_text, chat_id):
+    """Универсальная функция для обновления сообщения черновика"""
+    try:
+        draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
+        if not draft:
+            raise ValueError("Черновик не найден")
+
+        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
+
+        # Если есть bot_message_id, пробуем редактировать
+        if draft.get("bot_message_id"):
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=int(draft["bot_message_id"]),
+                    text=new_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard))
+                return
+            except (BadRequest, ValueError) as e:
+                logger.warning(f"Не удалось отредактировать сообщение: {e}")
+
+        # Если редактирование не удалось - создаем новое
+        new_message = await context.bot.send_message(
+            chat_id=chat_id,
+            text=new_text,
+            reply_markup=InlineKeyboardMarkup(keyboard))
+
+        # Обновляем bot_message_id в базе
+        update_draft(
+            db_path=context.bot_data["drafts_db_path"],
+            draft_id=draft_id,
+            bot_message_id=new_message.message_id)
+
+    except Exception as e:
+        logger.error(f"Ошибка в _update_draft_message: {e}")
+        raise
 
 
 async def process_edit_step(update: Update, context: ContextTypes.DEFAULT_TYPE, draft):
