@@ -80,30 +80,47 @@ async def handle_save_template(query, context, event_id):
         logger.error(f"Ошибка сохранения шаблона: {e}")
         await query.answer("⚠️ Не удалось сохранить шаблон", show_alert=True)
 
-async def use_template(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    template_id = int(query.data.split('|')[1])
+async def handle_use_template(query, context, template_id):
+    """Создает черновик на основе шаблона"""
+    try:
+        # Получаем шаблон с проверкой владельца
+        with sqlite3.connect(context.bot_data["db_path"]) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT * FROM event_templates 
+                WHERE id = ? AND user_id = ?""",
+                (template_id, query.from_user.id)
+            )
+            template = cursor.fetchone()
 
-    # Получаем шаблон из БД
-    with sqlite3.connect(context.bot_data["db_path"]) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM event_templates WHERE id = ? AND user_id = ?",
-            (template_id, query.from_user.id)
+        if not template:
+            await query.answer("Шаблон не найден или нет доступа", show_alert=True)
+            return
+
+        # Создаем черновик в user_data
+        context.user_data['draft'] = {
+            'description': template['description'],
+            'date': datetime.now().strftime("%d.%m.%Y"),  # Текущая дата
+            'time': template['time'],
+            'participant_limit': template['participant_limit'],
+            'is_template': True
+        }
+
+        # Отправляем сообщение с формой
+        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_draft|0")]]
+        await query.edit_message_text(
+            f"🔄 Шаблон применён:\n\n"
+            f"📢 {template['description']}\n"
+            f"🕒 Время: {template['time']}\n"
+            f"👥 Лимит: {template['participant_limit'] or 'нет'}\n\n"
+            f"Теперь укажите дату мероприятия:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        template = cursor.fetchone()
 
-    # Создаём черновик на основе шаблона
-    context.user_data['draft'] = {
-        'description': template['description'],
-        'time': template['time'],
-        'limit': template['participant_limit']
-    }
-
-    await query.edit_message_text(
-        f"Шаблон применён!\n\nОписание: {template['description']}\n"
-        f"Время: {template['time']}\nЛимит: {template['participant_limit'] or 'нет'}"
-    )
+    except Exception as e:
+        logger.error(f"Ошибка применения шаблона: {e}")
+        await query.answer("⚠️ Не удалось применить шаблон", show_alert=True)
 
 async def save_user_middleware(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
