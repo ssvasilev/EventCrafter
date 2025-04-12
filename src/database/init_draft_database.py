@@ -21,6 +21,7 @@ def init_drafts_db(db_path):
             original_message_id INTEGER,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
+            is_from_template BOOLEAN DEFAULT 0,
             FOREIGN KEY (event_id) REFERENCES events(id)
         )
         """

@@ -21,7 +21,8 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         db_path=context.bot_data["drafts_db_path"],
         creator_id=creator_id,
         chat_id=chat_id,
-        status="AWAIT_DESCRIPTION"
+        status="AWAIT_DESCRIPTION",
+        is_from_template = False
     )
 
     if not draft_id:

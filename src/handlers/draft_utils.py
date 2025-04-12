@@ -47,7 +47,8 @@ async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, e
             description=event["description"],
             date=event["date"],
             time=event["time"],
-            participant_limit=event["participant_limit"]
+            participant_limit=event["participant_limit"],
+            is_from_template=False
         )
 
         # Запрашиваем новое значение

@@ -204,7 +204,8 @@ async def handle_edit_field(query, context, event_id, field):
         description=event["description"],
         date=event["date"],
         time=event["time"],
-        participant_limit=event["participant_limit"]
+        participant_limit=event["participant_limit"],
+        is_from_template=False
     )
 
     field_prompts = {
