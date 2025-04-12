@@ -98,18 +98,7 @@ async def handle_use_template(query, context, template_id):
             await query.answer("Шаблон не найден", show_alert=True)
             return
 
-        # Создаем первое сообщение с запросом даты
-        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
-        message = await query.edit_message_text(
-            text=f"🔄 Шаблон применён:\n\n"
-                 f"📢 {template['description']}\n"
-                 f"🕒 Время: {template['time']}\n"
-                 f"👥 Лимит: {template['participant_limit'] or 'нет'}\n\n"
-                 f"Теперь укажите дату мероприятия:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-
-        # Создаем черновик с сохранением ID сообщения
+        # Сначала создаем черновик без bot_message_id
         draft_id = add_draft(
             db_path=context.bot_data["drafts_db_path"],
             creator_id=query.from_user.id,
@@ -118,15 +107,56 @@ async def handle_use_template(query, context, template_id):
             description=template['description'],
             time=template['time'],
             participant_limit=template['participant_limit'],
-            is_from_template=True,
-            bot_message_id=message.message_id  # Сохраняем ID сообщения
+            is_from_template=True
         )
+
+        if not draft_id:
+            raise Exception("Не удалось создать черновик")
+
+        # Подготавливаем клавиатуру с полученным draft_id
+        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
+
+        # Пытаемся отредактировать существующее сообщение
+        try:
+            await query.edit_message_text(
+                text=f"🔄 Шаблон применён:\n\n"
+                     f"📢 {template['description']}\n"
+                     f"🕒 Время: {template['time']}\n"
+                     f"👥 Лимит: {template['participant_limit'] or 'нет'}\n\n"
+                     f"Теперь укажите дату мероприятия:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+            # Обновляем черновик с ID сообщения
+            update_draft(
+                db_path=context.bot_data["drafts_db_path"],
+                draft_id=draft_id,
+                bot_message_id=query.message.message_id
+            )
+        except Exception as e:
+            logger.error(f"Не удалось отредактировать сообщение: {e}")
+            # Если редактирование не удалось, создаем новое сообщение
+            message = await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=f"🔄 Шаблон применён:\n\n"
+                     f"📢 {template['description']}\n"
+                     f"🕒 Время: {template['time']}\n"
+                     f"👥 Лимит: {template['participant_limit'] or 'нет'}\n\n"
+                     f"Теперь укажите дату мероприятия:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            # Обновляем черновик с ID нового сообщения
+            update_draft(
+                db_path=context.bot_data["drafts_db_path"],
+                draft_id=draft_id,
+                bot_message_id=message.message_id
+            )
 
         # Сохраняем ID черновика в user_data
         context.user_data['current_draft_id'] = draft_id
 
     except Exception as e:
-        logger.error(f"Ошибка применения шаблона: {e}")
+        logger.error(f"Ошибка применения шаблона: {e}", exc_info=True)
         await query.answer("⚠️ Не удалось применить шаблон", show_alert=True)
 
 async def save_user_middleware(update: Update, context: ContextTypes.DEFAULT_TYPE):
