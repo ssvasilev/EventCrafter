@@ -83,32 +83,37 @@ async def handle_save_template(query, context, event_id):
 async def handle_use_template(query, context, template_id):
     """Создает черновик на основе шаблона"""
     try:
-        # Получаем шаблон с проверкой владельца
+        # Получаем шаблон
         with sqlite3.connect(context.bot_data["db_path"]) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
-                """SELECT * FROM event_templates 
-                WHERE id = ? AND user_id = ?""",
+                "SELECT * FROM event_templates WHERE id = ? AND user_id = ?",
                 (template_id, query.from_user.id)
             )
             template = cursor.fetchone()
 
         if not template:
-            await query.answer("Шаблон не найден или нет доступа", show_alert=True)
+            await query.answer("Шаблон не найден", show_alert=True)
             return
 
-        # Создаем черновик в user_data
-        context.user_data['draft'] = {
-            'description': template['description'],
-            'date': datetime.now().strftime("%d.%m.%Y"),  # Текущая дата
-            'time': template['time'],
-            'participant_limit': template['participant_limit'],
-            'is_template': True
-        }
+        # Создаем полноценный черновик в базе данных
+        draft_id = add_draft(
+            db_path=context.bot_data["drafts_db_path"],
+            creator_id=query.from_user.id,
+            chat_id=query.message.chat_id,
+            status="AWAIT_DATE",  # Ждем ввода даты
+            description=template['description'],
+            time=template['time'],
+            participant_limit=template['participant_limit'],
+            is_from_template=True
+        )
 
-        # Отправляем сообщение с формой
-        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data="cancel_draft|0")]]
+        # Сохраняем ID черновика в user_data для последующей обработки
+        context.user_data['current_draft_id'] = draft_id
+
+        # Отправляем запрос даты
+        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
         await query.edit_message_text(
             f"🔄 Шаблон применён:\n\n"
             f"📢 {template['description']}\n"
