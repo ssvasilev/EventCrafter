@@ -16,24 +16,30 @@ from src.utils.utils import format_users_list
 async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Упрощенный обработчик отмены черновика (авторство уже проверено)"""
     query = update.callback_query
-    draft_id = int(query.data.split('|')[1])
+    await query.answer()
 
     try:
-        # Удаляем черновик (проверка авторства уже выполнена)
-        delete_draft(context.bot_data["drafts_db_path"], draft_id)
+        draft_id = int(query.data.split('|')[1])
+        draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
 
-        # Удаляем сообщение с формой
-        try:
-            await context.bot.delete_message(
-                chat_id=query.message.chat_id,
-                message_id=query.message.message_id
-            )
-        except BadRequest as e:
-            logger.warning(f"Не удалось удалить сообщение: {e}")
+        if not draft:
+            # Проверяем user_data как fallback
+            if 'current_draft_id' in context.user_data:
+                draft_id = context.user_data['current_draft_id']
+                draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
+
+        if draft:
+            delete_draft(context.bot_data["drafts_db_path"], draft_id)
+            if 'current_draft_id' in context.user_data:
+                del context.user_data['current_draft_id']
+
+            await query.edit_message_text("Создание мероприятия отменено")
+        else:
+            await query.answer("Черновик уже удален", show_alert=False)
 
     except Exception as e:
         logger.error(f"Ошибка при отмене черновика: {e}")
-        await query.answer("⚠️ Не удалось отменить создание", show_alert=False)
+        await query.answer("⚠️ Не удалось отменить создание", show_alert=True)
 
 async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отмены редактирования мероприятия"""

@@ -85,6 +85,8 @@ async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE,
     chat_id = update.message.chat_id
 
     try:
+        # Обновляем current_draft_id в user_data
+        context.user_data['current_draft_id'] = draft['id']
         if draft["status"].startswith("EDIT_"):
             await process_edit_step(update, context, draft)
         else:
