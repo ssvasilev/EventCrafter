@@ -98,7 +98,7 @@ async def handle_use_template(query, context, template_id):
             await query.answer("Шаблон не найден", show_alert=True)
             return
 
-        # Сначала создаем черновик без bot_message_id
+        # Создаем черновик СРАЗУ с bot_message_id
         draft_id = add_draft(
             db_path=context.bot_data["drafts_db_path"],
             creator_id=query.from_user.id,
@@ -108,13 +108,13 @@ async def handle_use_template(query, context, template_id):
             time=template['time'],
             participant_limit=template['participant_limit'],
             is_from_template=True,
-            bot_message_id=query.message.message_id  # Добавьте это сразу
+            bot_message_id=query.message.message_id  # <-- Передаём сразу!
         )
 
         if not draft_id:
             raise Exception("Не удалось создать черновик")
 
-        # Подготавливаем клавиатуру с полученным draft_id
+        # Подготавливаем клавиатуру
         keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
 
         # Пытаемся отредактировать существующее сообщение
@@ -126,13 +126,6 @@ async def handle_use_template(query, context, template_id):
                      f"👥 Лимит: {template['participant_limit'] or 'нет'}\n\n"
                      f"Теперь укажите дату мероприятия:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-
-            # Обновляем черновик с ID сообщения
-            update_draft(
-                db_path=context.bot_data["drafts_db_path"],
-                draft_id=draft_id,
-                bot_message_id=query.message.message_id
             )
         except Exception as e:
             logger.error(f"Не удалось отредактировать сообщение: {e}")
@@ -150,7 +143,7 @@ async def handle_use_template(query, context, template_id):
             update_draft(
                 db_path=context.bot_data["drafts_db_path"],
                 draft_id=draft_id,
-                bot_message_id=message.message_id
+                bot_message_id=message.message_id  # <-- Только если сообщение новое!
             )
 
     except Exception as e:
