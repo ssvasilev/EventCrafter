@@ -308,12 +308,12 @@ async def handle_confirm_delete(query, context, event_id):
 
 
 async def handle_delete_event(query, context, event_id):
-    """Обработчик удаления мероприятия с двойной проверкой авторства"""
+    """Обработчик удаления мероприятия с улучшенными уведомлениями"""
     try:
         event = get_event(context.bot_data["db_path"], event_id)
 
         if not event:
-            await query.answer("Мероприятие не найдено", show_alert=True)
+            await query.answer("⚠️ Мероприятие не найдено", show_alert=True)
             return
 
         # Двойная проверка авторства (на всякий случай)
@@ -321,51 +321,76 @@ async def handle_delete_event(query, context, event_id):
             await query.answer("❌ Только автор может удалить мероприятие", show_alert=False)
             return
 
-        # Сохраняем данные для уведомлений перед удалением
-        event_description = event["description"]
-        participants = get_participants(context.bot_data["db_path"], event_id)
-        chat_id = event["chat_id"]
-        message_id = event["message_id"]
+        # Формируем информацию об авторе
+        creator = query.from_user
+        creator_name = f"{creator.first_name}"
+        if creator.username:
+            creator_name += f" (@{creator.username})"
+        else:
+            creator_name += f" (ID: {creator.id})"
 
-        # 1. Удаляем задачи на уведомления
+        # Формируем информацию о чате
+        try:
+            chat = await context.bot.get_chat(event["chat_id"])
+            chat_name = chat.title or "Личный чат"
+        except Exception as e:
+            logger.warning(f"Не удалось получить информацию о чате: {e}")
+            chat_name = "чат"
+
+        # Формируем ссылку на сообщение (если возможно)
+        message_link = ""
+        try:
+            if str(event["chat_id"]).startswith("-100"):  # Для супергрупп
+                chat_id_for_link = str(event["chat_id"])[4:]
+                message_link = f"\n\n🔗 Ссылка: https://t.me/c/{chat_id_for_link}/{event['message_id']}"
+            elif str(event["chat_id"]).startswith("-"):  # Для обычных групп
+                chat_id_for_link = str(abs(int(event["chat_id"])))
+                message_link = f"\n\n🔗 Ссылка: https://t.me/c/{chat_id_for_link}/{event['message_id']}"
+        except Exception as e:
+            logger.warning(f"Не удалось сформировать ссылку: {e}")
+
+        # Удаляем задачи на уведомления
         remove_existing_notification_jobs(event_id, context)
 
-        # 2. Удаляем мероприятие из базы данных
+        # Удаляем мероприятие из базы данных
         delete_event(context.bot_data["db_path"], event_id)
 
-        # 3. Удаляем сообщение о мероприятии из чата
+        # Удаляем сообщение о мероприятии из чата
         try:
             await context.bot.delete_message(
-                chat_id=chat_id,
-                message_id=message_id
+                chat_id=event["chat_id"],
+                message_id=event["message_id"]
             )
         except BadRequest as e:
             logger.warning(f"Не удалось удалить сообщение: {e}")
 
-        # 4. Отправляем подтверждение удаления в новом сообщении
-        try:
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=f"✅ Мероприятие '{event_description}' успешно удалено"
-            )
-        except Exception as e:
-            logger.error(f"Не удалось отправить подтверждение: {e}")
+        # Уведомляем автора
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=f"✅ Вы успешно удалили мероприятие:\n\n"
+                 f"📢 {event['description']}\n"
+                 f"📅 Дата: {event['date']}\n"
+                 f"🕒 Время: {event['time']}"
+        )
 
-        # 5. Уведомляем участников
+        # Уведомляем участников
+        participants = get_participants(context.bot_data["db_path"], event_id)
         for participant in participants:
             try:
                 await context.bot.send_message(
                     chat_id=participant["user_id"],
-                    text=(
-                        f"🚫 Мероприятие отменено\n\n"
-                        f"Название: {event_description}\n"
-                        f"Автор: {query.from_user.first_name}"
-                    )
+                    text=f"🚫 Мероприятие отменено\n\n"
+                         f"📢 Название: {event['description']}\n"
+                         f"📅 Дата: {event['date']}\n"
+                         f"🕒 Время: {event['time']}\n"
+                         f"👤 Автор: {creator_name}\n"
+                         f"💬 Чат: {chat_name}"
+                         f"{message_link}"
                 )
             except Exception as e:
                 logger.warning(f"Не удалось уведомить участника {participant['user_id']}: {e}")
 
-        # 6. Удаляем сообщение с подтверждением удаления
+        # Удаляем сообщение с подтверждением удаления
         try:
             await context.bot.delete_message(
                 chat_id=query.message.chat_id,
@@ -374,7 +399,7 @@ async def handle_delete_event(query, context, event_id):
         except BadRequest as e:
             logger.warning(f"Не удалось удалить сообщение подтверждения: {e}")
 
-        logger.info(f"Пользователь {query.from_user.id} удалил мероприятие {event_id}")
+        logger.info(f"Пользователь {creator_name} удалил мероприятие {event_id}")
 
     except Exception as e:
         logger.error(f"Ошибка при удалении мероприятия: {e}")
