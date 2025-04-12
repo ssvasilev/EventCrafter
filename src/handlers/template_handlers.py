@@ -4,7 +4,7 @@ from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from src.database.db_draft_operations import add_draft
+from src.database.db_draft_operations import add_draft, update_draft
 from src.database.db_operations import get_event, get_user_templates
 from src.logger import logger
 

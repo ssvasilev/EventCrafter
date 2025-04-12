@@ -23,7 +23,7 @@ def get_db_connection(db_path):
 def add_draft(db_path, creator_id, chat_id, status,
              description=None, date=None, time=None,
              participant_limit=None, event_id=None,
-             original_message_id=None, is_from_template=False):
+             original_message_id=None, is_from_template=False, bot_message_id=None):
     """Добавляет черновик с поддержкой редактирования"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
@@ -35,8 +35,8 @@ def add_draft(db_path, creator_id, chat_id, status,
                     creator_id, chat_id, status, description, 
                     date, time, participant_limit, event_id,
                     original_message_id, created_at, updated_at,
-                    is_from_template
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    is_from_template, bot_message_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (creator_id, chat_id, status, description,
                  date, time, participant_limit, event_id,
