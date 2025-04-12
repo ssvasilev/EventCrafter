@@ -41,7 +41,7 @@ def add_draft(db_path, creator_id, chat_id, status,
                 (creator_id, chat_id, status, description,
                  date, time, participant_limit, event_id,
                  original_message_id, now, now,
-                 is_from_template),
+                 is_from_template, bot_message_id),
             )
             return cursor.lastrowid
     except sqlite3.Error as e:
