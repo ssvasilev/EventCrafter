@@ -19,6 +19,7 @@ from src.database.db_operations import (
     update_event_field, delete_event, get_participants
 )
 from src.database.db_draft_operations import add_draft, delete_draft, get_draft
+from src.handlers.template_handlers import handle_save_template
 from src.jobs.notification_jobs import remove_existing_notification_jobs
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
@@ -41,6 +42,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await handle_edit_event(query, context, int(parts[1]))
             elif action == 'edit_field':
                 await handle_edit_field(query, context, int(parts[1]), parts[2])
+            elif action == 'save_template':
+                event_id = int(parts[1])
+                await handle_save_template(query, context, event_id)
             elif action == 'confirm_delete':
                 await handle_confirm_delete(query, context, int(parts[1]))
             elif action == 'delete_event':
