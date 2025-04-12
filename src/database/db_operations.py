@@ -38,6 +38,20 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
+
+            # Сначала сохраняем/обновляем пользователя
+            cursor.execute(
+                """INSERT OR REPLACE INTO users 
+                (id, first_name, last_name, username, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (creator_id,
+                 "Данные из контекста",  # Заполняете реальными данными
+                 "Данные из контекста",
+                 "Данные из контекста",
+                 now, now)
+            )
+
+            # Затем создаем мероприятие
             cursor.execute(
                 """
                 INSERT INTO events (description, date, time, participant_limit, creator_id, chat_id, message_id, created_at, updated_at)
@@ -441,3 +455,23 @@ def delete_event(db_path: str, event_id: int):
         cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
         conn.commit()
         logger.info(f"Мероприятие {event_id} удалено из базы данных")
+
+
+def get_user_templates(db_path, user_id):
+    """Возвращает шаблоны пользователя с проверкой существования пользователя"""
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+
+        # Проверяем существует ли пользователь
+        cursor.execute("SELECT 1 FROM users WHERE id = ?", (user_id,))
+        if not cursor.fetchone():
+            return []
+
+        cursor.execute(
+            """SELECT id, name, description, time, participant_limit 
+            FROM event_templates 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC""",
+            (user_id,)
+        )
+        return cursor.fetchall()

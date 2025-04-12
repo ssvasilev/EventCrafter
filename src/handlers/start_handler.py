@@ -18,7 +18,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Создаем клавиатуру
     keyboard = [
         [InlineKeyboardButton("📅 Создать мероприятие", callback_data="create_event")],
-        [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="my_events")]
+        [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="my_events")],
+        [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 

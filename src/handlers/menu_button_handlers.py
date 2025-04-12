@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
+from src.buttons.my_templates_button import handle_my_templates
 from src.database.db_draft_operations import get_draft
 from src.database.db_operations import get_event
 from src.handlers.button_handlers import handle_cancel_delete, handle_confirm_delete
@@ -21,6 +22,8 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await create_event_button(update, context)
             elif action == "my_events":
                 await my_events_button(update, context)
+            elif action == "my_templates":
+                await handle_my_templates(query, context)
             else:
                 logger.warning(f"Unknown menu action: {action}")
                 await query.edit_message_text("Неизвестная команда меню.")
@@ -130,6 +133,9 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             chat_id=query.message.chat_id,
             text="⚠️ Произошла ошибка при обработке команды меню"
         )
+
+
+
 
 def register_menu_button_handler(application):
     application.add_handler(

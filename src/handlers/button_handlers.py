@@ -153,11 +153,13 @@ async def handle_edit_event(query, context, event_id):
         [
             InlineKeyboardButton("📝 Описание", callback_data=f"edit_field|{event_id}|description"),
             InlineKeyboardButton("📅 Дата", callback_data=f"edit_field|{event_id}|date"),
-            InlineKeyboardButton("🕒 Время", callback_data=f"edit_field|{event_id}|time")
+            InlineKeyboardButton("🕒 Время", callback_data=f"edit_field|{event_id}|time"),
+            InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_field|{event_id}|limit")
+
         ],
         # Вторая строка - лимит и действия
         [
-            InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_field|{event_id}|limit")
+            InlineKeyboardButton("💾 Сохранить как шаблон", callback_data=f"save_template|{event_id}")
         ],
         # Третья строка - опасные действия
         [
@@ -167,7 +169,7 @@ async def handle_edit_event(query, context, event_id):
     ]
 
     await query.edit_message_text(
-        text="Выберите поле для редактирования:",
+        text="✏️ Редактирование мероприятия:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -456,9 +458,7 @@ async def handle_cancel_delete(query, context, event_id):
         await query.answer("⚠️ Не удалось отменить удаление", show_alert=True)
 
 def register_button_handler(application):
-    application.add_handler(
-        CallbackQueryHandler(
-            button_handler,
-            pattern=r"^(join|leave|edit|edit_field|confirm_delete|delete_event)\|"
-        )
-    )
+    application.add_handler(CallbackQueryHandler(
+        button_handler,
+        pattern=r"^(join|leave|edit|edit_field|confirm_delete|delete_event|cancel_delete|save_template|use_template)"
+    ))
