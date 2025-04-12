@@ -98,31 +98,32 @@ async def handle_use_template(query, context, template_id):
             await query.answer("Шаблон не найден", show_alert=True)
             return
 
-        # Создаем полноценный черновик в базе данных
+        # Создаем первое сообщение с запросом даты
+        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
+        message = await query.edit_message_text(
+            text=f"🔄 Шаблон применён:\n\n"
+                 f"📢 {template['description']}\n"
+                 f"🕒 Время: {template['time']}\n"
+                 f"👥 Лимит: {template['participant_limit'] or 'нет'}\n\n"
+                 f"Теперь укажите дату мероприятия:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+        # Создаем черновик с сохранением ID сообщения
         draft_id = add_draft(
             db_path=context.bot_data["drafts_db_path"],
             creator_id=query.from_user.id,
             chat_id=query.message.chat_id,
-            status="AWAIT_DATE",  # Ждем ввода даты
+            status="AWAIT_DATE",
             description=template['description'],
             time=template['time'],
             participant_limit=template['participant_limit'],
-            is_from_template=True
+            is_from_template=True,
+            bot_message_id=message.message_id  # Сохраняем ID сообщения
         )
 
-        # Сохраняем ID черновика в user_data для последующей обработки
+        # Сохраняем ID черновика в user_data
         context.user_data['current_draft_id'] = draft_id
-
-        # Отправляем запрос даты
-        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
-        await query.edit_message_text(
-            f"🔄 Шаблон применён:\n\n"
-            f"📢 {template['description']}\n"
-            f"🕒 Время: {template['time']}\n"
-            f"👥 Лимит: {template['participant_limit'] or 'нет'}\n\n"
-            f"Теперь укажите дату мероприятия:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
 
     except Exception as e:
         logger.error(f"Ошибка применения шаблона: {e}")

@@ -188,15 +188,15 @@ async def _process_date(update, context, draft, date_input):
                 limit=draft['participant_limit'],
                 creator_id=update.message.from_user.id,
                 chat_id=update.message.chat_id,
-                message_id=None
+                message_id=draft.get("bot_message_id")  # Используем сохраненный ID
             )
 
-            # Отправляем сообщение
+            # Отправляем сообщение (редактируем существующее)
             await send_event_message(
                 event_id=event_id,
                 context=context,
                 chat_id=update.message.chat_id,
-                message_id=None
+                message_id=draft.get("bot_message_id")
             )
 
             # Удаляем черновик
