@@ -108,7 +108,8 @@ async def handle_use_template(query, context, template_id):
             time=template['time'],
             participant_limit=template['participant_limit'],
             is_from_template=True,
-            bot_message_id=query.message.message_id  # <-- Передаём сразу!
+            bot_message_id=query.message.message_id,  # <-- Передаём сразу!
+            original_message_id=query.message.message_id
         )
 
         if not draft_id:
