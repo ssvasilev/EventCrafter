@@ -152,20 +152,6 @@ async def handle_use_template(query, context, template_id):
                 #bot_message_id=message.message_id
             )
 
-        # Сохраняем ID черновика в user_data
-        context.user_data['current_draft_id'] = draft_id
-
-        # Отправляем запрос даты
-        keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
-        await query.edit_message_text(
-            f"🔄 Шаблон применён:\n\n"
-            f"📢 {template['description']}\n"
-            f"🕒 Время: {template['time']}\n"
-            f"👥 Лимит: {template['participant_limit'] or 'нет'}\n\n"
-            f"Теперь укажите дату мероприятия:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-
     except Exception as e:
         logger.error(f"Ошибка применения шаблона: {e}")
         await query.answer("⚠️ Не удалось применить шаблон", show_alert=True)
