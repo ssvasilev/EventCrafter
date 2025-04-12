@@ -149,7 +149,7 @@ async def handle_use_template(query, context, template_id):
             update_draft(
                 db_path=context.bot_data["drafts_db_path"],
                 draft_id=draft_id,
-                #bot_message_id=message.message_id
+                bot_message_id=message.message_id
             )
 
     except Exception as e:

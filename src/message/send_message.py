@@ -17,7 +17,7 @@ EMPTY_RESERVE_TEXT = "Резерв пуст."
 EMPTY_DECLINED_TEXT = "Отказавшихся нет."
 
 
-async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int = None):
+async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id):
     """
     Отправляет или редактирует сообщение с информацией о мероприятии и закрепляет его.
     Возвращает ID сообщения.
