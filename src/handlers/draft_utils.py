@@ -93,6 +93,8 @@ async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE,
         else:
             if draft["status"] == "AWAIT_DESCRIPTION":
                 await _process_description(update, context, draft, user_input)
+            elif draft.get('is_from_template') and draft['status'] == 'AWAIT_DATE':
+                await _process_date(update, context, draft, user_input)
             elif draft["status"] == "AWAIT_DATE":
                 await _process_date(update, context, draft, user_input)
             elif draft["status"] == "AWAIT_TIME":
@@ -131,13 +133,48 @@ async def _process_description(update, context, draft, description):
     )
 
 async def _process_date(update, context, draft, date_input):
-    """Обработка шага ввода даты с всплывающими ошибками"""
+    """Обработка шага ввода даты с учётом шаблонов"""
     try:
-        datetime.strptime(date_input, "%d.%m.%Y").date()
+        datetime.strptime(date_input, "%d.%m.%Y").date()  # Валидация формата
 
+        # Для шаблонов - сразу создаём мероприятие
+        if draft.get('is_from_template'):
+            event_id = add_event(
+                db_path=context.bot_data["db_path"],
+                description=draft['description'],
+                date=date_input,
+                time=draft['time'],
+                limit=draft['participant_limit'],
+                creator_id=update.message.from_user.id,
+                chat_id=update.message.chat_id,
+                message_id=None  # Будет установлено при отправке
+            )
+
+            # Отправляем сообщение о мероприятии
+            await send_event_message(
+                event_id=event_id,
+                context=context,
+                chat_id=update.message.chat_id,
+                message_id=None
+            )
+
+            # Удаляем черновик
+            delete_draft(context.bot_data["drafts_db_path"], draft['id'])
+            if 'current_draft_id' in context.user_data:
+                del context.user_data['current_draft_id']
+
+            # Удаляем сообщение пользователя
+            try:
+                await update.message.delete()
+            except BadRequest:
+                pass
+
+            return
+
+        # Обычный сценарий (не шаблон)
         update_draft(
             db_path=context.bot_data["drafts_db_path"],
-            draft_id=draft["id"],
+            draft_id=draft['id'],
             status="AWAIT_TIME",
             date=date_input
         )
@@ -149,6 +186,7 @@ async def _process_date(update, context, draft, date_input):
             text=f"📢 {draft['description']}\n\n📅 Дата: {date_input}\n\nВведите время (ЧЧ:ММ)",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+
     except ValueError:
         await _show_input_error(
             update, context,

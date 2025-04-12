@@ -115,7 +115,7 @@ def get_draft(db_path, draft_id):
         cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
         draft = cursor.fetchone()
         if draft:
-            return dict(draft)  # Конвертируем Row в dict
+            return dict(draft, is_from_template=bool(draft['is_from_template']))  # Конвертируем Row в dict
         return None
 
 def get_user_chat_draft(db_path, creator_id, chat_id):
