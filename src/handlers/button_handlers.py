@@ -149,12 +149,21 @@ async def handle_edit_event(query, context, event_id):
 
     # Показываем меню редактирования только автору
     keyboard = [
-        [InlineKeyboardButton("📝 Описание", callback_data=f"edit_field|{event_id}|description")],
-        [InlineKeyboardButton("📅 Дата", callback_data=f"edit_field|{event_id}|date")],
-        [InlineKeyboardButton("🕒 Время", callback_data=f"edit_field|{event_id}|time")],
-        [InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_field|{event_id}|limit")],
-        [InlineKeyboardButton("🗑️ Удалить мероприятие", callback_data=f"confirm_delete|{event_id}")],
-        [InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_edit|{event_id}")]
+        # Первая строка - редактирование основных полей
+        [
+            InlineKeyboardButton("📝 Описание", callback_data=f"edit_field|{event_id}|description"),
+            InlineKeyboardButton("📅 Дата", callback_data=f"edit_field|{event_id}|date"),
+            InlineKeyboardButton("🕒 Время", callback_data=f"edit_field|{event_id}|time")
+        ],
+        # Вторая строка - лимит и действия
+        [
+            InlineKeyboardButton("👥 Лимит участников", callback_data=f"edit_field|{event_id}|limit")
+        ],
+        # Третья строка - опасные действия
+        [
+            InlineKeyboardButton("🗑️ Удалить мероприятие", callback_data=f"confirm_delete|{event_id}"),
+            InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_edit|{event_id}")
+        ]
     ]
 
     await query.edit_message_text(
