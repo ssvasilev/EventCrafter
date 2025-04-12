@@ -172,6 +172,9 @@ async def _process_description(update, context, draft, description):
         await _show_input_error(update, context, "⚠️ Ошибка обработки ввода")
 
 async def _process_date(update, context, draft, date_input):
+    bot_message_id = draft.get("bot_message_id")
+    if not bot_message_id:
+        logger.error("ОШИБКА: bot_message_id=None!")
     """Обработка шага ввода даты с учётом шаблонов"""
     try:
         # Валидация даты
