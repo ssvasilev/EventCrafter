@@ -135,10 +135,12 @@ async def _process_description(update, context, draft, description):
 async def _process_date(update, context, draft, date_input):
     """Обработка шага ввода даты с учётом шаблонов"""
     try:
-        datetime.strptime(date_input, "%d.%m.%Y").date()  # Валидация формата
+        # Валидация даты
+        datetime.strptime(date_input, "%d.%m.%Y").date()
 
-        # Для шаблонов - сразу создаём мероприятие
-        if draft.get('is_from_template'):
+        # Для шаблонов - особый сценарий
+        if isinstance(draft, dict) and draft.get('is_from_template'):
+            # Создаем мероприятие
             event_id = add_event(
                 db_path=context.bot_data["db_path"],
                 description=draft['description'],
@@ -147,10 +149,10 @@ async def _process_date(update, context, draft, date_input):
                 limit=draft['participant_limit'],
                 creator_id=update.message.from_user.id,
                 chat_id=update.message.chat_id,
-                message_id=None  # Будет установлено при отправке
+                message_id=None
             )
 
-            # Отправляем сообщение о мероприятии
+            # Отправляем сообщение
             await send_event_message(
                 event_id=event_id,
                 context=context,

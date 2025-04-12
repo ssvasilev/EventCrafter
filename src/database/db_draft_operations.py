@@ -104,18 +104,26 @@ def update_draft(db_path, draft_id, status=None, description=None, date=None,
         logger.error(f"Ошибка при обновлении черновика: {e}")
 
 def get_draft(db_path, draft_id):
-    """
-    Возвращает черновик мероприятия по его ID.
-    :param db_path: Путь к базе данных.
-    :param draft_id: ID черновика.
-    :return: Черновик мероприятия в виде словаря.
-    """
-    with get_db_connection(db_path) as conn:
+    """Возвращает черновик как словарь с bool-флагами"""
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
-        draft = cursor.fetchone()
-        if draft:
-            return dict(draft, is_from_template=bool(draft['is_from_template']))  # Конвертируем Row в dict
+        row = cursor.fetchone()
+        if row:
+            return {
+                'id': row['id'],
+                'creator_id': row['creator_id'],
+                'chat_id': row['chat_id'],
+                'status': row['status'],
+                'description': row['description'],
+                'date': row['date'],
+                'time': row['time'],
+                'participant_limit': row['participant_limit'],
+                'is_from_template': bool(row['is_from_template']),  # Конвертируем в bool
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
+            }
         return None
 
 def get_user_chat_draft(db_path, creator_id, chat_id):
@@ -129,10 +137,25 @@ def get_user_chat_draft(db_path, creator_id, chat_id):
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM drafts WHERE creator_id = ? AND chat_id = ? AND status != 'DONE'",
+            "SELECT * FROM drafts WHERE creator_id = ? AND chat_id = ? ORDER BY id DESC LIMIT 1",
             (creator_id, chat_id)
         )
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        if row:
+            return {
+                'id': row['id'],
+                'creator_id': row['creator_id'],
+                'chat_id': row['chat_id'],
+                'status': row['status'],
+                'description': row['description'],
+                'date': row['date'],
+                'time': row['time'],
+                'participant_limit': row['participant_limit'],
+                'is_from_template': bool(row['is_from_template']),
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
+            }
+        return None
 
 def get_user_draft(db_path, creator_id):
     """

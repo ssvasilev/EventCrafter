@@ -11,7 +11,7 @@ async def handle_draft_message(update, context):
         return
 
     try:
-        # 1. Пытаемся найти черновик в user_data (для шаблонов)
+        # Получаем черновик как словарь
         draft = None
         if 'current_draft_id' in context.user_data:
             draft = get_draft(
@@ -26,6 +26,8 @@ async def handle_draft_message(update, context):
                 update.message.from_user.id,
                 update.message.chat_id
             )
+            if draft:
+                context.user_data['current_draft_id'] = draft['id']
 
         if draft:
             # Обрабатываем ввод в зависимости от статуса черновика
@@ -34,8 +36,8 @@ async def handle_draft_message(update, context):
             # Удаляем сообщение пользователя после успешной обработки
             try:
                 await update.message.delete()
-            except BadRequest as e:
-                logger.warning(f"Не удалось удалить сообщение: {e}")
+            except BadRequest:
+                pass
 
     except Exception as e:
         logger.error(f"Ошибка обработки черновика: {e}", exc_info=True)
