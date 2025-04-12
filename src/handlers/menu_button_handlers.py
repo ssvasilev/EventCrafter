@@ -1,13 +1,14 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
-from src.buttons.my_templates_button import handle_my_templates
+
 from src.database.db_draft_operations import get_draft
 from src.database.db_operations import get_event
 from src.handlers.button_handlers import handle_cancel_delete, handle_confirm_delete
 from src.handlers.create_event_handler import create_event_button
 from src.buttons.my_events_button import my_events_button
 from src.handlers.cancel_handler import cancel_draft, cancel_input, cancel_edit
+from src.handlers.template_handlers import handle_my_templates
 from src.logger.logger import logger
 
 async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
