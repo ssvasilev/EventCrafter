@@ -460,7 +460,7 @@ def delete_event(db_path: str, event_id: int):
 def get_user_templates(db_path, user_id):
     """Возвращает шаблоны пользователя с проверкой существования пользователя"""
     with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row  # Это ключевое изменение!
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
         # Проверяем существует ли пользователь
@@ -475,4 +475,4 @@ def get_user_templates(db_path, user_id):
             ORDER BY created_at DESC""",
             (user_id,)
         )
-        return [dict(row) for row in cursor.fetchall()] # Конвертируем в словари
+        return [dict(row) for row in cursor.fetchall()]

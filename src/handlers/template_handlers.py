@@ -10,7 +10,7 @@ from src.logger import logger
 
 
 async def handle_my_templates(query, context):
-    """Показывает список шаблонов пользователя с обработкой ошибок"""
+    """Показывает список шаблонов пользователя с кнопками удаления"""
     try:
         templates = get_user_templates(context.bot_data["db_path"], query.from_user.id)
 
@@ -18,28 +18,28 @@ async def handle_my_templates(query, context):
             await query.answer("У вас нет сохранённых шаблонов", show_alert=True)
             return
 
-        # Логируем для отладки
-        logger.debug(f"Найдены шаблоны: {templates}")
-
-        keyboard = [
-            [InlineKeyboardButton(
-                f"{t['name']} ({t['time']})",
-                callback_data=f"use_template|{t['id']}"
-            )]
-            for t in templates[:5]  # Ограничиваем количество
-        ]
+        keyboard = []
+        for t in templates[:5]:  # Ограничиваем количество
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{t['name']} ({t['time']})",
+                    callback_data=f"use_template|{t['id']}"
+                ),
+                InlineKeyboardButton(
+                    "🗑️",
+                    callback_data=f"delete_template|{t['id']}"
+                )
+            ])
 
         if len(templates) > 5:
-            keyboard.append([InlineKeyboardButton(
-                "Показать ещё...",
-                callback_data="more_templates|5"
-            )])
+            keyboard.append([InlineKeyboardButton("Показать ещё...", callback_data="more_templates|5")])
 
         keyboard.append([InlineKeyboardButton("❌ Закрыть", callback_data="close_templates")])
 
         await query.edit_message_text(
             "📁 Ваши шаблоны мероприятий:",
-            reply_markup=InlineKeyboardMarkup(keyboard))
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
     except Exception as e:
         logger.error(f"Ошибка загрузки шаблонов: {str(e)}", exc_info=True)
@@ -150,6 +150,31 @@ async def handle_use_template(query, context, template_id):
     except Exception as e:
         logger.error(f"Ошибка применения шаблона: {e}")
         await query.answer("⚠️ Не удалось применить шаблон", show_alert=True)
+
+async def handle_delete_template(query, context, template_id):
+    """Обрабатывает удаление шаблона"""
+    try:
+        # Проверяем, что шаблон принадлежит пользователю
+        templates = get_user_templates(context.bot_data["db_path"], query.from_user.id)
+        if not any(t['id'] == template_id for t in templates):
+            await query.answer("❌ Шаблон не найден или нет прав", show_alert=True)
+            return
+
+        # Удаляем шаблон
+        with sqlite3.connect(context.bot_data["db_path"]) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM event_templates WHERE id = ?", (template_id,))
+            conn.commit()
+
+        # Показываем уведомление
+        await query.answer("✅ Шаблон удалён", show_alert=False)
+
+        # Обновляем список шаблонов
+        await handle_my_templates(query, context)
+
+    except Exception as e:
+        logger.error(f"Ошибка удаления шаблона: {str(e)}", exc_info=True)
+        await query.answer("⚠️ Не удалось удалить шаблон", show_alert=True)
 
 async def save_user_middleware(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user

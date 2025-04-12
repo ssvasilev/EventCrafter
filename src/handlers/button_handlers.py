@@ -19,7 +19,7 @@ from src.database.db_operations import (
     update_event_field, delete_event, get_participants
 )
 from src.database.db_draft_operations import add_draft, delete_draft, get_draft
-from src.handlers.template_handlers import handle_save_template, handle_use_template
+from src.handlers.template_handlers import handle_save_template, handle_use_template, handle_delete_template
 from src.jobs.notification_jobs import remove_existing_notification_jobs
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
@@ -48,6 +48,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif action == 'use_template':
                 template_id = int(parts[1])
                 await handle_use_template(query, context, template_id)
+            elif action == 'delete_template':
+                template_id = int(parts[1])
+                await handle_delete_template(query, context, template_id)
             elif action == 'confirm_delete':
                 await handle_confirm_delete(query, context, int(parts[1]))
             elif action == 'delete_event':
