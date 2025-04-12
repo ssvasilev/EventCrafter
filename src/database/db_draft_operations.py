@@ -43,75 +43,96 @@ def add_draft(db_path, creator_id, chat_id, status,
                  original_message_id, now, now,
                  is_from_template, bot_message_id),
             )
-            return cursor.lastrowid
+            draft_id = cursor.lastrowid
+            conn.commit()
+
+            # Проверяем запись в БД
+            cursor.execute("SELECT bot_message_id FROM drafts WHERE id = ?", (draft_id,))
+            saved_bot_message_id = cursor.fetchone()[0]
+            if saved_bot_message_id != bot_message_id:
+                logger.error(f"Ошибка: bot_message_id не сохранён (ожидалось: {bot_message_id}, получено: {saved_bot_message_id})")
+
+            logger.info(f"Добавлен черновик ID {draft_id} с bot_message_id={bot_message_id}")
+            return draft_id
     except sqlite3.Error as e:
         logger.error(f"Ошибка при добавлении черновика: {e}")
         return None
 
 
-def update_draft(db_path, draft_id, status=None, description=None, date=None,
-                 time=None, participant_limit=None, bot_message_id=None):
+def update_draft(db_path, draft_id, **kwargs):
     """
     Обновляет черновик мероприятия в базе данных.
-    :param db_path: Путь к базе данных.
-    :param draft_id: ID черновика.
-    :param status: Статус черновика.
-    :param description: Описание мероприятия.
-    :param date: Дата мероприятия.
-    :param time: Время мероприятия.
-    :param participant_limit: Лимит участников.
-    :param bot_message_id: ID сообщения бота.
+    :param db_path: Путь к базе данных
+    :param draft_id: ID черновика
+    :kwargs: Поля для обновления (status, description, date, time, participant_limit, bot_message_id)
     """
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для updated_at
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
+
+            # Формируем запрос динамически
             updates = []
             params = []
 
-            if status:
-                updates.append("status = ?")
-                params.append(status)
-            if description:
-                updates.append("description = ?")
-                params.append(description)
-            if date:
-                updates.append("date = ?")
-                params.append(date)
-            if time:
-                updates.append("time = ?")
-                params.append(time)
-            if participant_limit is not None:
-                updates.append("participant_limit = ?")
-                params.append(participant_limit)
-            if bot_message_id is not None:
-                updates.append("bot_message_id = ?")
-                params.append(bot_message_id)
+            for field, value in kwargs.items():
+                if value is not None:
+                    updates.append(f"{field} = ?")
+                    params.append(value)
 
-            # Добавляем обновление поля updated_at
+            if not updates:
+                logger.warning("Нет полей для обновления")
+                return False
+
             updates.append("updated_at = ?")
             params.append(now)
-
             params.append(draft_id)
 
-            cursor.execute(
-                f"UPDATE drafts SET {', '.join(updates)} WHERE id = ?",
-                params,
-            )
+            query = f"UPDATE drafts SET {', '.join(updates)} WHERE id = ?"
+            cursor.execute(query, params)
             conn.commit()
-            logger.info(f"Черновик с ID {draft_id} обновлен.")
+
+            # Проверяем обновление
+            if 'bot_message_id' in kwargs:
+                cursor.execute("SELECT bot_message_id FROM drafts WHERE id = ?", (draft_id,))
+                updated_value = cursor.fetchone()[0]
+                if updated_value != kwargs['bot_message_id']:
+                    logger.error(f"Ошибка обновления bot_message_id (ожидалось: {kwargs['bot_message_id']}, получено: {updated_value})")
+
+            logger.info(f"Черновик {draft_id} обновлен: {kwargs}")
+            return True
+
     except sqlite3.Error as e:
-        logger.error(f"Ошибка при обновлении черновика: {e}")
+        logger.error(f"Ошибка при обновлении черновика {draft_id}: {e}")
+        return False
 
 def get_draft(db_path, draft_id):
     """Возвращает черновик как словарь со ВСЕМИ полями"""
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
-        row = cursor.fetchone()
-        if row:
-            return dict(row)  # Преобразуем Row в dict со всеми полями
+    try:
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            # Проверяем существование столбца bot_message_id
+            cursor.execute("PRAGMA table_info(drafts)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'bot_message_id' not in columns:
+                logger.error("В таблице drafts отсутствует столбец bot_message_id!")
+                return None
+
+            cursor.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,))
+            row = cursor.fetchone()
+
+            if not row:
+                logger.warning(f"Черновик {draft_id} не найден")
+                return None
+
+            draft_data = dict(row)
+            logger.debug(f"Получен черновик {draft_id}: bot_message_id={draft_data.get('bot_message_id')}")
+            return draft_data
+
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка получения черновика {draft_id}: {e}")
         return None
 
 def get_user_chat_draft(db_path, creator_id, chat_id):
