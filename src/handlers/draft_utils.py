@@ -231,6 +231,9 @@ async def _process_template_date(update, context, draft, date_input):
         delete_draft(context.bot_data["drafts_db_path"], fresh_draft['id'])
         await update.message.delete()
 
+        # 7. Отправляем уведомление создателю (используем общую функцию)
+        await _send_event_creation_notification(context, fresh_draft, fresh_draft['bot_message_id'])
+
     except ValueError as e:
         logger.error(f"Ошибка в шаблонном сценарии: {e}")
         await _show_input_error(update, context, f"❌ Ошибка: {str(e)}")
@@ -369,18 +372,7 @@ async def _process_limit(update, context, draft, limit_input):
             logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
 
         # Отправляем уведомление создателю
-        try:
-            chat_id_link = str(draft["chat_id"]).replace("-100", "") if str(draft["chat_id"]).startswith("-100") else \
-            draft["chat_id"]
-            event_link = f"https://t.me/c/{chat_id_link}/{bot_message_id}"
-
-            await context.bot.send_message(
-                chat_id=draft["creator_id"],
-                text=f"✅ Мероприятие создано!\n\n📢 <a href='{event_link}'>{draft['description']}</a>",
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            logger.error(f"Ошибка уведомления создателя: {e}")
+        await _send_event_creation_notification(context, draft, bot_message_id)
 
     except ValueError:
         await _show_input_error(
