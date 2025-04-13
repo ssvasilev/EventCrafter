@@ -219,6 +219,7 @@ async def handle_edit_field(query, context, event_id, field):
         status=f"EDIT_{field}",
         event_id=event_id,
         original_message_id=query.message.message_id,  # Сохраняем ID текущего сообщения
+        bot_message_id=query.message.message_id,
         description=event["description"],
         date=event["date"],
         time=event["time"],
