@@ -233,7 +233,7 @@ async def _process_template_date(update, context, draft, date_input):
         await update.message.delete()
 
         # 7. Отправляем уведомление создателю (используем общую функцию)
-        await _send_event_creation_notification(context, fresh_draft, fresh_draft['bot_message_id'])
+        await _send_event_creation_notification(context, event_id, fresh_draft['bot_message_id'])
 
     except ValueError as e:
         logger.error(f"Ошибка в шаблонном сценарии: {e}")
@@ -373,7 +373,7 @@ async def _process_limit(update, context, draft, limit_input):
             logger.warning(f"Не удалось удалить сообщение пользователя: {e}")
 
         # Отправляем уведомление создателю
-        await _send_event_creation_notification(context, draft, bot_message_id)
+        await _send_event_creation_notification(context, event_id, bot_message_id)
 
     except ValueError:
         await _show_input_error(
