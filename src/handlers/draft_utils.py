@@ -90,7 +90,7 @@ async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE,
     try:
         # Добавляем детальное логирование
         logger.info(f"Начало обработки черновика ID {draft['id']}, статус: {draft['status']}")
-        logger.debug(f"Полные данные черновика: {draft}")
+        logger.info(f"Полные данные черновика: {draft}")
 
         # Проверка обязательных полей для редактирования
         if draft["status"].startswith("EDIT_"):
