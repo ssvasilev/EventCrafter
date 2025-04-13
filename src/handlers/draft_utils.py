@@ -10,6 +10,7 @@ from src.database.db_draft_operations import update_draft, delete_draft, get_use
 from src.database.db_operations import add_event, get_event
 from src.jobs.notification_jobs import schedule_notifications, schedule_unpin_and_delete, \
     remove_existing_notification_jobs, remove_existing_job
+from src.message._send_event_creation_notification import _send_event_creation_notification
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
