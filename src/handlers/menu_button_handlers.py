@@ -54,9 +54,6 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
                 await cancel_draft(update, context)
 
-            elif data == "close_templates":  # Обработка кнопки "Закрыть" в списке шаблонов
-                await show_main_menu(query, context)
-
             elif data.startswith("cancel_edit|"):
                 event_id = int(data.split('|')[1])
                 event = get_event(context.bot_data["db_path"], event_id)
@@ -165,6 +162,6 @@ def register_menu_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             menu_button_handler,
-            pattern=r"^(menu_|cancel_|close_templates)"  # Обрабатываем menu_* и cancel_*
+            pattern=r"^(menu_|cancel_)"  # Обрабатываем menu_* и cancel_*
         )
     )

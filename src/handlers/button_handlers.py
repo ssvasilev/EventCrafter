@@ -19,6 +19,7 @@ from src.database.db_operations import (
     update_event_field, delete_event, get_participants
 )
 from src.database.db_draft_operations import add_draft, delete_draft, get_draft
+from src.handlers.menu import show_main_menu
 from src.handlers.template_handlers import handle_save_template, handle_use_template, handle_delete_template
 from src.jobs.notification_jobs import remove_existing_notification_jobs
 from src.message.send_message import send_event_message
@@ -30,7 +31,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Разбираем callback_data в зависимости от формата
-        if '|' in query.data:
+        if query.data == "close_templates":
+            keyboard = [
+                [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
+                [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+                [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
+            ]
+            await query.edit_message_text(
+                "Привет! Я бот для организации мероприятий. Выберите действие:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return
+
+        elif '|' in query.data:
             parts = query.data.split('|')
             action = parts[0]
 
@@ -51,6 +64,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif action == 'delete_template':
                 template_id = int(parts[1])
                 await handle_delete_template(query, context, template_id)
+            elif action == 'close_templates':
+                await show_main_menu(query, context,)
             elif action == 'confirm_delete':
                 await handle_confirm_delete(query, context, int(parts[1]))
             elif action == 'delete_event':
@@ -471,5 +486,5 @@ async def handle_cancel_delete(query, context, event_id):
 def register_button_handler(application):
     application.add_handler(CallbackQueryHandler(
         button_handler,
-        pattern=r"^(join|leave|edit|edit_field|confirm_delete|delete_event|cancel_delete|save_template|use_template|delete_template)"
+        pattern=r"^(join|leave|edit|edit_field|confirm_delete|delete_event|cancel_delete|save_template|use_template|delete_template|close_templates)"
     ))
