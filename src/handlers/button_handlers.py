@@ -200,45 +200,80 @@ async def handle_edit_event(query, context, event_id):
 
 
 async def handle_edit_field(query, context, event_id, field):
-    """Обработка выбора поля для редактирования"""
-    event = get_event(context.bot_data["db_path"], event_id)
-    if not event:
-        await query.edit_message_text("Мероприятие не найдено")
-        return
+    """Обработка выбора поля для редактирования с полной проверкой данных"""
+    try:
+        # Получаем полные данные о мероприятии
+        event = get_event(context.bot_data["db_path"], event_id)
+        if not event:
+            logger.error(f"Мероприятие {event_id} не найдено при редактировании")
+            await query.edit_message_text("❌ Мероприятие не найдено")
+            return
 
-    # Проверяем авторство
-    if query.from_user.id != event["creator_id"]:
-        await query.answer("❌ Только автор может редактировать мероприятие")
-        return
+        # Проверяем авторство
+        if query.from_user.id != event["creator_id"]:
+            logger.warning(f"Попытка редактирования не автором: user={query.from_user.id}, creator={event['creator_id']}")
+            await query.answer("❌ Только автор может редактировать мероприятие", show_alert=True)
+            return
 
-    # Создаем черновик с сохранением original_message_id из текущего сообщения
-    draft_id = add_draft(
-        db_path=context.bot_data["drafts_db_path"],
-        creator_id=query.from_user.id,
-        chat_id=query.message.chat_id,
-        status=f"EDIT_{field}",
-        event_id=event_id,
-        original_message_id=query.message.message_id,  # Сохраняем ID текущего сообщения
-        bot_message_id=query.message.message_id,
-        description=event["description"],
-        date=event["date"],
-        time=event["time"],
-        participant_limit=event["participant_limit"],
-        is_from_template=False
-    )
+        # Создаем черновик с полным набором данных
+        draft_id = add_draft(
+            db_path=context.bot_data["drafts_db_path"],
+            creator_id=query.from_user.id,
+            chat_id=query.message.chat_id,
+            status=f"EDIT_{field}",
+            event_id=event_id,
+            original_message_id=query.message.message_id,
+            bot_message_id=query.message.message_id,
+            description=event["description"],
+            date=event["date"],
+            time=event["time"],
+            participant_limit=event["participant_limit"],
+            is_from_template=False
+        )
 
-    field_prompts = {
-        "description": "Введите новое описание мероприятия:",
-        "date": "Введите новую дату (ДД.ММ.ГГГГ):",
-        "time": "Введите новое время (ЧЧ:ММ):",
-        "limit": "Введите новый лимит участников (0 - без лимита):"
-    }
+        if not draft_id:
+            logger.error("Не удалось создать черновик для редактирования")
+            await query.edit_message_text("⚠️ Ошибка при создании черновика")
+            return
 
-    keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_input|{draft_id}")]]
-    await query.edit_message_text(
-        text=field_prompts[field],
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+        logger.info(f"Создан черновик редактирования ID {draft_id} для мероприятия {event_id}")
+
+        # Подготавливаем текст запроса
+        field_prompts = {
+            "description": "✏️ Введите новое описание мероприятия:",
+            "date": "📅 Введите новую дату (ДД.ММ.ГГГГ):",
+            "time": "🕒 Введите новое время (ЧЧ:ММ):",
+            "limit": "👥 Введите новый лимит участников (0 - без лимита):"
+        }
+
+        keyboard = [
+            [InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_input|{draft_id}")]
+        ]
+
+        # Сохраняем draft_id в context.user_data для последующей обработки
+        context.user_data['current_draft_id'] = draft_id
+
+        try:
+            await query.edit_message_text(
+                text=field_prompts[field],
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            await query.answer()  # Важно для закрытия всплывающего окна
+        except BadRequest as e:
+            logger.error(f"Ошибка редактирования сообщения: {e}")
+            # Фолбэк: отправляем новое сообщение
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=field_prompts[field],
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
+    except Exception as e:
+        logger.error(f"Критическая ошибка в handle_edit_field: {e}", exc_info=True)
+        try:
+            await query.edit_message_text("⚠️ Произошла ошибка при начале редактирования")
+        except:
+            await query.answer("⚠️ Ошибка! Попробуйте ещё раз", show_alert=True)
 
 async def handle_cancel_edit(query, context, event_id):
     """Обработка отмены редактирования"""
