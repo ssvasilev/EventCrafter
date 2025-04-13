@@ -37,7 +37,7 @@ async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, e
             )
             return
 
-        # Создаем черновик для редактирования
+        # Создаем черновик для редактирования с bot_message_id
         draft_id = add_draft(
             db_path=context.bot_data["drafts_db_path"],
             creator_id=query.from_user.id,
@@ -45,6 +45,7 @@ async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, e
             status=f"EDIT_{field_name}",
             event_id=event_id,
             original_message_id=query.message.message_id,
+            bot_message_id=query.message.message_id,  # Добавлено
             description=event["description"],
             date=event["date"],
             time=event["time"],

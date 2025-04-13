@@ -16,7 +16,7 @@ async def handle_draft_message(update, context):
         if 'current_draft_id' in context.user_data:
             draft = get_draft(context.bot_data["drafts_db_path"], context.user_data['current_draft_id'])
 
-        # 2. Если не нашли, проверяем обычные черновики
+        # Если не нашли, проверяем обычные черновики
         if not draft:
             draft = get_user_chat_draft(
                 context.bot_data["drafts_db_path"],
@@ -27,8 +27,14 @@ async def handle_draft_message(update, context):
                 context.user_data['current_draft_id'] = draft['id']
 
         if draft:
-            # Если у черновика нет bot_message_id, создаём новое сообщение
-            if not draft.get("bot_message_id"):
+            # Для черновиков редактирования проверяем наличие event_id
+            if draft.get("status", "").startswith("EDIT_") and not draft.get("event_id"):
+                logger.error(f"Черновик редактирования без event_id: {draft}")
+                await _show_input_error(update, context, "⚠️ Ошибка: мероприятие не найдено")
+                return
+
+            # Если у черновика нет bot_message_id, создаём новое сообщение (только для новых черновиков, не для редактирования)
+            if not draft.get("bot_message_id") and not draft.get("status", "").startswith("EDIT_"):
                 message = await context.bot.send_message(
                     chat_id=update.message.chat_id,
                     text="Обработка вашего мероприятия..."
