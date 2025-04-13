@@ -88,21 +88,39 @@ async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE,
     chat_id = update.message.chat_id
 
     try:
-        # Обновляем current_draft_id в user_data
-        context.user_data['current_draft_id'] = draft['id']
+        # Добавляем детальное логирование
+        logger.info(f"Начало обработки черновика ID {draft['id']}, статус: {draft['status']}")
+        logger.debug(f"Полные данные черновика: {draft}")
+
+        # Проверка обязательных полей для редактирования
         if draft["status"].startswith("EDIT_"):
+            if 'event_id' not in draft:
+                logger.error(f"Черновик редактирования {draft['id']} не содержит event_id!")
+                await _show_input_error(update, context, "⚠️ Ошибка: мероприятие не найдено")
+                return
+
+            event = get_event(context.bot_data["db_path"], draft["event_id"])
+            if not event:
+                logger.error(f"Мероприятие {draft['event_id']} не найдено в БД")
+                await _show_input_error(update, context, "⚠️ Мероприятие не найдено")
+                return
+
+        # Обработка в зависимости от статуса
+        if draft["status"] == "AWAIT_DESCRIPTION":
+            await _process_description(update, context, draft, update.message.text)
+        elif draft.get('is_from_template') and draft['status'] == 'AWAIT_DATE':
+            await _process_template_date(update, context, draft, update.message.text)
+        elif draft["status"] == "AWAIT_DATE":
+            await _process_regular_date(update, context, draft, update.message.text)
+        elif draft["status"] == "AWAIT_TIME":
+            await _process_time(update, context, draft, update.message.text)
+        elif draft["status"] == "AWAIT_LIMIT":
+            await _process_limit(update, context, draft, update.message.text)
+        elif draft["status"].startswith("EDIT_"):
             await process_edit_step(update, context, draft)
         else:
-            if draft["status"] == "AWAIT_DESCRIPTION":
-                await _process_description(update, context, draft, user_input)
-            elif draft.get('is_from_template') and draft['status'] == 'AWAIT_DATE':
-                await _process_template_date(update, context, draft, user_input)
-            elif draft["status"] == "AWAIT_DATE":
-                await _process_regular_date(update, context, draft, user_input)
-            elif draft["status"] == "AWAIT_TIME":
-                await _process_time(update, context, draft, user_input)
-            elif draft["status"] == "AWAIT_LIMIT":
-                await _process_limit(update, context, draft, user_input)
+            logger.error(f"Неизвестный статус черновика: {draft['status']}")
+            await _show_input_error(update, context, "⚠️ Неизвестное состояние")
 
         # Пытаемся удалить сообщение пользователя
         try:
