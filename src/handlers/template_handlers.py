@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime
 
+import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
@@ -16,20 +17,33 @@ async def handle_my_templates(query, context):
 
         if not templates:
             await query.answer("У вас нет сохранённых шаблонов", show_alert=True)
+
+            # Проверяем, не находимся ли мы уже в главном меню
+            if "Главное меню:" in query.message.text:
+                return  # Уже в главном меню, ничего не делаем
+
             keyboard = [
                 [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
                 [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
                 [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
             ]
-            await query.edit_message_text(
-                "Привет! Я бот для организации мероприятий. Выберите действие:",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-            return  # Важно: завершаем функцию, если нет шаблонов
 
-        # Этот блок выполняется ТОЛЬКО если есть шаблоны
+            try:
+                await query.edit_message_text(
+                    "Главное меню:",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+            except telegram.error.BadRequest as e:
+                if "not modified" in str(e):
+                    # Сообщение уже содержит главное меню, игнорируем ошибку
+                    pass
+                else:
+                    raise
+            return
+
+        # Формируем список шаблонов
         keyboard = []
-        for t in templates[:5]:  # Ограничиваем количество
+        for t in templates[:5]:
             keyboard.append([
                 InlineKeyboardButton(
                     f"{t['name']} ({t['time']})",
@@ -54,16 +68,24 @@ async def handle_my_templates(query, context):
     except Exception as e:
         logger.error(f"Ошибка загрузки шаблонов: {str(e)}", exc_info=True)
         await query.answer("⚠️ Ошибка загрузки шаблонов", show_alert=True)
+
         # Возвращаем в главное меню при ошибке
         keyboard = [
             [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
             [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
             [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
         ]
-        await query.edit_message_text(
-            "Привет! Я бот для организации мероприятий. Выберите действие:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+
+        try:
+            await query.edit_message_text(
+                "Главное меню:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        except telegram.error.BadRequest as e:
+            if "not modified" in str(e):
+                pass  # Уже в главном меню
+            else:
+                raise
 
 async def handle_save_template(query, context, event_id):
     try:
