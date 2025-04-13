@@ -16,7 +16,15 @@ async def handle_my_templates(query, context):
 
         if not templates:
             await query.answer("У вас нет сохранённых шаблонов", show_alert=True)
-            return
+            keyboard = [
+                [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
+                [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+                [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
+            ]
+            await query.edit_message_text(
+                "Привет! Я бот для организации мероприятий. Выберите действие:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
 
         keyboard = []
         for t in templates[:5]:  # Ограничиваем количество
