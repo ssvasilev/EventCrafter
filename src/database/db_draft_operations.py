@@ -29,33 +29,61 @@ def add_draft(db_path, creator_id, chat_id, status,
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
+
+            # Логируем входные параметры
+            logger.info(f"Добавление черновика с параметрами: bot_message_id={bot_message_id}, original_message_id={original_message_id}")
+
+            # Выполняем запрос
             cursor.execute(
                 """
                 INSERT INTO drafts (
                     creator_id, chat_id, status, description, 
                     date, time, participant_limit, event_id,
-                    original_message_id, created_at, updated_at,
-                    is_from_template, bot_message_id
+                    original_message_id, is_from_template, bot_message_id,
+                    created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (creator_id, chat_id, status, description,
-                 date, time, participant_limit, event_id,
-                 original_message_id, now, now,
-                 is_from_template, bot_message_id),
+                (
+                    creator_id, chat_id, status, description,
+                    date, time, participant_limit, event_id,
+                    original_message_id, is_from_template, bot_message_id,
+                    now, now
+                ),
             )
             draft_id = cursor.lastrowid
             conn.commit()
 
-            # Проверяем запись в БД
-            cursor.execute("SELECT bot_message_id FROM drafts WHERE id = ?", (draft_id,))
-            saved_bot_message_id = cursor.fetchone()[0]
-            if saved_bot_message_id != bot_message_id:
-                logger.error(f"Ошибка: bot_message_id не сохранён (ожидалось: {bot_message_id}, получено: {saved_bot_message_id})")
+            # Проверяем, что данные сохранились правильно
+            cursor.execute(
+                "SELECT bot_message_id, original_message_id FROM drafts WHERE id = ?",
+                (draft_id,)
+            )
+            row = cursor.fetchone()
+            saved_bot_msg_id, saved_orig_msg_id = row[0], row[1]
 
-            logger.info(f"Добавлен черновик ID {draft_id} с bot_message_id={bot_message_id}")
+            logger.info(
+                f"Создан черновик ID {draft_id}. "
+                f"bot_message_id в БД: {saved_bot_msg_id} (ожидалось: {bot_message_id}), "
+                f"original_message_id в БД: {saved_orig_msg_id} (ожидалось: {original_message_id})"
+            )
+
+            if saved_bot_msg_id != bot_message_id:
+                logger.error(
+                    "РАЗЛИЧИЕ В ДАННЫХ: bot_message_id не совпадает! "
+                    f"Ожидалось: {bot_message_id}, получено: {saved_bot_msg_id}"
+                )
+
+                # Проверяем структуру таблицы
+                cursor.execute("PRAGMA table_info(drafts)")
+                columns = cursor.fetchall()
+                logger.info("Структура таблицы drafts:")
+                for col in columns:
+                    logger.info(f"  {col[1]} ({col[2]})")
+
             return draft_id
+
     except sqlite3.Error as e:
-        logger.error(f"Ошибка при добавлении черновика: {e}")
+        logger.error(f"Ошибка при добавлении черновика: {e}", exc_info=True)
         return None
 
 
