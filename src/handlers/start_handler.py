@@ -24,6 +24,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        "Привет! Я бот для организации мероприятий. Выберите действие:",
+        "Главное меню:",
         reply_markup=reply_markup,
     )

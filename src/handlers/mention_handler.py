@@ -47,7 +47,7 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Отправляем новое сообщение с меню
             sent_message = await context.bot.send_message(
                 chat_id=chat_id,
-                text="Привет! Я бот для организации мероприятий. Выберите действие:",
+                text="Главное меню:",
                 reply_markup=reply_markup
             )
 

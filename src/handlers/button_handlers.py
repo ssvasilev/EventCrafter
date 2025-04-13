@@ -38,7 +38,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
             ]
             await query.edit_message_text(
-                "Привет! Я бот для организации мероприятий. Выберите действие:",
+                "Главное меню:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
             return
