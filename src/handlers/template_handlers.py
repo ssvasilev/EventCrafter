@@ -61,7 +61,7 @@ async def handle_my_templates(query, context):
             [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
         ]
         await query.edit_message_text(
-            "Произошла ошибка. Возвращаемся в главное меню:",
+            "Привет! Я бот для организации мероприятий. Выберите действие:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 

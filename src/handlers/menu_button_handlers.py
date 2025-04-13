@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
 
@@ -25,6 +25,8 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await my_events_button(update, context)
             elif action == "my_templates":
                 await handle_my_templates(query, context)
+            elif action == "main":  # Новый обработчик для возврата в главное меню
+                await show_main_menu(query, context)
             else:
                 logger.warning(f"Unknown menu action: {action}")
                 await query.edit_message_text("Неизвестная команда меню.")
@@ -51,6 +53,9 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     return
 
                 await cancel_draft(update, context)
+
+            elif data == "close_templates":  # Обработка кнопки "Закрыть" в списке шаблонов
+                await show_main_menu(query, context)
 
             elif data.startswith("cancel_edit|"):
                 event_id = int(data.split('|')[1])
@@ -136,12 +141,30 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
 
+async def show_main_menu(query, context):
+    """Функция для отображения главного меню"""
+    keyboard = [
+        [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
+        [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+        [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
+    ]
 
+    try:
+        await query.edit_message_text(
+            "Главное меню:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except Exception as e:
+        logger.error(f"Ошибка показа главного меню: {e}")
+        await query.message.reply_text(
+            "Главное меню:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
 def register_menu_button_handler(application):
     application.add_handler(
         CallbackQueryHandler(
             menu_button_handler,
-            pattern=r"^(menu_|cancel_)"  # Обрабатываем menu_* и cancel_*
+            pattern=r"^(menu_|cancel_|close_templates)"  # Обрабатываем menu_* и cancel_*
         )
     )
