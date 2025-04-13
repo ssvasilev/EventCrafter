@@ -25,7 +25,9 @@ async def handle_my_templates(query, context):
                 "Привет! Я бот для организации мероприятий. Выберите действие:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
+            return  # Важно: завершаем функцию, если нет шаблонов
 
+        # Этот блок выполняется ТОЛЬКО если есть шаблоны
         keyboard = []
         for t in templates[:5]:  # Ограничиваем количество
             keyboard.append([
@@ -52,7 +54,16 @@ async def handle_my_templates(query, context):
     except Exception as e:
         logger.error(f"Ошибка загрузки шаблонов: {str(e)}", exc_info=True)
         await query.answer("⚠️ Ошибка загрузки шаблонов", show_alert=True)
-
+        # Возвращаем в главное меню при ошибке
+        keyboard = [
+            [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
+            [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+            [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
+        ]
+        await query.edit_message_text(
+            "Произошла ошибка. Возвращаемся в главное меню:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
 async def handle_save_template(query, context, event_id):
     try:
