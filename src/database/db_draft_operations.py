@@ -165,34 +165,50 @@ def get_draft(db_path, draft_id):
 
 def get_user_chat_draft(db_path, creator_id, chat_id):
     """
-    Возвращает активный черновик для конкретного пользователя и чата.
+    Возвращает активный черновик для конкретного пользователя и чата со всеми полями.
     :param db_path: Путь к базе данных.
     :param creator_id: ID создателя.
     :param chat_id: ID чата.
-    :return: Черновик мероприятия или None.
+    :return: Полный словарь с данными черновика или None, если не найден.
     """
     with get_db_connection(db_path) as conn:
+        conn.row_factory = sqlite3.Row  # Для доступа к полям по имени
         cursor = conn.cursor()
+
+        # Получаем последний активный черновик
         cursor.execute(
-            "SELECT * FROM drafts WHERE creator_id = ? AND chat_id = ? ORDER BY id DESC LIMIT 1",
+            """SELECT * FROM drafts 
+            WHERE creator_id = ? AND chat_id = ? 
+            ORDER BY id DESC LIMIT 1""",
             (creator_id, chat_id)
         )
+
         row = cursor.fetchone()
-        if row:
-            return {
-                'id': row['id'],
-                'creator_id': row['creator_id'],
-                'chat_id': row['chat_id'],
-                'status': row['status'],
-                'description': row['description'],
-                'date': row['date'],
-                'time': row['time'],
-                'participant_limit': row['participant_limit'],
-                'is_from_template': bool(row['is_from_template']),
-                'created_at': row['created_at'],
-                'updated_at': row['updated_at']
-            }
-        return None
+        if not row:
+            return None
+
+        # Собираем все поля черновика в словарь
+        draft = {
+            'id': row['id'],
+            'creator_id': row['creator_id'],
+            'chat_id': row['chat_id'],
+            'status': row['status'],
+            'description': row['description'],
+            'date': row['date'],
+            'time': row['time'],
+            'participant_limit': row['participant_limit'],
+            'event_id': row['event_id'] if 'event_id' in row.keys() else None,
+            'original_message_id': row['original_message_id'] if 'original_message_id' in row.keys() else None,
+            'bot_message_id': row['bot_message_id'] if 'bot_message_id' in row.keys() else None,
+            'is_from_template': bool(row['is_from_template']),
+            'created_at': row['created_at'],
+            'updated_at': row['updated_at']
+        }
+
+        # Логирование для отладки
+        logger.debug(f"Получен черновик: {draft}")
+
+        return draft
 
 def get_user_draft(db_path, creator_id):
     """
