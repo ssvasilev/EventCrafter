@@ -181,7 +181,7 @@ async def handle_edit_event(query, context, event_id):
     event = get_event(context.bot_data["db_path"], event_id)
 
     if not event:
-        await query.answer("Мероприятие не найдено", show_alert=True)
+        await query.answer("Мероприятие не найдено", show_alert=False)
         return
 
     # Проверяем, является ли пользователь автором
@@ -229,7 +229,7 @@ async def handle_edit_field(query, context, event_id, field):
         # Проверяем авторство
         if query.from_user.id != event["creator_id"]:
             logger.warning(f"Попытка редактирования не автором: user={query.from_user.id}, creator={event['creator_id']}")
-            await query.answer("❌ Только автор может редактировать мероприятие", show_alert=True)
+            await query.answer("❌ Только автор может редактировать мероприятие", show_alert=False)
             return
 
         # Создаем черновик с полным набором данных
@@ -290,7 +290,7 @@ async def handle_edit_field(query, context, event_id, field):
         try:
             await query.edit_message_text("⚠️ Произошла ошибка при начале редактирования")
         except:
-            await query.answer("⚠️ Ошибка! Попробуйте ещё раз", show_alert=True)
+            await query.answer("⚠️ Ошибка! Попробуйте ещё раз", show_alert=False)
 
 async def handle_cancel_edit(query, context, event_id):
     """Обработка отмены редактирования"""
@@ -375,12 +375,12 @@ async def handle_confirm_delete(query, context, event_id):
         event = get_event(context.bot_data["db_path"], event_id)
 
         if not event:
-            await query.answer("Мероприятие не найдено", show_alert=True)
+            await query.answer("Мероприятие не найдено", show_alert=False)
             return
 
         # Проверяем авторство
         if query.from_user.id != event["creator_id"]:
-            await query.answer("❌ Только автор может удалить мероприятие", show_alert=True)
+            await query.answer("❌ Только автор может удалить мероприятие", show_alert=False)
             return
 
         keyboard = [
@@ -394,7 +394,7 @@ async def handle_confirm_delete(query, context, event_id):
 
     except Exception as e:
         logger.error(f"Ошибка при подтверждении удаления: {e}")
-        await query.answer("⚠️ Произошла ошибка", show_alert=True)
+        await query.answer("⚠️ Произошла ошибка", show_alert=False)
 
 
 async def handle_delete_event(query, context, event_id):
@@ -403,7 +403,7 @@ async def handle_delete_event(query, context, event_id):
         event = get_event(context.bot_data["db_path"], event_id)
 
         if not event:
-            await query.answer("⚠️ Мероприятие не найдено", show_alert=True)
+            await query.answer("⚠️ Мероприятие не найдено", show_alert=False)
             return
 
         # Двойная проверка авторства (на всякий случай)
@@ -505,7 +505,7 @@ async def handle_delete_event(query, context, event_id):
 
     except Exception as e:
         logger.error(f"Ошибка при удалении мероприятия: {e}")
-        await query.answer("⚠️ Не удалось удалить мероприятие", show_alert=True)
+        await query.answer("⚠️ Не удалось удалить мероприятие", show_alert=False)
 
 
 async def handle_cancel_delete(query, context, event_id):
@@ -513,7 +513,7 @@ async def handle_cancel_delete(query, context, event_id):
     try:
         event = get_event(context.bot_data["db_path"], event_id)
         if not event:
-            await query.answer("Мероприятие не найдено", show_alert=True)
+            await query.answer("Мероприятие не найдено", show_alert=False)
             return
 
         # Дополнительная проверка авторства (для надежности)
@@ -534,7 +534,7 @@ async def handle_cancel_delete(query, context, event_id):
 
     except Exception as e:
         logger.error(f"Ошибка при отмене удаления: {e}")
-        await query.answer("⚠️ Не удалось отменить удаление", show_alert=True)
+        await query.answer("⚠️ Не удалось отменить удаление", show_alert=False)
 
 def register_button_handler(application):
     application.add_handler(CallbackQueryHandler(

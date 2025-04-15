@@ -16,7 +16,7 @@ async def handle_my_templates(query, context):
         templates = get_user_templates(context.bot_data["db_path"], query.from_user.id)
 
         if not templates:
-            await query.answer("У вас нет сохранённых шаблонов", show_alert=True)
+            await query.answer("У вас нет сохранённых шаблонов", show_alert=False)
 
             # Проверяем, не находимся ли мы уже в главном меню
             if "Главное меню:" in query.message.text:
@@ -73,7 +73,7 @@ async def handle_my_templates(query, context):
 
     except Exception as e:
         logger.error(f"Ошибка загрузки шаблонов: {str(e)}", exc_info=True)
-        await query.answer("⚠️ Ошибка загрузки шаблонов", show_alert=True)
+        await query.answer("⚠️ Ошибка загрузки шаблонов", show_alert=False)
 
         # Возвращаем в главное меню при ошибке
         keyboard = [
@@ -98,7 +98,7 @@ async def handle_save_template(query, context, event_id):
         event = get_event(context.bot_data["db_path"], event_id)
 
         if not event:
-            await query.answer("Мероприятие не найдено", show_alert=True)
+            await query.answer("Мероприятие не найдено", show_alert=False)
             return
 
         if query.from_user.id != event["creator_id"]:
@@ -126,7 +126,7 @@ async def handle_save_template(query, context, event_id):
 
     except Exception as e:
         logger.error(f"Ошибка сохранения шаблона: {e}")
-        await query.answer("⚠️ Не удалось сохранить шаблон", show_alert=True)
+        await query.answer("⚠️ Не удалось сохранить шаблон", show_alert=False)
 
 async def handle_use_template(query, context, template_id):
     """Создает черновик на основе шаблона"""
@@ -142,7 +142,7 @@ async def handle_use_template(query, context, template_id):
             template = cursor.fetchone()
 
         if not template:
-            await query.answer("Шаблон не найден", show_alert=True)
+            await query.answer("Шаблон не найден", show_alert=False)
             return
 
         # Создаем черновик СРАЗУ с bot_message_id
@@ -196,7 +196,7 @@ async def handle_use_template(query, context, template_id):
 
     except Exception as e:
         logger.error(f"Ошибка применения шаблона: {e}")
-        await query.answer("⚠️ Не удалось применить шаблон", show_alert=True)
+        await query.answer("⚠️ Не удалось применить шаблон", show_alert=False)
 
 async def handle_delete_template(query, context, template_id):
     """Обрабатывает удаление шаблона"""
@@ -204,7 +204,7 @@ async def handle_delete_template(query, context, template_id):
         # Проверяем, что шаблон принадлежит пользователю
         templates = get_user_templates(context.bot_data["db_path"], query.from_user.id)
         if not any(t['id'] == template_id for t in templates):
-            await query.answer("❌ Шаблон не найден или нет прав", show_alert=True)
+            await query.answer("❌ Шаблон не найден или нет прав", show_alert=False)
             return
 
         # Удаляем шаблон
@@ -221,7 +221,7 @@ async def handle_delete_template(query, context, template_id):
 
     except Exception as e:
         logger.error(f"Ошибка удаления шаблона: {str(e)}", exc_info=True)
-        await query.answer("⚠️ Не удалось удалить шаблон", show_alert=True)
+        await query.answer("⚠️ Не удалось удалить шаблон", show_alert=False)
 
 async def save_user_middleware(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user

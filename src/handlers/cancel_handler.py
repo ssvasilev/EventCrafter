@@ -39,7 +39,7 @@ async def cancel_draft(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Ошибка при отмене черновика: {e}")
-        await query.answer("⚠️ Не удалось отменить создание", show_alert=True)
+        await query.answer("⚠️ Не удалось отменить создание", show_alert=False)
 
 async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отмены редактирования мероприятия"""

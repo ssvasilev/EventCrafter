@@ -74,7 +74,7 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 event = get_event(context.bot_data["db_path"], event_id)
 
                 if not event:
-                    await query.answer("Мероприятие не найдено", show_alert=True)
+                    await query.answer("Мероприятие не найдено", show_alert=False)
                     return
 
                 if query.from_user.id != event["creator_id"]:
@@ -91,7 +91,7 @@ async def menu_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 event = get_event(context.bot_data["db_path"], event_id)
 
                 if not event:
-                    await query.answer("Мероприятие не найдено", show_alert=True)
+                    await query.answer("Мероприятие не найдено", show_alert=False)
 
                     return
 
