@@ -142,7 +142,7 @@ async def show_main_menu(query, context):
     """Функция для отображения главного меню"""
     keyboard = [
         [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
-        [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+        [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")],
         [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
     ]
 

@@ -24,36 +24,36 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
             creator_id=creator_id,
             chat_id=chat_id,
             status="AWAIT_DESCRIPTION",
-            is_from_template=False
+            is_from_template=False,
+            original_message_id=query.message.message_id  # Сохраняем ID исходного сообщения
         )
 
         if not draft_id:
             await query.edit_message_text("❌ Ошибка при создании мероприятия")
             return
 
-        # Создаем сообщение с запросом описания
+        # Редактируем существующее сообщение вместо отправки нового
         keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
         try:
-            sent_message = await context.bot.send_message(
-                chat_id=chat_id,
+            await query.edit_message_text(
                 text="✏️ Введите описание мероприятия:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
 
-            # Сохраняем ID сообщения в черновик
+            # Сохраняем ID сообщения в черновик (теперь это ID отредактированного сообщения)
             update_draft(
                 db_path=context.bot_data["drafts_db_path"],
                 draft_id=draft_id,
-                bot_message_id=sent_message.message_id
+                bot_message_id=query.message.message_id
             )
 
             # Сохраняем draft_id в user_data для последующей обработки
             context.user_data['current_draft_id'] = draft_id
 
         except Exception as e:
-            logger.error(f"Ошибка при отправке сообщения: {e}")
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
             await query.edit_message_text("❌ Не удалось начать создание мероприятия")
-            # Удаляем черновик, если не удалось отправить сообщение
+            # Удаляем черновик, если не удалось отредактировать сообщение
             delete_draft(context.bot_data["drafts_db_path"], draft_id)
 
     except Exception as e:
