@@ -16,7 +16,7 @@ async def my_events_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     events = get_events_by_participant(db_path, user_id)
 
     if not events:
-        await query.edit_message_text("Вы не участвуете ни в одном мероприятии.")
+        await query.answer("Вы не участвуете ни в одном мероприятии.", show_alert=False)
         return
 
     # Группируем мероприятия по чатам
@@ -54,10 +54,10 @@ async def my_events_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML",
             disable_web_page_preview=True
         )
-        await query.edit_message_text("Список мероприятий отправлен вам в личные сообщения.")
+        await query.answer("Список мероприятий отправлен вам в личные сообщения.", show_alert=False)
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения: {e}")
-        await query.edit_message_text("Не удалось отправить сообщение. Пожалуйста, начните чат с ботом.")
+        await query.answer("Не удалось отправить сообщение. Пожалуйста, начните чат с ботом.", show_alert=True)
 
     # Завершаем диалог
     return ConversationHandler.END

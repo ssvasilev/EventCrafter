@@ -30,8 +30,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     #await query.answer()
 
     try:
-        # Разбираем callback_data в зависимости от формата
-        if query.data == "close_templates":
+        if not '|' in query.data:
+            # Обработка простых callback_data без разделителя
+            if query.data == "close_templates":
+                keyboard = [
+                    [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
+                    [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+                    [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
+                ]
+                await query.edit_message_text(
+                    "Главное меню:",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+            return
+
+        # Обработка callback_data с разделителем |
+        parts = query.data.split('|')
+        action = parts[0]
+
+        if action == 'close_templates':
+            # Проверяем, что закрывает владелец шаблонов
+            if len(parts) > 1 and int(parts[1]) != query.from_user.id:
+                await query.answer("❌ Только владелец может закрыть это меню", show_alert=True)
+                return
+
             keyboard = [
                 [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
                 [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
@@ -43,35 +65,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        elif '|' in query.data:
-            parts = query.data.split('|')
-            action = parts[0]
+        elif action == 'join':
+            await handle_join(query, context, int(parts[1]))
+        elif action == 'leave':
+            await handle_leave(query, context, int(parts[1]))
+        elif action == 'edit':
+            await handle_edit_event(query, context, int(parts[1]))
+        elif action == 'edit_field':
+            await handle_edit_field(query, context, int(parts[1]), parts[2])
+        elif action == 'save_template':
+            event_id = int(parts[1])
+            await handle_save_template(query, context, event_id)
+        elif action == 'use_template':
+            template_id = int(parts[1])
+            await handle_use_template(query, context, template_id)
+        elif action == 'delete_template':
+            template_id = int(parts[1])
+            await handle_delete_template(query, context, template_id)
+        elif action == 'confirm_delete':
+            await handle_confirm_delete(query, context, int(parts[1]))
+        elif action == 'delete_event':
+            await handle_delete_event(query, context, int(parts[1]))
+        elif action == 'cancel_delete':
+            await handle_cancel_delete(query, context, int(parts[1]))
 
-            if action == 'join':
-                await handle_join(query, context, int(parts[1]))
-            elif action == 'leave':
-                await handle_leave(query, context, int(parts[1]))
-            elif action == 'edit':
-                await handle_edit_event(query, context, int(parts[1]))
-            elif action == 'edit_field':
-                await handle_edit_field(query, context, int(parts[1]), parts[2])
-            elif action == 'save_template':
-                event_id = int(parts[1])
-                await handle_save_template(query, context, event_id)
-            elif action == 'use_template':
-                template_id = int(parts[1])
-                await handle_use_template(query, context, template_id)
-            elif action == 'delete_template':
-                template_id = int(parts[1])
-                await handle_delete_template(query, context, template_id)
-            elif action == 'close_templates':
-                await show_main_menu(query, context,)
-            elif action == 'confirm_delete':
-                await handle_confirm_delete(query, context, int(parts[1]))
-            elif action == 'delete_event':
-                await handle_delete_event(query, context, int(parts[1]))
-            elif action == 'cancel_delete':
-                await handle_cancel_delete(query, context, int(parts[1]))
     except Exception as e:
         logger.error(f"Ошибка обработки callback: {e}")
         await query.edit_message_text("⚠️ Произошла ошибка при обработке запроса")

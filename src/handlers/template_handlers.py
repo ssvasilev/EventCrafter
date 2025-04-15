@@ -58,7 +58,13 @@ async def handle_my_templates(query, context):
         if len(templates) > 5:
             keyboard.append([InlineKeyboardButton("Показать ещё...", callback_data="more_templates|5")])
 
-        keyboard.append([InlineKeyboardButton("❌ Закрыть", callback_data="close_templates")])
+        # Добавляем кнопку закрытия только для владельца шаблонов
+        keyboard.append([
+            InlineKeyboardButton(
+                "❌ Закрыть",
+                callback_data=f"close_templates|{query.from_user.id}"  # Добавляем ID пользователя для проверки
+            )
+        ])
 
         await query.edit_message_text(
             "📁 Ваши шаблоны мероприятий:",
