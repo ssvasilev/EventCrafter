@@ -51,7 +51,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if action == 'close_templates':
             # Проверяем, что закрывает владелец шаблонов
             if len(parts) > 1 and int(parts[1]) != query.from_user.id:
-                await query.answer("❌ Только владелец может закрыть это меню", show_alert=True)
+                await query.answer("❌ Только владелец шаблонов может закрыть это меню", show_alert=False)
                 return
 
             keyboard = [
