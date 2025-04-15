@@ -35,7 +35,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if query.data == "close_templates":
                 keyboard = [
                     [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
-                    [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+                    [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")],
                     [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
                 ]
                 await query.edit_message_text(
@@ -56,7 +56,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             keyboard = [
                 [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
-                [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+                [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")],
                 [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
             ]
             await query.edit_message_text(
