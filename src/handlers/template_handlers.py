@@ -102,7 +102,7 @@ async def handle_save_template(query, context, event_id):
             return
 
         if query.from_user.id != event["creator_id"]:
-            await query.answer("❌ Только автор может сохранять шаблоны", show_alert=True)
+            await query.answer("❌ Только автор может сохранять шаблоны", show_alert=False)
             return
 
         # Сохраняем в базу
