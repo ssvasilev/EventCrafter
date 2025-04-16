@@ -209,19 +209,19 @@ def get_user_chat_draft(db_path, creator_id, chat_id):
         logger.debug(f"Получен черновик: {draft}")
 
         return draft
-
+"""
 def get_user_draft(db_path, creator_id):
-    """
-    Возвращает активный черновик пользователя.
-    :param db_path: Путь к базе данных.
-    :param creator_id: ID создателя черновика.
-    :return: Черновик мероприятия.
-    """
+
+    #Возвращает активный черновик пользователя.
+    #:param db_path: Путь к базе данных.
+    #:param creator_id: ID создателя черновика.
+    #:return: Черновик мероприятия.
+
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM drafts WHERE creator_id = ? AND status != 'DONE'", (creator_id,))
         return cursor.fetchone()
-
+"""
 def get_user_drafts(db_path: str, user_id: int):
     """Возвращает все черновики пользователя"""
     with get_db_connection(db_path) as conn:
@@ -231,9 +231,8 @@ def get_user_drafts(db_path: str, user_id: int):
             (user_id,)
         )
         return cursor.fetchall()
-
+"""
 def get_draft_by_bot_message(db_path: str, bot_message_id: int):
-    """Находит черновик по ID сообщения бота"""
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -241,7 +240,7 @@ def get_draft_by_bot_message(db_path: str, bot_message_id: int):
             (bot_message_id,)
         )
         return cursor.fetchone()
-
+"""
 def delete_draft(db_path: str, draft_id: int):
     """
     Удаляет черновик мероприятия из базы данных по его ID.
@@ -257,8 +256,8 @@ def delete_draft(db_path: str, draft_id: int):
     except sqlite3.Error as e:
         logger.error(f"Ошибка при удалении черновика: {e}")
 
+"""
 def log_draft_contents(draft):
-    """Логирует содержимое черновика для отладки"""
     if draft:
         draft_dict = dict(draft)
         logger.info("Содержимое черновика:")
@@ -266,3 +265,4 @@ def log_draft_contents(draft):
             logger.info(f"{key}: {value}")
     else:
         logger.info("Черновик не найден")
+"""

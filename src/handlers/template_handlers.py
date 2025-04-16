@@ -10,8 +10,8 @@ from src.database.db_operations import get_event, get_user_templates
 from src.logger import logger
 
 
-async def handle_my_templates(query, context):
-    """Показывает список шаблонов пользователя с кнопками удаления"""
+async def handle_my_templates(query, context, offset=0, limit=5):
+    """Показывает список шаблонов пользователя с пагинацией"""
     try:
         templates = get_user_templates(context.bot_data["db_path"], query.from_user.id)
 
@@ -24,7 +24,7 @@ async def handle_my_templates(query, context):
 
             keyboard = [
                 [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
-                [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+                [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")],
                 [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
             ]
 
@@ -41,9 +41,14 @@ async def handle_my_templates(query, context):
                     raise
             return
 
-        # Формируем список шаблонов
+        total_templates = len(templates)
+        max_pages = (total_templates + limit - 1) // limit
+        current_page = offset // limit + 1
+
+        page_templates = templates[offset:offset+limit]
+
         keyboard = []
-        for t in templates[:5]:
+        for t in page_templates:
             keyboard.append([
                 InlineKeyboardButton(
                     f"{t['name']} ({t['time']})",
@@ -55,10 +60,30 @@ async def handle_my_templates(query, context):
                 )
             ])
 
-        if len(templates) > 5:
-            keyboard.append([InlineKeyboardButton("Показать ещё...", callback_data="more_templates|5")])
+        # Добавляем пагинацию только если шаблоны принадлежат текущему пользователю
+        if str(query.from_user.id) == str(context.user_data.get('template_owner_id', query.from_user.id)):
+            pagination_buttons = []
+            if offset > 0:
+                pagination_buttons.append(
+                    InlineKeyboardButton("⬅️", callback_data=f"templates_page|{offset-limit}")
+                )
 
-        # Добавляем кнопку закрытия только для владельца шаблонов
+            pagination_buttons.append(
+                InlineKeyboardButton(f"{current_page}/{max_pages}", callback_data="noop")
+            )
+
+            if offset + limit < total_templates:
+                pagination_buttons.append(
+                    InlineKeyboardButton("➡️", callback_data=f"templates_page|{offset+limit}")
+                )
+
+            if pagination_buttons:
+                keyboard.append(pagination_buttons)
+
+        # Сохраняем ID владельца для проверки в обработчике
+        context.user_data['template_owner_id'] = query.from_user.id
+
+        # Кнопка закрытия
         keyboard.append([
             InlineKeyboardButton(
                 "❌ Закрыть",
@@ -78,7 +103,7 @@ async def handle_my_templates(query, context):
         # Возвращаем в главное меню при ошибке
         keyboard = [
             [InlineKeyboardButton("📅 Создать мероприятие", callback_data="menu_create_event")],
-            [InlineKeyboardButton("📋 Мероприятия, в которых я участвую", callback_data="menu_my_events")],
+            [InlineKeyboardButton("📋 Мои мероприятия", callback_data="menu_my_events")],
             [InlineKeyboardButton("📁 Мои шаблоны", callback_data="menu_my_templates")]
         ]
 

@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from src.handlers.conversation_handler_states import EDIT_EVENT
 from src.database.db_operations import get_event  # Импортируем функцию для получения данных о мероприятии
-
+"""
 # Обработчик нажатия на кнопку "Редактировать"
 async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -55,3 +55,4 @@ async def edit_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
     )
     return EDIT_EVENT
+"""

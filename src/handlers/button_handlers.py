@@ -20,7 +20,8 @@ from src.database.db_operations import (
 )
 from src.database.db_draft_operations import add_draft, delete_draft, get_draft
 from src.handlers.menu import show_main_menu
-from src.handlers.template_handlers import handle_save_template, handle_use_template, handle_delete_template
+from src.handlers.template_handlers import handle_save_template, handle_use_template, handle_delete_template, \
+    handle_my_templates
 from src.jobs.notification_jobs import remove_existing_notification_jobs
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
@@ -42,6 +43,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "Главное меню:",
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
+            elif query.data == "noop":
+                await query.answer()
+                return
+            return
+        parts = query.data.split('|')
+        action = parts[0]
+
+        if action == 'templates_page':
+            # Проверяем, что пагинацию нажимает владелец шаблонов
+            if str(query.from_user.id) != str(context.user_data.get('template_owner_id')):
+                await query.answer("❌ Только владелец может листать страницы", show_alert=False)
+                return
+
+            if parts[1] != 'current':
+                offset = int(parts[1])
+                await handle_my_templates(query, context, offset)
             return
 
         # Обработка callback_data с разделителем |

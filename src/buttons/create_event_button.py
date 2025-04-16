@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from src.handlers.conversation_handler_states import SET_DESCRIPTION
 from src.database.db_draft_operations import add_draft
-
+"""
 async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     #await query.answer()
@@ -41,3 +41,4 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Переходим к состоянию SET_DESCRIPTION
     return SET_DESCRIPTION
+"""
