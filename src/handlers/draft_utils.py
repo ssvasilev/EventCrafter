@@ -14,9 +14,9 @@ from src.message._send_event_creation_notification import _send_event_creation_n
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
 
-
+"""
 async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, event_id, field_name):
-    """Начинает редактирование поля мероприятия с обработкой ошибок"""
+    #Начинает редактирование поля мероприятия с обработкой ошибок
     query = update.callback_query
 
     try:
@@ -82,9 +82,9 @@ async def start_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE, e
             update, context,
             "⚠️ Произошла ошибка при начале редактирования"
         )
-
+"""
 async def process_draft_step(update: Update, context: ContextTypes.DEFAULT_TYPE, draft):
-    """Обрабатывает текущий шаг черновика на основе его статуса"""
+    #Обрабатывает текущий шаг черновика на основе его статуса
     user_input = update.message.text
     chat_id = update.message.chat_id
 

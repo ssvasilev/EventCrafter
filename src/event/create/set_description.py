@@ -2,9 +2,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 
-from src.handlers.conversation_handler_states import SET_DATE
+#from src.handlers.conversation_handler_states import SET_DATE
 from src.database.db_draft_operations import update_draft
-
+"""
 async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем текст описания
     description = update.message.text
@@ -40,3 +40,4 @@ async def set_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Переходим к состоянию SET_DATE
     return SET_DATE
+"""

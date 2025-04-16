@@ -3,10 +3,10 @@ from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
 
 from src.database.db_operations import update_event_field
-from src.handlers.conversation_handler_states import EDIT_LIMIT
+#from src.handlers.conversation_handler_states import EDIT_LIMIT
 from src.logger.logger import logger
 from src.message.send_message import send_event_message
-
+"""
 # Обработка редактирования лимита участников
 async def edit_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -84,3 +84,4 @@ async def save_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка при редактировании сообщения: {e}")
         await update.message.reply_text("Произошла ошибка при обновлении лимита.")
         return ConversationHandler.END
+"""

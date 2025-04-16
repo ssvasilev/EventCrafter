@@ -87,9 +87,9 @@ async def send_event_message(event_id, context: ContextTypes.DEFAULT_TYPE, chat_
     except Exception as e:
         logger.error(f"Ошибка в send_event_message: {e}")
         raise
-
+"""
 async def format_event_message(event, participants, reserve, declined, context):
-    """Форматирует текст и клавиатуру для сообщения о мероприятии"""
+    #Форматирует текст и клавиатуру для сообщения о мероприятии
     try:
         # Форматируем списки участников
         participants_text = format_users_list(participants, EMPTY_PARTICIPANTS_TEXT)
@@ -134,3 +134,4 @@ async def format_event_message(event, participants, reserve, declined, context):
     except Exception as e:
         logger.error(f"Ошибка в format_event_message: {e}")
         raise
+"""

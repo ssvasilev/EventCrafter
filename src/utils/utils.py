@@ -45,24 +45,24 @@ def time_until_event(event_date: str, event_time: str, tz: ZoneInfo) -> str:
 
     return ", ".join(result) if result else "Менее минуты"
 
-
+"""
 def format_date_with_weekday(date_str: str) -> str:
-    """
+ """"""
     Форматирует дату в формате "дд-мм-гггг" в строку с днем недели.
     :param date_str: Дата в формате "дд-мм-гггг".
     :return: Строка в формате "дд.мм.гггг (ДеньНедели)".
-    """
+""""""
     date_obj = datetime.strptime(date_str, "%d-%m-%Y")
     return date_obj.strftime("%d.%m.%Y (%A)")  # %A — полное название дня недели
-
-
+"""
+"""
 def format_event_message(event: dict, tz) -> str:
-    """
+""""""
     Форматирует информацию о мероприятии в строку для отправки в чат.
     :param event: Словарь с данными о мероприятии.
     :param tz: Часовой пояс (ZoneInfo).
     :return: Отформатированная строка.
-    """
+""""""
     time_until = time_until_event(event['date'], event['time'], tz)
     limit_text = "∞ (бесконечный)" if event["participant_limit"] is None else str(event["participant_limit"])
 
@@ -78,33 +78,33 @@ def format_event_message(event: dict, tz) -> str:
     )
 
     return message_text
-
-
+"""
+"""
 def validate_date(date_str: str) -> bool:
-    """
+    """"""
     Проверяет, является ли строка корректной датой в формате "дд.мм.гггг".
     :param date_str: Строка с датой.
     :return: True, если дата корректна, иначе False.
-    """
+    """"""
     try:
         datetime.strptime(date_str, "%d.%m.%Y")
         return True
     except ValueError:
         return False
-
-
+"""
+"""
 def validate_time(time_str: str) -> bool:
-    """
+    """"""
     Проверяет, является ли строка корректным временем в формате "чч:мм".
     :param time_str: Строка с временем.
     :return: True, если время корректно, иначе False.
-    """
+    """"""
     try:
         datetime.strptime(time_str, "%H:%M")
         return True
     except ValueError:
         return False
-
+"""
 
 def format_users_list(users: list, empty_text: str) -> str:
     """Форматирует список пользователей без использования username из БД"""

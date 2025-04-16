@@ -3,9 +3,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
 
-from src.handlers.conversation_handler_states import SET_TIME, SET_DATE
+#from src.handlers.conversation_handler_states import SET_TIME, SET_DATE
 from src.database.db_draft_operations import update_draft, get_draft
-
+"""
 async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем текст даты
     date_text = update.message.text
@@ -68,3 +68,4 @@ async def set_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Остаемся в состоянии SET_DATE
         return SET_DATE
+"""

@@ -19,7 +19,7 @@ from src.database.db_operations import (
     update_event_field, delete_event, get_participants
 )
 from src.database.db_draft_operations import add_draft, delete_draft, get_draft
-from src.handlers.menu import show_main_menu
+
 from src.handlers.template_handlers import handle_save_template, handle_use_template, handle_delete_template, \
     handle_my_templates
 from src.jobs.notification_jobs import remove_existing_notification_jobs
@@ -308,9 +308,9 @@ async def handle_edit_field(query, context, event_id, field):
             await query.edit_message_text("⚠️ Произошла ошибка при начале редактирования")
         except:
             await query.answer("⚠️ Ошибка! Попробуйте ещё раз", show_alert=False)
-
+"""
 async def handle_cancel_edit(query, context, event_id):
-    """Обработка отмены редактирования"""
+    #Обработка отмены редактирования
     event = get_event(context.bot_data["db_path"], event_id)
 
     if not event:
@@ -331,7 +331,7 @@ async def handle_cancel_edit(query, context, event_id):
         reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def handle_cancel_input(query, context, draft_id):
-    """Обработка отмены ввода при редактировании"""
+    #Обработка отмены ввода при редактировании
     try:
         draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
         if draft:
@@ -355,6 +355,7 @@ async def handle_cancel_input(query, context, draft_id):
     except Exception as e:
         logger.error(f"Ошибка при отмене ввода: {e}")
         await query.edit_message_text("⚠️ Не удалось отменить ввод")
+"""
 
 async def update_event_message(context, event_id, message):
     """Обновляет сообщение о мероприятии"""

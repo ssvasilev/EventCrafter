@@ -4,12 +4,12 @@ from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import BadRequest
 
 from src.database.db_operations import update_event_field, get_event, delete_scheduled_job
-from src.handlers.conversation_handler_states import EDIT_TIME
+#from src.handlers.conversation_handler_states import EDIT_TIME
 from src.jobs.notification_jobs import remove_existing_notification_jobs, schedule_notifications, \
     schedule_unpin_and_delete
 from src.logger.logger import logger
 from src.message.send_message import send_event_message
-
+"""
 # Обработка ввода нового времени
 async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем новое время
@@ -76,3 +76,4 @@ async def save_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка при редактировании сообщения: {e}")
         await update.message.reply_text("Произошла ошибка при обновлении времени.")
         return ConversationHandler.END
+"""

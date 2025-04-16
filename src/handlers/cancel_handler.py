@@ -205,9 +205,9 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("⚠️ Не удалось отменить ввод")
         except:
             pass
-
+"""
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /cancel"""
+    #Обработчик команды /cancel
     user_id = update.message.from_user.id
     chat_id = update.message.chat_id
 
@@ -217,10 +217,10 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         delete_draft(context.bot_data["drafts_db_path"], draft["id"])
 
     await update.message.reply_text("Все активные действия отменены")
-
-
+"""
+"""
 async def safe_restore_event(event_id, context, chat_id, message_id):
-    """Безопасное восстановление сообщения о мероприятии"""
+    #Безопасное восстановление сообщения о мероприятии
     try:
         event = get_event(context.bot_data["db_path"], event_id)
         if not event:
@@ -236,6 +236,7 @@ async def safe_restore_event(event_id, context, chat_id, message_id):
     except Exception as e:
         logger.error(f"Ошибка восстановления сообщения {message_id}: {e}")
         return False
+"""
 
 def register_cancel_handlers(application):
     """Регистрирует обработчики отмены"""

@@ -9,8 +9,8 @@ from src.jobs.notification_jobs import unpin_and_delete_event, send_notification
 from src.logger.logger import logger
 from src.message.send_message import send_event_message
 
-from src.handlers.conversation_handler_states import SET_LIMIT
-
+#from src.handlers.conversation_handler_states import SET_LIMIT
+"""
 async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем текст лимита участников
     limit_text = update.message.text
@@ -177,3 +177,4 @@ async def set_limit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Остаемся в состоянии SET_LIMIT
         return SET_LIMIT
+"""
