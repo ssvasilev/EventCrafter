@@ -21,7 +21,7 @@ def get_db_connection(db_path):
     return conn
 
 
-def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id=None):
+def add_event(db_path, description, date, time, limit, creator_id, chat_id, message_id):
     """
     Добавляет мероприятие в базу данных.
     :param db_path: Путь к базе данных.
@@ -38,6 +38,20 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
     try:
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
+
+            # Сначала сохраняем/обновляем пользователя
+            cursor.execute(
+                """INSERT OR REPLACE INTO users 
+                (id, first_name, last_name, username, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (creator_id,
+                 "Данные из контекста",  # Заполняете реальными данными
+                 "Данные из контекста",
+                 "Данные из контекста",
+                 now, now)
+            )
+
+            # Затем создаем мероприятие
             cursor.execute(
                 """
                 INSERT INTO events (description, date, time, participant_limit, creator_id, chat_id, message_id, created_at, updated_at)
@@ -47,7 +61,7 @@ def add_event(db_path, description, date, time, limit, creator_id, chat_id, mess
             )
             event_id = cursor.lastrowid
             conn.commit()
-            logger.info(f"Мероприятие добавлено с ID: {event_id}")
+            logger.info(f"Мероприятие добавлено с ID: {event_id} и номером сообщения {message_id}")
             return event_id
     except sqlite3.Error as e:
         logger.error(f"Ошибка при добавлении мероприятия в базу данных: {e}")
@@ -165,13 +179,13 @@ def is_user_in_declined(db_path, event_id, user_id):
 
 def add_participant(db_path, event_id, user_id, user_name):
     """
-    Добавляет участника в таблицу participants.
-    :param db_path: Путь к базе данных.
-    :param event_id: ID мероприятия.
-    :param user_id: ID пользователя.
-    :param user_name: Имя пользователя.
+    Добавляет участника мероприятия
+    :param db_path: Путь к базе данных
+    :param event_id: ID мероприятия
+    :param user_id: ID пользователя
+    :param user_name: Имя пользователя (уже отформатированное)
     """
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -182,7 +196,7 @@ def add_participant(db_path, event_id, user_id, user_name):
             (event_id, user_id, user_name, now, now),
         )
         conn.commit()
-        logger.info(f"Участник {user_name} добавлен в мероприятие {event_id}.")
+        logger.info(f"Пользователь {user_name} добавлен в участники мероприятия {event_id}.")
 
 def add_to_reserve(db_path, event_id, user_id, user_name):
     """
@@ -224,7 +238,7 @@ def add_to_declined(db_path, event_id, user_id, user_name):
             (event_id, user_id, user_name, now, now),
         )
         conn.commit()
-        logger.info(f"Пользователь {user_name} добавлен в список отказавшихся мероприятия {event_id}.")
+        logger.info(f"Пользователь {user_name} добавлен в список отказавшихся от мероприятия {event_id}.")
 
 #Удаление из списков
 def remove_participant(db_path, event_id, user_id):
@@ -276,23 +290,31 @@ def get_participants_count(db_path, event_id):
 
 
 #Обновление поля в мероприятии
-def update_event_field(db_path: str, event_id: int, field: str, value: str | int | None):
+def update_event_field(db_path: str, event_id: int, field: str, value: str | int | None) -> bool:
     """
     Универсальная функция для обновления любого поля в таблице events.
-    :param db_path: Путь к базе данных.
-    :param event_id: ID мероприятия.
-    :param field: Название поля (например, "description", "date", "time", "participant_limit").
-    :param value: Новое значение поля.
+    Обновляет также поле updated_at текущей датой-временем.
+
+    :param db_path: Путь к базе данных
+    :param event_id: ID мероприятия
+    :param field: Название поля (description/date/time/participant_limit)
+    :param value: Новое значение
+    :return: True если обновление прошло успешно
     """
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Текущее время для updated_at
-    with get_db_connection(db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            f"UPDATE events SET {field} = ?, updated_at = ? WHERE id = ?",
-            (value, now, event_id),
-        )
-        conn.commit()
-        logger.info(f"Поле {field} обновлено для мероприятия с ID={event_id}.")
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        with get_db_connection(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"UPDATE events SET {field} = ?, updated_at = ? WHERE id = ?",
+                (value, now, event_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+    except sqlite3.Error as e:
+        logger.error(f"Ошибка обновления {field}: {e}")
+        return False
 
 def update_event(db_path, event_id, participants, reserve, declined):
     """
@@ -426,7 +448,31 @@ def delete_scheduled_job(db_path: str, event_id: int, job_id: str = None, job_ty
         logger.info(f"Задачи для мероприятия {event_id} удалены из базы данных.")
 
 def delete_event(db_path: str, event_id: int):
+    """Удаляет мероприятие и все связанные данные"""
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
+        # Удаляем связанные записи (благодаря ON DELETE CASCADE)
         cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
         conn.commit()
+        logger.info(f"Мероприятие {event_id} удалено из базы данных")
+
+
+def get_user_templates(db_path, user_id):
+    """Возвращает шаблоны пользователя с проверкой существования пользователя"""
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Проверяем существует ли пользователь
+        cursor.execute("SELECT 1 FROM users WHERE id = ?", (user_id,))
+        if not cursor.fetchone():
+            return []
+
+        cursor.execute(
+            """SELECT id, name, description, time, participant_limit 
+            FROM event_templates 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC""",
+            (user_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
