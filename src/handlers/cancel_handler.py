@@ -1,11 +1,8 @@
-from datetime import datetime
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
-from telegram.error import BadRequest
 
 from config import DB_PATH
-from src.database.db_draft_operations import delete_draft, get_user_drafts, get_draft, get_user_chat_draft
+from src.database.db_draft_operations import delete_draft, get_draft, get_user_chat_draft
 from src.database.db_operations import get_event, get_participants
 from src.logger import logger
 from src.message.send_message import send_event_message, EMPTY_PARTICIPANTS_TEXT
@@ -205,38 +202,6 @@ async def cancel_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("⚠️ Не удалось отменить ввод")
         except:
             pass
-"""
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    #Обработчик команды /cancel
-    user_id = update.message.from_user.id
-    chat_id = update.message.chat_id
-
-    # Удаляем все черновики пользователя
-    drafts = get_user_drafts(context.bot_data["drafts_db_path"], user_id)
-    for draft in drafts:
-        delete_draft(context.bot_data["drafts_db_path"], draft["id"])
-
-    await update.message.reply_text("Все активные действия отменены")
-"""
-"""
-async def safe_restore_event(event_id, context, chat_id, message_id):
-    #Безопасное восстановление сообщения о мероприятии
-    try:
-        event = get_event(context.bot_data["db_path"], event_id)
-        if not event:
-            return False
-
-        await send_event_message(
-            event_id=event_id,
-            context=context,
-            chat_id=chat_id,
-            message_id=message_id
-        )
-        return True
-    except Exception as e:
-        logger.error(f"Ошибка восстановления сообщения {message_id}: {e}")
-        return False
-"""
 
 def register_cancel_handlers(application):
     """Регистрирует обработчики отмены"""

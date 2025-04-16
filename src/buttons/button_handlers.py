@@ -16,9 +16,10 @@ from src.database.db_operations import (
     add_to_reserve,
     get_reserve,
     is_user_in_declined,
-    update_event_field, delete_event, get_participants
+    delete_event,
+    get_participants
 )
-from src.database.db_draft_operations import add_draft, delete_draft, get_draft
+from src.database.db_draft_operations import add_draft
 
 from src.handlers.template_handlers import handle_save_template, handle_use_template, handle_delete_template, \
     handle_my_templates
@@ -295,7 +296,7 @@ async def handle_edit_field(query, context, event_id, field):
             await query.answer()  # Важно для закрытия всплывающего окна
         except BadRequest as e:
             logger.error(f"Ошибка редактирования сообщения: {e}")
-            # Фолбэк: отправляем новое сообщение
+            # Fallback: отправляем новое сообщение
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=field_prompts[field],
@@ -308,54 +309,7 @@ async def handle_edit_field(query, context, event_id, field):
             await query.edit_message_text("⚠️ Произошла ошибка при начале редактирования")
         except:
             await query.answer("⚠️ Ошибка! Попробуйте ещё раз", show_alert=False)
-"""
-async def handle_cancel_edit(query, context, event_id):
-    #Обработка отмены редактирования
-    event = get_event(context.bot_data["db_path"], event_id)
 
-    if not event:
-        await query.edit_message_text("Мероприятие не найдено")
-        return
-
-    # Возвращаем стандартное сообщение
-    keyboard = [
-        [InlineKeyboardButton("✅ Участвую", callback_data=f"join|{event_id}")],
-        [InlineKeyboardButton("❌ Не участвую", callback_data=f"leave|{event_id}")],
-        [InlineKeyboardButton("✏ Редактировать", callback_data=f"edit|{event_id}")]
-    ]
-
-    message_text = f"📢 {event['description']}\n\nДата: {event['date']}\nВремя: {event['time']}\nЛимит: {event['participant_limit'] or '∞'}"
-
-    await query.edit_message_text(
-        text=message_text,
-        reply_markup=InlineKeyboardMarkup(keyboard))
-
-async def handle_cancel_input(query, context, draft_id):
-    #Обработка отмены ввода при редактировании
-    try:
-        draft = get_draft(context.bot_data["drafts_db_path"], draft_id)
-        if draft:
-            # Редактируем текущее сообщение вместо удаления
-            if draft.get("event_id"):  # Если это редактирование существующего мероприятия
-                event = get_event(context.bot_data["db_path"], draft["event_id"])
-                if event:
-                    await send_event_message(
-                        event_id=event["id"],
-                        context=context,
-                        chat_id=query.message.chat_id,
-                        message_id=query.message.message_id  # Редактируем текущее сообщение
-                    )
-            else:  # Если это создание нового мероприятия
-                await query.edit_message_text(
-                    text="Создание мероприятия отменено",
-                    reply_markup=None
-                )
-
-            delete_draft(context.bot_data["drafts_db_path"], draft_id)
-    except Exception as e:
-        logger.error(f"Ошибка при отмене ввода: {e}")
-        await query.edit_message_text("⚠️ Не удалось отменить ввод")
-"""
 
 async def update_event_message(context, event_id, message):
     """Обновляет сообщение о мероприятии"""
@@ -485,7 +439,7 @@ async def handle_delete_event(query, context, event_id):
             )
         except Exception as e:
             logger.error(f"Не удалось отправить уведомление автору {creator.id}: {e}")
-            # Фолбэк - отправляем в текущий чат, если не получилось в ЛС
+            # Fallback - отправляем в текущий чат, если не получилось в ЛС
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=f"✅ Мероприятие удалено (не удалось отправить уведомление в ЛС)"
@@ -547,7 +501,7 @@ async def handle_cancel_delete(query, context, event_id):
             message_id=query.message.message_id
         )
 
-        # Логируем действие
+        # Отправляем лог о событии
         logger.info(f"Пользователь {query.from_user.id} отменил удаление мероприятия {event_id}")
 
     except Exception as e:

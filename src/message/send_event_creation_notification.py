@@ -3,7 +3,7 @@ from src.database.db_operations import get_event
 from src.logger import logger
 from telegram.error import BadRequest
 
-async def _send_event_creation_notification(context, event_id, bot_message_id):
+async def send_event_creation_notification(context, event_id, bot_message_id):
     """Отправляет уведомление создателю о новом мероприятии, используя данные из БД"""
     try:
         if not event_id or not bot_message_id:
@@ -35,7 +35,10 @@ async def _send_event_creation_notification(context, event_id, bot_message_id):
         )
 
     except BadRequest as e:
-        logger.error(f"Ошибка отправки сообщения creator_id {event.get('creator_id')}: {e}")
+        # Теперь event всегда определен (хотя может быть None)
+        event = get_event(context.bot_data["db_path"], event_id)
+        creator_id = event.get("creator_id") if event else "неизвестен"
+        logger.error(f"Ошибка отправки сообщения creator_id {creator_id}: {e}")
     except Exception as e:
         logger.error(f"Критическая ошибка в уведомлении о мероприятии {event_id}: {e}", exc_info=True)
 

@@ -13,9 +13,9 @@ from src.handlers.start_handler import start
 from src.handlers.template_handlers import save_user_middleware
 from src.handlers.version_handler import version
 from src.handlers.mention_handler import register_mention_handler
-from src.handlers.menu_button_handlers import  register_menu_button_handler
-from src.handlers.button_handlers import  register_button_handler
-from src.handlers.create_event_handler import register_create_handlers
+from src.buttons.menu_button_handlers import  register_menu_button_handler
+from src.buttons.button_handlers import  register_button_handler
+from src.buttons.create_event_button import register_create_handlers
 from src.jobs.notification_jobs import restore_scheduled_jobs
 import os
 from dotenv import load_dotenv

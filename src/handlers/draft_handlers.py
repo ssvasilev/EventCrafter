@@ -1,6 +1,6 @@
 from telegram.error import BadRequest
 from telegram.ext import MessageHandler, filters
-from src.handlers.draft_utils import process_draft_step, _show_input_error
+from src.handlers.draft_utils import process_draft_step, show_input_error
 from src.database.db_draft_operations import get_user_chat_draft, get_draft, update_draft
 from src.logger import logger
 
@@ -30,7 +30,7 @@ async def handle_draft_message(update, context):
             # Для черновиков редактирования проверяем наличие event_id
             if draft.get("status", "").startswith("EDIT_") and not draft.get("event_id"):
                 logger.error(f"Черновик редактирования без event_id: {draft}")
-                await _show_input_error(update, context, "⚠️ Ошибка: мероприятие не найдено")
+                await show_input_error(update, context, "⚠️ Ошибка: мероприятие не найдено")
                 return
 
             # Если у черновика нет bot_message_id, создаём новое сообщение (только для новых черновиков, не для редактирования)
@@ -51,7 +51,7 @@ async def handle_draft_message(update, context):
 
     except Exception as e:
         logger.error(f"Ошибка обработки черновика: {e}", exc_info=True)
-        await _show_input_error(update, context, "⚠️ Произошла ошибка при обработке вашего ввода")
+        await show_input_error(update, context, "⚠️ Произошла ошибка при обработке вашего ввода")
 
         # Пытаемся удалить исходное сообщение пользователя
         try:

@@ -1,12 +1,11 @@
 import telegram
-from telegram import error
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 async def pin_message_safe(context, chat_id, message_id):
-    """Улучшенная функция закрепления с подробным логированием"""
+    """Улучшенная функция закрепления"""
     logger.warning(f"Начинаем закреплять сообщение  {message_id} в чате {chat_id}")
     try:
         # Проверяем права бота

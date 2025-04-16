@@ -30,7 +30,7 @@ def add_draft(db_path, creator_id, chat_id, status,
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
 
-            # Логируем входные параметры
+            # Отправляем параметры в лог
             logger.info(f"Добавление черновика с параметрами: bot_message_id={bot_message_id}, original_message_id={original_message_id}")
 
             # Выполняем запрос
