@@ -50,7 +50,17 @@ async def _get_chat_info(context, chat_id):
     try:
         chat = await context.bot.get_chat(chat_id)
         chat_name = chat.title or "чат"
-        chat_link = f"https://t.me/c/{str(abs(chat_id))}" if str(chat_id).startswith('-') else ""
+        if str(chat_id).startswith('-100'):
+            # Для супергрупп
+            base_chat_id = str(chat_id)[4:]
+            chat_link = f"https://t.me/c/{base_chat_id}"
+        elif str(chat_id).startswith('-'):
+            # Для обычных групп
+            base_chat_id = str(abs(chat_id))
+            chat_link = f"https://t.me/c/{base_chat_id}"
+        else:
+            # Для каналов
+            chat_link = f"https://t.me/c/{chat_id}"
         return {"name": chat_name, "link": chat_link}
     except Exception as e:
         logger.warning(f"Не удалось получить информацию о чате {chat_id}: {e}")
@@ -89,8 +99,20 @@ async def _format_notification_message(event, chat_info, bot_message_id):
 
     # Добавляем ссылку на мероприятие
     if event.get("chat_id") and bot_message_id:
-        chat_id_link = str(abs(event["chat_id"]))
-        event_link = f"https://t.me/c/{chat_id_link}/{bot_message_id}"
+        chat_id = event["chat_id"]
+        # Формируем правильную ссылку в зависимости от типа чата
+        if str(chat_id).startswith('-100'):
+            # Для супергрупп (удаляем -100 и используем оставшуюся часть)
+            base_chat_id = str(chat_id)[4:]
+            event_link = f"https://t.me/c/{base_chat_id}/{bot_message_id}"
+        elif str(chat_id).startswith('-'):
+            # Для обычных групп (используем абсолютное значение без -100)
+            base_chat_id = str(abs(chat_id))
+            event_link = f"https://t.me/c/{base_chat_id}/{bot_message_id}"
+        else:
+            # Для каналов (chat_id положительный)
+            event_link = f"https://t.me/c/{chat_id}/{bot_message_id}"
+
         message_parts.append(f"\n🔗 <a href='{event_link}'>Перейти к мероприятию</a>")
 
     return "\n".join(message_parts)
