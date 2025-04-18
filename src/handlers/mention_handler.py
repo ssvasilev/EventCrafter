@@ -14,15 +14,23 @@ async def mention_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Проверяем упоминание бота
     bot_username = context.bot.username.lower()
+    mention_found = False
     mention_text = ""
 
+    # Проверяем все упоминания в сообщении
     for entity in update.message.entities:
         if entity.type == MessageEntity.MENTION:
             mentioned_text = update.message.text[entity.offset:entity.offset + entity.length].lower()
+            # Проверяем, что упоминание точно соответствует имени бота (с @)
             if mentioned_text == f"@{bot_username}":
-                # Получаем текст после упоминания
+                mention_found = True
+                # Получаем текст после упоминания бота
                 mention_text = update.message.text[entity.offset + entity.length:].strip()
                 break
+
+    # Если бота не упомянули - игнорируем сообщение
+    if not mention_found:
+        return
 
     creator_id = update.message.from_user.id
     chat_id = update.message.chat_id
