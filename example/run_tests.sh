@@ -10,16 +10,13 @@ rm -f test_results/test_results.log
 docker compose build tests && \
 docker compose run --rm --name eventcrafter_tests \
   -v $(pwd)/test_results:/app/test_results \
-  tests
+  tests pytest -v --cov=src --cov-report=xml:test_results/coverage.xml tests/
 
 # Проверяем наличие файла результатов
-if [ ! -f "test_results/test_results.log" ]; then
-  echo "ERROR: Test results file not generated!"
+if [ ! -f "test_results/coverage.xml" ]; then
+  echo "ERROR: Test coverage file not generated!"
   exit 1
 fi
-
-# Сохраняем код возврата
-TEST_EXIT_CODE=$?
 
 # Проверяем наличие файла с результатами
 if [ -f "test_results/test_results.log" ]; then
@@ -27,5 +24,3 @@ if [ -f "test_results/test_results.log" ]; then
 else
     echo "Test results file not found!"
 fi
-
-exit $TEST_EXIT_CODE
