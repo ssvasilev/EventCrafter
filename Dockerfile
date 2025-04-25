@@ -15,6 +15,9 @@ ENV LC_ALL ru_RU.UTF-8
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
+# Клонируем ветку
+#RUN git clone -b fix-mention-bot2 https://github.com/ssvasilev/EventCrafter.git /app
+
 # Клонируем репозиторий
 RUN git clone https://github.com/ssvasilev/EventCrafter.git /app
 
@@ -60,5 +63,7 @@ RUN pip install -r requirements.txt && \
 # Устанавливаем PATH для пользовательских скриптов Python
 ENV PATH=/root/.local/bin:$PATH
 
-# Команда для запуска бота
+#Копируем файл версии
+COPY --from=builder /app/VERSION /app/VERSION
+
 CMD ["python", "eventcrafterbot.py"]
