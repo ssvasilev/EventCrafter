@@ -10,6 +10,9 @@
 Состояние автотестов:
 [![Run Tests](https://github.com/ssvasilev/EventCrafter/actions/workflows/test.yml/badge.svg)](https://github.com/ssvasilev/EventCrafter/actions/workflows/test.yml)
 
+На ветке add-autotest
+![Tests](https://github.com/ssvasilev/EventCrafter/actions/workflows/test.yml/badge.svg?branch=add-autotest)
+
 Функционал:
   - Создание меропрития с указанием описания, даты, времени, лимита участников (0 - бесконечный лимит)
   - Участники чата могут нажать кнопку "Участвую" для внесения себя в список участников, если есть ещё свободное место в лимите. Если нет, участник добавляется в резерв.
