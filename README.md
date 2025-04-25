@@ -8,7 +8,7 @@
 Использует БД SQLite для хранения информации.
 
 Состояние автотестов:
-[![Run Tests](https://github.com/ssvasilev/EventCrafter/actions/workflows/test.yml/badge.svg)](https://github.com/ssvasilev/EventCrafter/actions/workflows/test.yml)
+[![Run Tests](https://github.com/ssvasilev/EventCrafter/actions/workflows/test.yml/badge.svg)](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml)
 
 На ветке add-autotest
 ![Tests](https://github.com/ssvasilev/EventCrafter/actions/workflows/test.yml/badge.svg?branch=add-autotest)
