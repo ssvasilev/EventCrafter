@@ -10,3 +10,5 @@ sqlalchemy
 DateTime~=5.5
 python-telegram-bot~=20.3
 python-dotenv~=1.0.1
+pytest-sugar
+pytest-github-actions-annotate-failures
