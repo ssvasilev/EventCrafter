@@ -58,52 +58,88 @@ async def test_button_handler_simple_actions(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-async def test_button_handler_event_actions(mock_update, mock_context, test_databases):
+async def test_button_handler_event_actions(
+    mock_update, mock_context, test_databases, monkeypatch
+):
     update = mock_update()
+
     # Настройка пользователя
     mock_user = MagicMock(spec=User)
     mock_user.id = 123
     mock_user.first_name = "Test"
     update.callback_query.from_user = mock_user
 
-    # Очищаем таблицу events перед тестом
+    # Добавление тестового мероприятия
     with sqlite3.connect(test_databases["main_db"]) as conn:
         conn.execute("DELETE FROM events")
-        conn.commit()
-
-        # Добавляем тестовое мероприятие с новым ID
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO events (
                 description, date, time, participant_limit, 
                 creator_id, chat_id, message_id, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-        """, (
-            "Test Event", "2023-01-01", "12:00", 10,
-            123, 456, 789
-        ))
-        conn.commit()
-
-        # Получаем ID добавленного мероприятия
+        """,
+            ("Test Event", "2023-01-01", "12:00", 10, 123, 456, 789),
+        )
         event_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
+    # Мокаем обработчики
+    mock_join = AsyncMock()
+
+    async def mocked_join(query, ctx, eid):
+        await query.answer("joined")
+
+    mock_join.side_effect = mocked_join
+    monkeypatch.setattr("src.buttons.button_handlers.handle_join", mock_join)
+
+    mock_leave = AsyncMock()
+
+    async def mocked_leave(query, ctx, eid):
+        await query.answer("left")
+
+    mock_leave.side_effect = mocked_leave
+    monkeypatch.setattr("src.buttons.button_handlers.handle_leave", mock_leave)
+
+    mock_edit = AsyncMock()
+
+    async def mocked_edit(query, ctx, eid):
+        await query.edit_message_text("editing")
+
+    mock_edit.side_effect = mocked_edit
+    monkeypatch.setattr("src.buttons.button_handlers.handle_edit_event", mock_edit)
+
+    mock_confirm_delete = AsyncMock()
+
+    async def mocked_confirm_delete(query, ctx, eid):
+        await query.edit_message_text("confirm")
+
+    mock_confirm_delete.side_effect = mocked_confirm_delete
+    monkeypatch.setattr("src.buttons.button_handlers.handle_confirm_delete", mock_confirm_delete)
+
+    # Тестируем обработку разных действий
     test_cases = [
-        (f"join|{event_id}", "join", True),
-        (f"leave|{event_id}", "leave", True),
-        (f"edit|{event_id}", "edit", False),
-        (f"confirm_delete|{event_id}", "confirm_delete", False),
+        (f"join|{event_id}", mock_join, "answer"),
+        (f"leave|{event_id}", mock_leave, "answer"),
+        (f"edit|{event_id}", mock_edit, "edit_message_text"),
+        (f"confirm_delete|{event_id}", mock_confirm_delete, "edit_message_text"),
     ]
 
-    for data, action, expect_answer in test_cases:
+    for data, mock_func, expected_method in test_cases:
         update.callback_query.data = data
-        update.callback_query.answer.reset_mock()
-        update.callback_query.edit_message_text.reset_mock()
+        getattr(update.callback_query, expected_method).reset_mock()
 
         await button_handler(update, mock_context)
 
-        if expect_answer:
-            update.callback_query.answer.assert_called_once()
-        else:
-            update.callback_query.edit_message_text.assert_called_once()
+        # Ожидаем, что мок будет вызван
+        mock_func.assert_awaited_once()
+
+        # Ожидаем, что метод на query тоже будет вызван
+        getattr(update.callback_query, expected_method).assert_called_once()
+
+        # Сбрасываем мок для следующего теста
+        mock_func.reset_mock()
+
+
 
 
 @pytest.mark.asyncio
@@ -477,22 +513,33 @@ async def test_delete_and_cancel_event(monkeypatch, callback_data, expected_resp
     assert called["text"] == expected_response
 
 
+import logging
+
+# Пример логирования в фикстуре или тесте
+logging.basicConfig(level=logging.DEBUG)
+
 @pytest.mark.asyncio
 async def test_handle_join_new_participant(test_databases, mock_context, mock_callback_query):
+    db_path = test_databases["main_db"]
+    logging.debug(f"Test database path: {db_path}")
+
     # Подготовка данных в базе
-    with sqlite3.connect(test_databases["main_db"]) as conn:
-        conn.execute("""
-            INSERT INTO events VALUES
-            (1, 'Test Event', '2023-01-01', '12:00', 10, 123, 456, 789,
-            datetime('now'), datetime('now'))
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(""" 
+            INSERT INTO events VALUES 
+            (1, 'Test Event', '2023-01-01', '12:00', 10, 123, 456, 789, 
+            datetime('now'), datetime('now')) 
         """)
         conn.commit()
+
+    logging.debug(f"Data inserted into the database at {db_path}")
 
     # Подготовка данных для теста
     mock_callback_query.data = "join|1"
     mock_callback_query.from_user.id = 123
     mock_callback_query.from_user.first_name = "Test"
     mock_callback_query.from_user.username = "test_user"
+    mock_context.bot_data["db_path"] = test_databases["main_db"]
 
     # Вызов тестируемой функции
     await handle_join(mock_callback_query, mock_context, 1)
@@ -501,7 +548,7 @@ async def test_handle_join_new_participant(test_databases, mock_context, mock_ca
     mock_callback_query.answer.assert_called_once_with("Test (@test_user), вы добавлены в список участников!")
 
     # Проверка, добавлен ли пользователь в базу данных
-    with sqlite3.connect(test_databases["main_db"]) as conn:
+    with sqlite3.connect(db_path) as conn:
         cur = conn.cursor()
         cur.execute("SELECT * FROM participants WHERE event_id = 1 AND user_id = 123")
         assert cur.fetchone() is not None
@@ -509,9 +556,12 @@ async def test_handle_join_new_participant(test_databases, mock_context, mock_ca
 
 
 @pytest.mark.asyncio
-async def test_handle_confirm_delete(mock_update, mock_context):
+async def test_handle_confirm_delete(mock_update, mock_context, test_databases):
+    # Указываем путь к тестовой базе
+    mock_context.bot_data["db_path"] = test_databases["main_db"]
+
     # Настройка тестового мероприятия
-    with sqlite3.connect(mock_context.bot_data["db_path"]) as conn:
+    with sqlite3.connect(test_databases["main_db"]) as conn:
         conn.execute("DELETE FROM events")
         conn.execute("""
             INSERT INTO events 
@@ -534,9 +584,12 @@ async def test_handle_confirm_delete(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-async def test_update_event_message(mock_update, mock_context):
+async def test_update_event_message(mock_update, mock_context, test_databases):
+    # Указываем путь к тестовой базе
+    mock_context.bot_data["db_path"] = test_databases["main_db"]
+
     # Настройка тестового мероприятия
-    with sqlite3.connect(mock_context.bot_data["db_path"]) as conn:
+    with sqlite3.connect(test_databases["main_db"]) as conn:
         # Создаем таблицу events
         conn.execute("""
             CREATE TABLE IF NOT EXISTS events (

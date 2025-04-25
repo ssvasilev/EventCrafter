@@ -10,54 +10,36 @@ from src.buttons.create_event_button import create_event_button
 from src.logger import logger
 
 
-@pytest.mark.asyncio
-async def test_create_event_button(mocker):
-    # Мокируем CallbackQuery и его атрибуты
-    mock_query = MagicMock(spec=CallbackQuery)
-    mock_query.message = MagicMock()
-    mock_query.message.message_id = 789  # Устанавливаем нужное сообщение
+async def test_create_event_flow(app, mock_callback_query, mock_context, test_databases, draft_operations):
+    drafts_db_path = test_databases["drafts_db"]
 
-    # Мокируем update и добавляем callback_query
-    mock_update = MagicMock()
-    mock_update.callback_query = mock_query  # Добавляем callback_query к mock_update
-
-    # Мокируем context (например, для bot_data)
-    mock_context = MagicMock()
-    mock_context.bot_data = {
-        "drafts_db_path": "mock/path/to/drafts.db"
-    }
-
-    # Мокируем edit_message_text, чтобы не отправлять запрос в Telegram
-    mock_edit = mocker.patch("telegram.CallbackQuery.edit_message_text", new_callable=AsyncMock)
-
-    # Мокируем часть, которая может вызывать исключение
-    mocker.patch("your_module.some_function_that_raises_error", side_effect=Exception("Test exception"))
-
-    # Вызов функции с mock_update и mock_context
-    await create_event_button(mock_update, mock_context)
-
-    # Проверяем, что метод был вызван
-    mock_edit.assert_called_once_with("⚠️ Произошла непредвиденная ошибка")
-
-
-"""
-def test_event_creation(test_databases):
-    main_db = test_databases["main_db"]
-    drafts_db = test_databases["drafts_db"]
-
-    # Проверяем основную БД
-    with sqlite3.connect(main_db) as conn:
+    # Очистка таблицы drafts перед тестом
+    with sqlite3.connect(drafts_db_path) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM events")
-        events = cursor.fetchall()
-        assert len(events) == 1
-        assert events[0][1] == "Test Event"  # description
+        cursor.execute("DELETE FROM drafts")  # Очистить таблицу drafts
+        conn.commit()
 
-    # Проверяем БД черновиков
-    with sqlite3.connect(drafts_db) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM drafts")
-        drafts = cursor.fetchall()
-        assert len(drafts) == 1
-        assert drafts[0][2] == 456  # chat_id
-"""
+    # Привязываем мок бота к сообщению вручную
+    mock_callback_query.message.set_bot(app.bot)
+
+    # Формируем update и context
+    update = Update(update_id=1, callback_query=mock_callback_query)
+    context = mock_context
+    context.bot_data["drafts_db_path"] = drafts_db_path
+
+    # Меняем query.data, чтобы соответствовало поведению create_event_button
+    mock_callback_query.data = "create_event"
+
+    # Логируем вызов функции create_event_button
+    logger.info("Вызов функции create_event_button...")
+
+    # Вызываем обрабатываемую функцию
+    await create_event_button(update, context)
+
+    # Логируем состояние базы данных после вызова
+    with sqlite3.connect(drafts_db_path) as conn:
+        drafts = conn.execute("SELECT * FROM drafts").fetchall()
+        logger.info(f"Черновики в базе данных после выполнения функции: {drafts}")
+
+        # Проверяем, что черновик был добавлен
+        assert len(drafts) == 1, f"Ожидалось 1 черновик, но найдено {len(drafts)}"

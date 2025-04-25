@@ -50,6 +50,9 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
 
             # Сохраняем draft_id в user_data для последующей обработки
+            logger.debug(f"[Перед user_data] context.user_data = {context.user_data} ({type(context.user_data)})")
+            if context.user_data is None:
+                context.user_data = {}
             context.user_data['current_draft_id'] = draft_id
 
         except Exception as e:

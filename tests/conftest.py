@@ -3,13 +3,26 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, AsyncMock
+
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from telegram import User, Chat, Message, CallbackQuery, Update
-from telegram.ext import CallbackContext, Application
+from telegram.ext import CallbackContext, Application, ContextTypes
 
 from src.database.init_database import init_db
 from src.database.init_draft_database import init_drafts_db
 from src.logger import logger
 
+DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+@pytest.fixture
+async def db_session():
+    engine = create_async_engine(DATABASE_URL)
+    async_session = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with async_session() as session:
+        yield session
+
+    await engine.dispose()
 
 @pytest.fixture
 def app():
@@ -24,6 +37,7 @@ def temp_dir(tmp_path_factory):
 
 @pytest.fixture
 def test_databases(temp_dir):
+
     """
     Фикстура создает и инициализирует обе тестовые базы данных:
     - Основную БД (events, participants и др.)
@@ -220,7 +234,7 @@ def mock_callback_query(mock_user, mock_message):
     query.chat_instance = "test_chat_instance"
     query.data = "test_data"
     query.message = mock_message
-    query.edit_message_text = AsyncMock()
+    query.edit_message_text = AsyncMock()  # <-- Важно!
     query.answer = AsyncMock()
 
     # Возвращаем AsyncMock через get_bot
@@ -248,11 +262,15 @@ def mock_update(mock_user):
 
 
 @pytest.fixture
-def mock_context(mock_bot, mock_update):
-    """Фикстура для тестового контекста"""
-    context = CallbackContext(mock_bot)
-    context._bot = mock_bot
-    context._update = mock_update
+def mock_context(mock_bot):
+    """Фикстура для тестового контекста с доступным user_data"""
+    context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
+    context.bot = mock_bot
+    context.bot_data = {
+        "db_path": "test_main.db",
+        "drafts_db_path": "test_drafts.db"
+    }
+    context.user_data = {}  # Здесь можно, т.к. это MagicMock
     return context
 
 
