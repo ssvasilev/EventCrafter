@@ -23,4 +23,4 @@ jobs:
       - name: Run tests with annotations
         run: |
           docker run --rm eventcrafter:test \
-            /bin/bash -c "pip install pytest-github-actions-annotate-failures && pytest tests/ -v --tb=short --log-cli-level=INFO --github-actions"
+            /bin/bash -c "pip install pytest-github-actions-annotate-failures && pytest tests/ -v --tb=short --log-cli-level=INFO"
