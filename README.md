@@ -126,7 +126,7 @@ WORKDIR /app
 RUN mkdir -p /app/test_results
 
 # Команда для запуска тестов
-CMD ["sh", "-c", "cd /app && python -m pytest tests/ -v > test_results/test_results.log 2>&1 || echo 'Tests failed'"]
+CMD ["pytest", "tests/", "-v", "--log-cli-level=INFO", "--tb=short"]
 
 # Финальный этап
 FROM python:3.10-slim as production
