@@ -1,4 +1,6 @@
 # EventCrafter
+[![Autotests](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml/badge.svg)](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml)
+
 Бот для организации мероприятий в небольших групповых чатах telegram. 
 
 Подходит для организации онлайн и оффлайн встреч. 
@@ -6,9 +8,6 @@
 Готов к запуску внутри docker-контейнера. 
 
 Использует БД SQLite для хранения информации.
-
-Состояние автотестов:
-[![Autotests](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml/badge.svg)](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml)
 
 
 Функционал:
