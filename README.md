@@ -8,10 +8,8 @@
 Использует БД SQLite для хранения информации.
 
 Состояние автотестов:
-[![Run Tests](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml/badge.svg)](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml)
+[![Autotests](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml/badge.svg)](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml)
 
-На ветке add-autotest
-![Tests](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml/badge.svg?branch=add-autotest)
 
 Функционал:
   - Создание меропрития с указанием описания, даты, времени, лимита участников (0 - бесконечный лимит)
