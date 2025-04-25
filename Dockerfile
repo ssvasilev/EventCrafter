@@ -24,6 +24,9 @@ RUN git clone https://github.com/ssvasilev/EventCrafter.git /app
 # Устанавливаем зависимости для тестов
 RUN pip install --user -r requirements-test.txt
 
+# Добавляем путь к локальным бинарям pip
+ENV PATH=/root/.local/bin:$PATH
+
 # Этап для запуска тестов
 FROM builder as tester
 
