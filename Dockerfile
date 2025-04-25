@@ -15,11 +15,17 @@ ENV LC_ALL ru_RU.UTF-8
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
+# Клонируем ветку
+#RUN git clone -b fix-mention-bot2 https://github.com/ssvasilev/EventCrafter.git /app
+
 # Клонируем репозиторий
 RUN git clone https://github.com/ssvasilev/EventCrafter.git /app
 
 # Устанавливаем зависимости для тестов
 RUN pip install --user -r requirements-test.txt
+
+# Добавляем путь к локальным бинарям pip
+ENV PATH=/root/.local/bin:$PATH
 
 # Этап для запуска тестов
 FROM builder as tester
@@ -30,7 +36,7 @@ WORKDIR /app
 RUN mkdir -p /app/test_results
 
 # Команда для запуска тестов
-CMD ["sh", "-c", "cd /app && python -m pytest tests/ -v > test_results/test_results.log 2>&1 || echo 'Tests failed'"]
+CMD ["pytest", "tests/", "-v", "--log-cli-level=INFO", "--tb=short"]
 
 # Финальный этап
 FROM python:3.10-slim as production
@@ -60,5 +66,7 @@ RUN pip install -r requirements.txt && \
 # Устанавливаем PATH для пользовательских скриптов Python
 ENV PATH=/root/.local/bin:$PATH
 
-# Команда для запуска бота
+#Копируем файл версии
+COPY --from=builder /app/VERSION /app/VERSION
+
 CMD ["python", "eventcrafterbot.py"]
