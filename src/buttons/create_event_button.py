@@ -10,7 +10,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer()
 
         creator_id = query.from_user.id
-        chat_id = query.message.chat_id
+        chat_id = query.message.chat.id
 
         # Проверяем существующий черновик
         existing_draft = get_user_chat_draft(context.bot_data["drafts_db_path"], creator_id, chat_id)
@@ -19,6 +19,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         # Создаем черновик
+        print("⏺ Добавление черновика:", context.bot_data["drafts_db_path"], creator_id, chat_id)
         draft_id = add_draft(
             db_path=context.bot_data["drafts_db_path"],
             creator_id=creator_id,
@@ -27,7 +28,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
             is_from_template=False,
             original_message_id=query.message.message_id  # Сохраняем ID исходного сообщения
         )
-
+        print("✅ draft_id =", draft_id)
         if not draft_id:
             await query.edit_message_text("❌ Ошибка при создании мероприятия")
             return
@@ -35,6 +36,7 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Редактируем существующее сообщение вместо отправки нового
         keyboard = [[InlineKeyboardButton("⛔ Отмена", callback_data=f"cancel_draft|{draft_id}")]]
         try:
+            logger.info(f"Попытка редактирования сообщения с ID {query.message.message_id}")
             await query.edit_message_text(
                 text="✏️ Введите описание мероприятия:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
@@ -48,9 +50,16 @@ async def create_event_button(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
 
             # Сохраняем draft_id в user_data для последующей обработки
+            logger.debug(f"[Перед user_data] context.user_data = {context.user_data} ({type(context.user_data)})")
+            if context.user_data is None:
+                context.user_data = {}
             context.user_data['current_draft_id'] = draft_id
 
         except Exception as e:
+            logger.error(f"Ошибка при редактировании сообщения: {e}")
+            logger.error(f"Контекст: {context.bot_data}")
+            logger.error(f"Query: {query}")
+            logger.error(f"Draft ID: {draft_id}")
             logger.error(f"Ошибка при редактировании сообщения: {e}")
             await query.edit_message_text("❌ Не удалось начать создание мероприятия")
             # Удаляем черновик, если не удалось отредактировать сообщение

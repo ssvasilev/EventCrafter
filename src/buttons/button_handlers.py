@@ -327,7 +327,7 @@ async def update_event_message(context, event_id, message):
                 await send_event_message(
                     event_id=event_id,
                     context=context,
-                    chat_id=message.chat_id,
+                    chat_id=message.chat.id,
                     message_id=event.get("message_id")
                 )
                 break

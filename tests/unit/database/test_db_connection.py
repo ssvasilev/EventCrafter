@@ -1,10 +1,13 @@
+import sqlite3
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text  # Добавляем импорт text
 
-@pytest.mark.asyncio
-async def test_db_connection(db_session: AsyncSession):
+def test_db_connection(test_databases):
     """Тест проверяет работоспособность подключения к БД"""
-    # Явно используем text() для SQL-выражений
-    result = await db_session.execute(text("SELECT 1"))
-    assert result.scalar() == 1
+    with sqlite3.connect(test_databases["main_db"]) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        result = cursor.fetchone()[0]
+        assert result == 1
