@@ -1,7 +1,9 @@
 # EventCrafter
 [![Autotests](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml/badge.svg)](https://github.com/ssvasilev/EventCrafter/actions/workflows/tests.yml)
 
-![image](https://github.com/user-attachments/assets/6f1005d2-7797-4580-a360-c40d48ad9e07)
+![main_menu](https://github.com/user-attachments/assets/d463b03d-9352-4d34-96a7-cf97e78311ad)
+
+
 
 Бот для организации мероприятий в небольших групповых чатах telegram. 
 
@@ -17,44 +19,51 @@
   - Участники чата могут нажать кнопку "Участвую" для внесения себя в список участников, если есть ещё свободное место в лимите. Если нет, участник добавляется в резерв.
   - Когда кто-то из участников нажмёт "Не участвую", он переместится в список "Отказавшиеся", а первый из резерва займёт его место в участниках.
   - Время до мероприятия обновляется только при обращении к боту.
+  - Бот поддерживает ссылки только в супер-группы и общие чаты. Ссылки на приватные чаты не поддерживаются приватностью самого телеграмма, будет выводиться ошибка: "К сожалению, у Вас нет доступа к этому сообщению: Вы не участник чата, где оно опубликовано"
   - При создании мероприятия закрепляет сообщение с ним в чате
-  ![image](https://github.com/user-attachments/assets/072090e4-b3f9-4589-b972-2a5c7f872e6a)
+
+![event](https://github.com/user-attachments/assets/7983bc06-a1b8-443f-9248-d7266de919fc)
+
+
 
   - Если автор мероприятия начал чат с ботом в личных сообщениях, то сразу после создания мероприятия, бот пришлёт ему сообщение с параметрами мероприятия и ссылками на чат и на конкретное сообщение мероприятия.
-    ![image](https://github.com/user-attachments/assets/34a11cc2-cc14-4a6e-8983-bd52baaca3c9)
+    
+![event_create](https://github.com/user-attachments/assets/44c701ed-a9b3-456c-86c0-91f0bbe4ab1c)
 
   
    - При создании мероприятия создаются задачи на уведомления участников за сутки и за 15 минут до мероприятия. Они приходят в личные сообщения, если пользователь начал чат с ботом.
      
-   - ![image](https://github.com/user-attachments/assets/27782a9f-8c61-49dc-abfb-a06883990c47)
+![notification_1day](https://github.com/user-attachments/assets/1f44cc16-e4e0-4f1b-8957-a5d5cd0fff81)
 
-   - ![image](https://github.com/user-attachments/assets/aac272d2-37eb-4579-95e1-38f8bec1b48e)
+![notification_15min](https://github.com/user-attachments/assets/fcaa1232-5e8b-47c1-a2e9-9ce442ea781f)
+
 
   - Количество проводимых одновременно мероприятий не ограничено. Каждый пользователь может параллельно создавать мероприятие, но только по одному в каждом чате.
   - Так же создаётся задача, которая открепит сообщение и удалит мероприятие из базы данных, как только наступит время мероприятия (Сообщение с описанием и участниками останется в чате)
   - Поддерживается редактирование мероприятия (Описание, дата, время, лимит участников, удаление мероприятия)
   
-  ![image](https://github.com/user-attachments/assets/33ac8343-9036-4503-9234-3c1de5c2cdf5)
-  
-  - Присутствует проверка прав, редактировать и удалять мероприятие может только его автор.
-  - Отдельной кнопкой присутствует функция, получить сводку мероприятий, в которых участвует пользователь. Отчёт так же приходит в личный чат с ботом.
 
-    ![image](https://github.com/user-attachments/assets/e8cf7e33-710a-471a-aea2-af72e8995ab5)
+![edit](https://github.com/user-attachments/assets/0f893317-8f29-4119-8b68-64116321453f)
+
+  - Присутствует проверка прав, редактировать и удалять мероприятие может только его автор.
+  - Отдельной кнопкой присутствует функция, позволяющая получить сводку мероприятий, в которых участвует пользователь. Отчёт так же приходит в личный чат с ботом.
+
+![my_events](https://github.com/user-attachments/assets/65510b7b-1d0d-4fbf-83f2-bf6d5d816ad7)
+
 
 
   - Реализована фукнция шаблонов. Часто проводимые мероприятия можно сохранить как шаблон (через кнопку "Редактировать - Сохранить как шаблон"), что бы потом быстро создавать мерпориятие, используя кнопку "Мои шаблоны". При выборе нужного шаблона, бот попросит ввести только дату, а остальные параметры возьмёт из шаблона.
-  - 
-![image](https://github.com/user-attachments/assets/b4c306b0-ecda-404b-bdce-1513893ba650)
+
+![template](https://github.com/user-attachments/assets/e3bbde36-809f-420f-ad79-620077cb5399)
 
 
   - Поддерживается удаление мероприятий. Автор может удалить созданное мероприятие, в таком случае ему в личне сообщения придёт уведомление об успешном удалении.
 
-  ![image](https://github.com/user-attachments/assets/ad40a53d-b3df-4f53-b260-81ed6b505610)
+![event_delete](https://github.com/user-attachments/assets/83e6942a-3794-4fd6-a18e-9b3834ee4973)
 
   А всем участникам придёт уведомление об отмене.
   
-  ![image](https://github.com/user-attachments/assets/324ea761-eda0-463a-84f1-6ca5103f185a)
-
+![event_cancel](https://github.com/user-attachments/assets/88a31706-b1d3-4435-8e10-de4256d40157)
 
   
 
@@ -85,8 +94,9 @@
         ✔️ Delete messages
         
         ✔️ Manage channel
-![image](https://github.com/user-attachments/assets/0059c9b5-5384-47e6-b5db-8b242a02e611)
-![image](https://github.com/user-attachments/assets/e5003b0e-d3be-4a50-bf19-933e4f34951e)
+![bot_settings_1](https://github.com/user-attachments/assets/8a437444-1d5a-4188-9706-8ea79674428b)
+
+![bot_settings_2](https://github.com/user-attachments/assets/3560916c-7a9b-4a7d-84ee-66f67d60be2d)
 
 3. На сервере с Docker, создаём два файла:
 
