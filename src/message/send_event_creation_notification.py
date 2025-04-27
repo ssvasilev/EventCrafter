@@ -67,7 +67,7 @@ async def _get_chat_info(context, chat_id):
         return {"name": "чат", "link": ""}
 
 async def _format_notification_message(event, chat_info, bot_message_id):
-    """Форматирует текст уведомления"""
+    """Форматирует текст уведомления о создании мероприятия"""
     message_parts = [
         "✅ <b>Мероприятие создано!</b>",
         "",
@@ -91,28 +91,28 @@ async def _format_notification_message(event, chat_info, bot_message_id):
         limit = "∞" if event["participant_limit"] is None else event["participant_limit"]
         message_parts.append(f"👥 <b>Лимит участников:</b> {limit}")
 
-    # Добавляем информацию о чате
+    # Добавляем информацию о чате (с гиперссылкой, если есть)
     if chat_info["link"]:
         message_parts.append(f"💬 <b>Чат:</b> <a href='{chat_info['link']}'>{chat_info['name']}</a>")
     else:
         message_parts.append(f"💬 <b>Чат:</b> {chat_info['name']}")
 
-    # Добавляем ссылку на мероприятие
+    # Формируем ссылку на мероприятие (или пояснение, если недоступно)
+    event_link = ""
     if event.get("chat_id") and bot_message_id:
-        chat_id = event["chat_id"]
-        # Формируем правильную ссылку в зависимости от типа чата
-        if str(chat_id).startswith('-100'):
-            # Для супергрупп (удаляем -100 и используем оставшуюся часть)
-            base_chat_id = str(chat_id)[4:]
+        if str(event["chat_id"]).startswith('-100'):  # Супергруппа
+            base_chat_id = str(event["chat_id"])[4:]
             event_link = f"https://t.me/c/{base_chat_id}/{bot_message_id}"
-        elif str(chat_id).startswith('-'):
-            # Для обычных групп (используем абсолютное значение без -100)
-            base_chat_id = str(abs(chat_id))
+        elif str(event["chat_id"]).startswith('-'):  # Обычная группа
+            base_chat_id = str(abs(int(event["chat_id"])))
             event_link = f"https://t.me/c/{base_chat_id}/{bot_message_id}"
-        else:
-            # Для каналов (chat_id положительный)
-            event_link = f"https://t.me/c/{chat_id}/{bot_message_id}"
+        else:  # Приватный чат (не поддерживает ссылки)
+            event_link = None
 
+    # Добавляем ссылку или пояснение
+    if event_link:
         message_parts.append(f"\n🔗 <a href='{event_link}'>Перейти к мероприятию</a>")
+    elif event.get("chat_id") and not str(event["chat_id"]).startswith('-'):
+        message_parts.append("\n⚠️ <i>Ссылка недоступна (приватный чат)</i>")
 
     return "\n".join(message_parts)
