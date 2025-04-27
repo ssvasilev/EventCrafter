@@ -26,6 +26,8 @@ from src.handlers.template_handlers import handle_save_template, handle_use_temp
 from src.jobs.notification_jobs import remove_existing_notification_jobs
 from src.message.send_message import send_event_message
 from src.logger.logger import logger
+from src.utils.private_chat import _is_private_chat
+
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -390,26 +392,35 @@ async def handle_delete_event(query, context, event_id):
         else:
             creator_name += f" (ID: {creator.id})"
 
-        # Информация о чате
+        # Формируем информацию о чате
         try:
             chat = await context.bot.get_chat(event["chat_id"])
             chat_name = chat.title or "Личный чат"
-            chat_link = f"https://t.me/c/{str(abs(int(event['chat_id'])))}" if str(event['chat_id']).startswith('-') else ""
+
+            # Формируем ссылку на чат (только для групп/каналов)
+            if str(event["chat_id"]).startswith('-'):
+                chat_link = f"https://t.me/c/{str(abs(int(event['chat_id'])))}"
+            else:
+                chat_link = ""
+                if _is_private_chat(event["chat_id"]):
+                    chat_name += " (приватный)"
         except Exception as e:
             logger.warning(f"Не удалось получить информацию о чате: {e}")
             chat_name = "чат"
             chat_link = ""
 
-        # Формируем ссылку на мероприятие (или пояснение)
+        # Формируем ссылку на мероприятие
         event_link = ""
-        if str(event["chat_id"]).startswith("-100"):  # Супергруппа
-            chat_id_for_link = str(event["chat_id"])[4:]
-            event_link = f"https://t.me/c/{chat_id_for_link}/{event['message_id']}"
-        elif str(event["chat_id"]).startswith("-"):  # Обычная группа
-            chat_id_for_link = str(abs(int(event["chat_id"])))
-            event_link = f"https://t.me/c/{chat_id_for_link}/{event['message_id']}"
-        else:  # Приватный чат (не поддерживает ссылки)
-            event_link = None
+        if not _is_private_chat(event["chat_id"]):  # Только если не приватный чат
+            try:
+                if str(event["chat_id"]).startswith("-100"):
+                    chat_id_for_link = str(event["chat_id"])[4:]
+                    event_link = f"https://t.me/c/{chat_id_for_link}/{event['message_id']}"
+                elif str(event["chat_id"]).startswith("-"):
+                    chat_id_for_link = str(abs(int(event["chat_id"])))
+                    event_link = f"https://t.me/c/{chat_id_for_link}/{event['message_id']}"
+            except Exception as e:
+                logger.warning(f"Ошибка формирования ссылки: {e}")
 
         # Текст уведомления для автора
         notification_text = (
@@ -421,16 +432,19 @@ async def handle_delete_event(query, context, event_id):
         if event.get("time"):
             notification_text += f"🕒 <b>Время:</b> {event['time']}\n"
 
-        # Добавляем чат (с гиперссылкой, если есть)
+        # Добавляем чат с пояснением о приватности
         if chat_link:
             notification_text += f"💬 <b>Чат:</b> <a href='{chat_link}'>{chat_name}</a>\n"
         else:
-            notification_text += f"💬 <b>Чат:</b> {chat_name}\n"
+            if _is_private_chat(event["chat_id"]):
+                notification_text += f"💬 <b>Чат:</b> {chat_name} (приватный)\n"
+            else:
+                notification_text += f"💬 <b>Чат:</b> {chat_name}\n"
 
         # Добавляем ссылку или пояснение
         if event_link:
             notification_text += f"\n🔗 <a href='{event_link}'>Перейти к мероприятию</a>"
-        elif not str(event["chat_id"]).startswith('-'):
+        elif _is_private_chat(event["chat_id"]):
             notification_text += "\n⚠️ <i>Ссылка недоступна (приватный чат)</i>"
 
         # Удаляем мероприятие из БД и чата
@@ -465,7 +479,11 @@ async def handle_delete_event(query, context, event_id):
                     if chat_link:
                         participant_text += f"💬 <b>Чат:</b> <a href='{chat_link}'>{chat_name}</a>\n"
                     else:
-                        participant_text += f"💬 <b>Чат:</b> {chat_name}\n"
+                        if _is_private_chat(event["chat_id"]):
+                            participant_text += f"💬 <b>Чат:</b> {chat_name} (приватный)\n"
+                        else:
+                            participant_text += f"💬 <b>Чат:</b> {chat_name}\n"
+
                     if event_link:
                         participant_text += f"\n🔗 <a href='{event_link}'>Перейти к мероприятию</a>"
                     else:

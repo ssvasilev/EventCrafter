@@ -3,6 +3,9 @@ from src.database.db_operations import get_event
 from src.logger import logger
 from telegram.error import BadRequest
 
+from src.utils.private_chat import _is_private_chat
+
+
 async def send_event_creation_notification(context, event_id, bot_message_id):
     """Отправляет уведомление создателю о новом мероприятии, используя данные из БД"""
     try:
@@ -91,23 +94,35 @@ async def _format_notification_message(event, chat_info, bot_message_id):
         limit = "∞" if event["participant_limit"] is None else event["participant_limit"]
         message_parts.append(f"👥 <b>Лимит участников:</b> {limit}")
 
-    # Добавляем информацию о чате (с гиперссылкой, если есть)
-    if chat_info["link"]:
-        message_parts.append(f"💬 <b>Чат:</b> <a href='{chat_info['link']}'>{chat_info['name']}</a>")
-    else:
-        message_parts.append(f"💬 <b>Чат:</b> {chat_info['name']}")
+    # Формируем информацию о чате
+    try:
+        chat = await context.bot.get_chat(event["chat_id"])
+        chat_name = chat.title or "Личный чат"
 
-    # Формируем ссылку на мероприятие (или пояснение, если недоступно)
+        # Формируем ссылку на чат (только для групп/каналов)
+        if str(event["chat_id"]).startswith('-'):
+            chat_link = f"https://t.me/c/{str(abs(int(event['chat_id'])))}"
+        else:
+            chat_link = ""
+            if _is_private_chat(event["chat_id"]):
+                chat_name += " (приватный)"
+    except Exception as e:
+        logger.warning(f"Не удалось получить информацию о чате: {e}")
+        chat_name = "чат"
+        chat_link = ""
+
+    # Формируем ссылку на мероприятие
     event_link = ""
-    if event.get("chat_id") and bot_message_id:
-        if str(event["chat_id"]).startswith('-100'):  # Супергруппа
-            base_chat_id = str(event["chat_id"])[4:]
-            event_link = f"https://t.me/c/{base_chat_id}/{bot_message_id}"
-        elif str(event["chat_id"]).startswith('-'):  # Обычная группа
-            base_chat_id = str(abs(int(event["chat_id"])))
-            event_link = f"https://t.me/c/{base_chat_id}/{bot_message_id}"
-        else:  # Приватный чат (не поддерживает ссылки)
-            event_link = None
+    if not _is_private_chat(event["chat_id"]):  # Только если не приватный чат
+        try:
+            if str(event["chat_id"]).startswith("-100"):
+                chat_id_for_link = str(event["chat_id"])[4:]
+                event_link = f"https://t.me/c/{chat_id_for_link}/{event['message_id']}"
+            elif str(event["chat_id"]).startswith("-"):
+                chat_id_for_link = str(abs(int(event["chat_id"])))
+                event_link = f"https://t.me/c/{chat_id_for_link}/{event['message_id']}"
+        except Exception as e:
+            logger.warning(f"Ошибка формирования ссылки: {e}")
 
     # Добавляем ссылку или пояснение
     if event_link:
