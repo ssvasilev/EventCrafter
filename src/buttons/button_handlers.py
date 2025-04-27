@@ -395,19 +395,23 @@ async def handle_delete_event(query, context, event_id):
         try:
             chat = await context.bot.get_chat(event["chat_id"])
             chat_name = chat.title or "Личный чат"
+            chat_link = f"https://t.me/c/{str(abs(int(event['chat_id'])))}" if str(event['chat_id']).startswith('-') else f"https://t.me/c/{event['chat_id']}"
         except Exception as e:
             logger.warning(f"Не удалось получить информацию о чате: {e}")
             chat_name = "чат"
+            chat_link = None
 
         # Формируем ссылку на сообщение (если возможно)
-        message_link = ""
+        event_link = ""
         try:
             if str(event["chat_id"]).startswith("-100"):  # Для супергрупп
                 chat_id_for_link = str(event["chat_id"])[4:]
-                message_link = f"\n\n🔗 Ссылка: https://t.me/c/{chat_id_for_link}/{event['message_id']}"
+                event_link = f"https://t.me/c/{chat_id_for_link}/{event['message_id']}"
             elif str(event["chat_id"]).startswith("-"):  # Для обычных групп
                 chat_id_for_link = str(abs(int(event["chat_id"])))
-                message_link = f"\n\n🔗 Ссылка: https://t.me/c/{chat_id_for_link}/{event['message_id']}"
+                event_link = f"https://t.me/c/{chat_id_for_link}/{event['message_id']}"
+            else:  # Для частных чатов (положительный ID)
+                event_link = f"https://t.me/c/{event['chat_id']}/{event['message_id']}"
         except Exception as e:
             logger.warning(f"Не удалось сформировать ссылку: {e}")
 
@@ -426,40 +430,69 @@ async def handle_delete_event(query, context, event_id):
         except BadRequest as e:
             logger.warning(f"Не удалось удалить сообщение: {e}")
 
+        # Формируем текст уведомления для автора
+        notification_text = (
+            f"✅ <b>Вы успешно удалили мероприятие:</b>\n\n"
+            f"📢 <b>Название:</b> {event['description']}\n"
+        )
+
+        if event.get("date"):
+            notification_text += f"📅 <b>Дата:</b> {event['date']}\n"
+
+        if event.get("time"):
+            notification_text += f"🕒 <b>Время:</b> {event['time']}\n"
+
+        # Добавляем чат (с гиперссылкой, если есть)
+        if chat_link:
+            notification_text += f"💬 <b>Чат:</b> <a href='{chat_link}'>{chat_name}</a>\n"
+        else:
+            notification_text += f"💬 <b>Чат:</b> {chat_name}\n"
+
+        # Добавляем ссылку на мероприятие (если есть)
+        if event_link:
+            notification_text += f"\n🔗 <a href='{event_link}'>Перейти к мероприятию</a>"
+
         # Уведомляем автора в ЛИЧНЫХ СООБЩЕНИЯХ
         try:
             await context.bot.send_message(
-                chat_id=creator.id,  # Отправляем в ЛС автору
-                text=f"✅ Вы успешно удалили мероприятие:\n\n"
-                     f"📢 {event['description']}\n"
-                     f"📅 Дата: {event['date']}\n"
-                     f"🕒 Время: {event['time']}\n"
-                     f"💬 Чат: {chat_name}"
-                     f"{message_link}"
+                chat_id=creator.id,
+                text=notification_text,
+                parse_mode="HTML"
             )
         except Exception as e:
             logger.error(f"Не удалось отправить уведомление автору {creator.id}: {e}")
             # Fallback - отправляем в текущий чат, если не получилось в ЛС
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                text=f"✅ Мероприятие удалено (не удалось отправить уведомление в ЛС)"
+                text="✅ Мероприятие удалено (не удалось отправить уведомление в ЛС)"
             )
 
-        # Уведомляем участников
+        # Уведомляем участников (аналогично)
         participants = get_participants(context.bot_data["db_path"], event_id)
         for participant in participants:
             # Не уведомляем автора повторно
             if participant["user_id"] != creator.id:
                 try:
+                    participant_notification = (
+                        f"🚫 <b>Мероприятие отменено</b>\n\n"
+                        f"📢 <b>Название:</b> {event['description']}\n"
+                    )
+                    if event.get("date"):
+                        participant_notification += f"📅 <b>Дата:</b> {event['date']}\n"
+                    if event.get("time"):
+                        participant_notification += f"🕒 <b>Время:</b> {event['time']}\n"
+                    participant_notification += f"👤 <b>Автор:</b> {creator_name}\n"
+                    if chat_link:
+                        participant_notification += f"💬 <b>Чат:</b> <a href='{chat_link}'>{chat_name}</a>\n"
+                    else:
+                        participant_notification += f"💬 <b>Чат:</b> {chat_name}\n"
+                    if event_link:
+                        participant_notification += f"\n🔗 <a href='{event_link}'>Перейти к мероприятию</a>"
+
                     await context.bot.send_message(
                         chat_id=participant["user_id"],
-                        text=f"🚫 Мероприятие отменено\n\n"
-                             f"📢 Название: {event['description']}\n"
-                             f"📅 Дата: {event['date']}\n"
-                             f"🕒 Время: {event['time']}\n"
-                             f"👤 Автор: {creator_name}\n"
-                             f"💬 Чат: {chat_name}"
-                             f"{message_link}"
+                        text=participant_notification,
+                        parse_mode="HTML"
                     )
                 except Exception as e:
                     logger.warning(f"Не удалось уведомить участника {participant['user_id']}: {e}")
