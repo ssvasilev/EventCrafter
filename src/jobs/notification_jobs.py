@@ -185,21 +185,18 @@ def remove_existing_job(event_id: int, context: ContextTypes.DEFAULT_TYPE):
     """
     db_path = context.bot_data["db_path"]
 
-    # Получаем ID старой задачи из базы
-    job_id = get_scheduled_job_id(db_path, event_id)
-    if job_id:
-        # Удаляем задачу из JobQueue
-        jobs = context.job_queue.get_jobs_by_name(str(event_id))
-        if jobs:
-            for job in jobs:
-                job.schedule_removal()
-                logger.info(f"Удалена старая задача {job.id} для мероприятия {event_id}")
+    # Удаляем задачу из JobQueue по корректному имени
+    jobs = context.job_queue.get_jobs_by_name(f"unpin_delete_{event_id}")
+    if jobs:
+        for job in jobs:
+            job.schedule_removal()
+            logger.info(f"Удалена старая задача {job.id} для мероприятия {event_id}")
 
-        # Удаляем запись из базы
-        delete_scheduled_job(db_path, event_id)
-        logger.info(f"Задача для мероприятия {event_id} удалена из базы данных.")
+        # Удаляем запись из базы по типу задачи
+        delete_scheduled_job(db_path, event_id, job_type="unpin_delete")
+        logger.info(f"Задача unpin_delete для мероприятия {event_id} удалена из базы данных.")
     else:
-        logger.warning(f"Задача для мероприятия {event_id} не найдена в базе данных.")
+        logger.warning(f"Задача unpin_delete для мероприятия {event_id} не найдена в очереди.")
 
 
 def remove_existing_notification_jobs(event_id: int, context: ContextTypes.DEFAULT_TYPE):
@@ -210,11 +207,12 @@ def remove_existing_notification_jobs(event_id: int, context: ContextTypes.DEFAU
     """
     db_path = context.bot_data["db_path"]
 
-    # Удаляем задачи из JobQueue
-    jobs = context.job_queue.get_jobs_by_name(f"notification_{event_id}")
-    for job in jobs:
-        job.schedule_removal()
-        logger.info(f"Удалена задача напоминания {job.id} для мероприятия {event_id}")
+    # Удаляем задачи из JobQueue по корректным именам
+    for name in (f"notification_{event_id}_day", f"notification_{event_id}_minutes"):
+        jobs = context.job_queue.get_jobs_by_name(name)
+        for job in jobs:
+            job.schedule_removal()
+            logger.info(f"Удалена задача напоминания {job.id} для мероприятия {event_id}")
 
     # Удаляем задачи из базы данных
     delete_scheduled_job(db_path, event_id, job_type="notification_day")
